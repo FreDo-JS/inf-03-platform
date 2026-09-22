@@ -1,0 +1,14 @@
+node_modules/
+.next/
+out/
+build/
+*.tsbuildinfo
+next-env.d.ts
+.vercel
+
+# sekrety — nigdy nie commitować
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
