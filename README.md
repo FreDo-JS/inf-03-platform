@@ -14,6 +14,8 @@ Stack: Next.js 15 (App Router) · TypeScript (strict) · Tailwind CSS · Supabas
    - `supabase/003_subtopic_links.sql` — materiały (linki) przy podtematach, zarządzane w panelu
    - `supabase/004_matching_questions.sql` — czwarty typ pytania: dopasowywanie par
    - `supabase/005_tab_switch.sql` — powód zakończenia testu i licznik zmian karty
+   - `supabase/006_practical.sql` — moduł Praktyka (zadania, sesje, prace)
+   - `supabase/007_practical_seed.sql` — przykładowe zadanie praktyczne „Rowerownia”
 
    Masz już bazę z poprzedniej wersji? Uruchom brakujące migracje (`002…`, `003…`) — nic nie nadpisują,
    a ponowne uruchomienie niczego nie duplikuje.
@@ -67,6 +69,10 @@ supabase/          schema.sql, seed.sql
 | Materiały (`subtopic_links`) | RLS: odczyt publiczny, zapis tylko dla zalogowanych; `href` tylko dla http(s) (CHECK w bazie + `safeLinkUrl` w UI) |
 | `next.config.ts` | CSP, HSTS, `X-Frame-Options: DENY`, `nosniff`; `connect-src` tylko https/wss do Supabase |
 | `middleware.ts` | sesja weryfikowana przez `getUser()`; `/admin` bez sesji → `/admin/login` |
+| Moduł Praktyka (RLS) | anon **nie ma** dostępu do żadnej tabeli modułu — tylko funkcje `SECURITY DEFINER` z tokenem podejścia (hash SHA-256 w bazie, token w `sessionStorage`) |
+| Praktyka: limity | 10 prób PIN-u na minutę z IP, nazwy plików z listy zadania, 200 KB na plik i 1 MB na projekt, limit zdarzeń na podejście |
+| Uruchamianie kodu ucznia | iframe `sandbox` bez `allow-same-origin`, komunikacja tylko przez `postMessage` ze sprawdzaniem źródła; w panelu kod pokazujemy w Monaco (read-only) |
+| Eksport CSV | wartości zaczynające się od `=`, `+`, `-`, `@` poprzedzone apostrofem (formula injection) |
 
 **Odstępstwo od specyfikacji:** migracja 002 usuwa politykę `"anyone can submit attempt"`.
 Pozwalała ona wstawić dowolny wynik bezpośrednio przez API, z pominięciem PIN-u i oceniania.
@@ -92,6 +98,46 @@ Pozwalała ona wstawić dowolny wynik bezpośrednio przez API, z pominięciem PI
   ⚠️ To wykrywa tylko przełączenie karty lub okna w tej samej przeglądarce. Nie wykryje telefonu obok,
   drugiego monitora ani okna ustawionego w trybie podzielonego ekranu — traktuj to jako sygnał do
   sprawdzenia, nie jako dowód ściągania.
+
+## Praktyka — symulator części praktycznej (HTML/CSS/JS)
+
+Osobny moduł: nauczyciel uruchamia sesję z zadaniem, uczeń pracuje w webowym IDE, a ocena
+powstaje w dwóch krokach — testy automatyczne, potem weryfikacja nauczyciela.
+
+**Nauczyciel (Admin):**
+1. *Zadania praktyczne* — kreator: treść arkusza w Markdown, pliki startowe, rozwiązanie wzorcowe,
+   kryteria oceniane ręcznie i **deklaratywne testy automatyczne** (formularz, nie kod).
+   Przycisk „Sprawdź na wzorcu" musi dać komplet zaliczonych testów, zanim zadanie da się oznaczyć jako gotowe.
+2. *Sesje* — wybór zadania, klasy, czasu (domyślnie 150 min), progu zaliczenia i wklejania.
+   Sesja dostaje 6-cyfrowy PIN i przechodzi: poczekalnia → trwa → zakończona. Czas startuje jednym
+   kliknięciem dla całej klasy (zegar serwera). Tabela na żywo: kto dołączył, kiedy ostatnio zapisał,
+   ile zmian karty i dużych wklejeń, czy oddał.
+3. *Prace* — podgląd plików (Monaco tylko do odczytu) i działającej strony, uruchomienie testów,
+   korekta wyniku testu (z wymaganym uzasadnieniem; oryginał automatu zostaje), punkty za kryteria
+   ręczne, komentarz, publikacja i eksport CSV.
+
+**Uczeń:** `/praktyka` → PIN i imię → poczekalnia → tryb pełnoekranowy → IDE (arkusz | edytor | podgląd).
+Kod zapisuje się sam (3 s po przerwie w pisaniu i co 30 s), odświeżenie strony wraca do pracy.
+Po oddaniu dostaje link z tokenem — wynik pojawia się tam dopiero po publikacji przez nauczyciela.
+
+**Jak to jest uruchamiane i oceniane**
+- Podgląd i testy działają w `<iframe sandbox="allow-scripts allow-forms">` **bez** `allow-same-origin`,
+  z treścią w `srcdoc`. Odwołania do `styl.css`, `skrypt.js` i linki do innych stron projektu
+  podmieniamy na treść inline, bo w iframe nie ma serwera plików.
+- Testy automatyczne uruchamia **przeglądarka nauczyciela** (nie uczeń — mógłby podmienić wynik;
+  i nie serwer — po co uruchamiać cudzy kod na serwerze). Każdy test dostaje świeży iframe i 5 s limitu.
+- Typy testów w tej wersji: `file_not_empty`, `selector_count`, `selector_text`, `selector_attribute`,
+  `css_computed`, `html_lang_doctype`, `interaction`. Typy `sql_*` i `php_output` dojdą z etapem PHP.
+- Procent liczy baza (`practical_recalc`): punkty automatyczne po korektach + ręczne / maksimum.
+- **Żadnej oceny przez AI.**
+
+**Nadzór nad uczniem** — ten sam hook co w module Testy, rozszerzony o pełny ekran: pierwsza zmiana
+karty lub wyjście z pełnego ekranu daje ostrzeżenie, druga oddaje pracę (`ended_reason = 'tab_switch'`).
+Duże wklejenia (≥200 znaków) trafiają do dziennika: długość, plik i czas — **bez treści**.
+Zegar nie zatrzymuje się na czas ostrzeżenia.
+
+⚠️ To wszystko są sygnały dla nauczyciela, nie blokada ściągania: nie wykryjemy telefonu obok ani
+drugiego komputera. Pełną kontrolę daje Safe Exam Browser (tu nieintegrowany).
 
 ## Materiały przy podtematach
 
