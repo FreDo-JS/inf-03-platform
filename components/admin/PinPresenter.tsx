@@ -5,14 +5,16 @@ import { useEffect, useRef } from "react";
 type Props = {
   title: string;
   pin: string;
+  /** ścieżka, którą mają wpisać uczniowie (domyślnie lista testów) */
+  path?: string;
   onClose: () => void;
 };
 
 /** Pełnoekranowy PIN do wyświetlenia na rzutniku (jak w Kahoot). */
-export function PinPresenter({ title, pin, onClose }: Props) {
+export function PinPresenter({ title, pin, path = "/testy", onClose }: Props) {
   const closeRef = useRef<HTMLButtonElement>(null);
   // Krótki adres do przepisania z rzutnika — uczeń wybiera test z listy.
-  const url = typeof window !== "undefined" ? `${window.location.host}/testy` : "";
+  const url = typeof window !== "undefined" ? `${window.location.host}${path}` : "";
 
   useEffect(() => {
     closeRef.current?.focus();

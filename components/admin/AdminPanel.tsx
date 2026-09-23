@@ -4,6 +4,9 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { getBrowserSupabase } from "@/lib/supabase/client";
 import type { CategoryRow, ProgressRow, SubtopicRow } from "@/types/db";
+import { PracticalSessionsTab } from "./practical/PracticalSessionsTab";
+import { PracticalTasksTab } from "./practical/PracticalTasksTab";
+import { PracticalWorksTab } from "./practical/PracticalWorksTab";
 import { LinksTab } from "./LinksTab";
 import { NewTestTab } from "./NewTestTab";
 import { ProgressTab } from "./ProgressTab";
@@ -16,6 +19,9 @@ const TABS = [
   { id: "tests", label: "📝 Testy i PIN-y" },
   { id: "new", label: "➕ Nowy test" },
   { id: "results", label: "🏆 Wyniki" },
+  { id: "ptasks", label: "🧩 Zadania praktyczne" },
+  { id: "psessions", label: "🎬 Sesje" },
+  { id: "pworks", label: "📂 Prace" },
 ] as const;
 type TabId = (typeof TABS)[number]["id"];
 
@@ -78,6 +84,9 @@ export function AdminPanel({ email, categories, subtopics, initialProgress }: Pr
         {tab === "tests" && <TestsTab />}
         {tab === "new" && <NewTestTab />}
         {tab === "results" && <ResultsTab />}
+        {tab === "ptasks" && <PracticalTasksTab />}
+        {tab === "psessions" && <PracticalSessionsTab />}
+        {tab === "pworks" && <PracticalWorksTab />}
       </div>
     </div>
   );
