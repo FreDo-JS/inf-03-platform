@@ -4,7 +4,15 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { friendlyError } from "@/lib/errors";
 import { getBrowserSupabase } from "@/lib/supabase/client";
 import { formatDuration } from "@/lib/tests";
-import type { AttemptRow } from "@/types/db";
+import type { AttemptRow, EndedReason } from "@/types/db";
+
+// Powód zakończenia podejścia. „Zmiana karty" to sygnał do sprawdzenia,
+// nie dowód ściągania — wykrywa tylko przełączenie karty w tej przeglądarce.
+const REASON: Record<EndedReason, { label: string; className: string }> = {
+  completed: { label: "ukończony", className: "border-line text-muted" },
+  time_up: { label: "koniec czasu", className: "border-warn/50 text-warn" },
+  tab_switch: { label: "zmiana karty", className: "border-danger/60 bg-danger/10 text-danger" },
+};
 
 const PAGE_LIMIT = 1000;
 
@@ -19,7 +27,7 @@ export function ResultsTab() {
     setError(null);
     const { data, error: dbError } = await getBrowserSupabase()
       .from("attempts")
-      .select("id, test_id, test_title, student_name, score, total, duration_sec, created_at")
+      .select("id, test_id, test_title, student_name, score, total, duration_sec, created_at, ended_reason, tab_switch_count")
       .order("created_at", { ascending: false })
       .limit(PAGE_LIMIT);
     setLoading(false);
@@ -75,13 +83,17 @@ export function ResultsTab() {
         <p className="card p-6 text-muted">Brak wyników.</p>
       ) : (
         <div className="card overflow-x-auto">
-          <table className="w-full min-w-[640px] text-left text-sm">
+          <table className="w-full min-w-[820px] text-left text-sm">
             <thead className="border-b border-white/[0.06] bg-white/[0.02] font-mono text-[11px] uppercase tracking-[0.12em] text-muted">
               <tr>
                 <th className="px-4 py-3">Imię</th>
                 <th className="px-4 py-3">Test</th>
                 <th className="px-4 py-3 text-right">Wynik</th>
                 <th className="px-4 py-3 text-right">Czas</th>
+                <th className="px-4 py-3">Zakończenie</th>
+                <th className="px-4 py-3 text-right" title="Ile razy uczeń opuścił kartę w trakcie podejścia">
+                  Zmiany karty
+                </th>
                 <th className="px-4 py-3">Data</th>
               </tr>
             </thead>
@@ -103,6 +115,18 @@ export function ResultsTab() {
                       {r.score}/{r.total}
                     </td>
                     <td className="px-4 py-3 text-right font-mono text-muted">{formatDuration(r.duration_sec)}</td>
+                    <td className="px-4 py-3">
+                      <span className={`chip ${(REASON[r.ended_reason] ?? REASON.completed).className}`}>
+                        {(REASON[r.ended_reason] ?? REASON.completed).label}
+                      </span>
+                    </td>
+                    <td
+                      className={`px-4 py-3 text-right font-mono ${
+                        r.tab_switch_count > 0 ? "font-semibold text-danger" : "text-muted"
+                      }`}
+                    >
+                      {r.tab_switch_count}
+                    </td>
                     <td className="whitespace-nowrap px-4 py-3 font-mono text-xs text-muted">
                       {new Date(r.created_at).toLocaleString("pl-PL", { dateStyle: "short", timeStyle: "short" })}
                     </td>

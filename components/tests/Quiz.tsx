@@ -1,8 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ProgressBar } from "@/components/ProgressBar";
 import { friendlyError, isDuplicateAttempt } from "@/lib/errors";
+import { useTabSwitchGuard } from "@/lib/hooks/useTabSwitchGuard";
+import { shuffle } from "@/lib/shuffle";
 import { getBrowserSupabase } from "@/lib/supabase/client";
 import { formatDuration, pluralPytania } from "@/lib/tests";
 import {
@@ -14,7 +17,9 @@ import {
   validatePin,
   validateStudentName,
 } from "@/lib/validation";
-import type { OpenedTest, SubmitResult } from "@/types/db";
+import type { EndedReason, OpenedTest, QuizAnswer, SubmitResult } from "@/types/db";
+import { MatchingQuestionView } from "./MatchingQuestionView";
+import { TabSwitchWarning } from "./TabSwitchWarning";
 import { PinInput } from "./PinInput";
 
 type Props = {
@@ -36,6 +41,16 @@ const OPTION_STYLES = [
 
 const SESSION_ERRORS = ["session_invalid", "session_used", "session_expired"];
 
+const TYPE_HINT: Record<string, string> = {
+  closed: "wybierz jedną",
+  select: "wybierz z listy",
+  input: "wpisz odpowiedź",
+  matching: "dopasuj pary",
+};
+
+const isAnswered = (a: QuizAnswer | undefined): boolean =>
+  Array.isArray(a) ? a.some((x) => x !== null && x !== "") : typeof a === "string" && a.trim() !== "";
+
 export function Quiz({ testId, title, timeLimitSec, questionCount }: Props) {
   const [phase, setPhase] = useState<Phase>("pin");
   const [test, setTest] = useState<OpenedTest | null>(null);
@@ -53,8 +68,12 @@ export function Quiz({ testId, title, timeLimitSec, questionCount }: Props) {
   const [studentName, setStudentName] = useState("");
 
   // przebieg
-  const [answers, setAnswers] = useState<(string | null)[]>([]);
-  const [current, setCurrent] = useState(0);
+  const [answers, setAnswers] = useState<QuizAnswer[]>([]);
+  /** kolejność pytań na to podejście (indeksy w test.questions), tasowana przy starcie */
+  const [order, setOrder] = useState<number[]>([]);
+  /** potasowana prawa kolumna pytań matching, klucz = indeks pytania w test.questions */
+  const [rightColumns, setRightColumns] = useState<Record<number, string[]>>({});
+  const [step, setStep] = useState(0);
   const [remaining, setRemaining] = useState(timeLimitSec);
   const [result, setResult] = useState<SubmitResult | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -65,6 +84,8 @@ export function Quiz({ testId, title, timeLimitSec, questionCount }: Props) {
   const startedAtRef = useRef(0);
   const submittingRef = useRef(false);
   const submittedRef = useRef(false);
+  const tabSwitchesRef = useRef(0);
+  const lastReasonRef = useRef<EndedReason>("completed");
 
   useEffect(() => {
     answersRef.current = answers;
@@ -109,12 +130,19 @@ export function Quiz({ testId, title, timeLimitSec, questionCount }: Props) {
         return;
       }
       setTest(parsed.value);
-      setAnswers(Array<string | null>(parsed.value.questions.length).fill(null));
-      setCurrent(0);
+      setAnswers(Array<QuizAnswer>(parsed.value.questions.length).fill(null));
+      setStep(0);
       setPhase("name");
     },
     [checkingPin, testId],
   );
+
+  const resetToPin = (msg: string) => {
+    setTest(null);
+    setPin("");
+    setPinError(msg);
+    setPhase("pin");
+  };
 
   // ------------------------------------------------------------ 2. imię + start
   const start = async (e: React.FormEvent) => {
@@ -146,29 +174,36 @@ export function Quiz({ testId, title, timeLimitSec, questionCount }: Props) {
       setNameError("Nie udało się rozpocząć testu.");
       return;
     }
+
+    // Tasowanie na czas tego podejścia (Fisher–Yates). Dane testu w bazie zostają
+    // bez zmian, odpowiedzi trzymamy pod oryginalnymi indeksami pytań.
+    setOrder(shuffle(test.questions.map((_, i) => i)));
+    const columns: Record<number, string[]> = {};
+    test.questions.forEach((q, i) => {
+      if (q.type === "matching") columns[i] = shuffle(q.right);
+    });
+    setRightColumns(columns);
+
     setStudentName(name);
     startedAtRef.current = Date.now();
     setRemaining(test.timeLimitSec);
+    setStep(0);
     setPhase("running");
   };
 
-  const resetToPin = (msg: string) => {
-    setTest(null);
-    setPin("");
-    setPinError(msg);
-    setPhase("pin");
-  };
-
   // ------------------------------------------------------------ 3. wysłanie
-  const submit = useCallback(async () => {
+  const submit = useCallback(async (reason: EndedReason = "completed") => {
     if (!test || submittingRef.current || submittedRef.current) return;
     submittingRef.current = true;
+    lastReasonRef.current = reason;
     setPhase("submitting");
     setErrorMsg(null);
 
     const { data, error } = await getBrowserSupabase().rpc("submit_attempt", {
       p_session_id: test.sessionId,
       p_answers: sanitizeAnswers(answersRef.current, test.questions.length),
+      p_ended_reason: reason,
+      p_tab_switches: tabSwitchesRef.current,
     });
     submittingRef.current = false;
 
@@ -192,6 +227,21 @@ export function Quiz({ testId, title, timeLimitSec, questionCount }: Props) {
     setPhase("done");
   }, [test]);
 
+  // Wykrywanie zmiany karty: 1. wyjście → ostrzeżenie po powrocie,
+  // 2. wyjście → natychmiastowy koniec testu (bez czekania na powrót).
+  const { countRef: tabCountRef, showWarning, dismissWarning } = useTabSwitchGuard({
+    active: phase === "running",
+    onLimitExceeded: (count) => {
+      tabSwitchesRef.current = count;
+      void submit("tab_switch");
+    },
+  });
+
+  // licznik trzymamy też w refie widocznym dla submit()
+  useEffect(() => {
+    tabSwitchesRef.current = tabCountRef.current;
+  });
+
   // Odliczanie od znacznika startu (odporne na usypianie kart w tle).
   useEffect(() => {
     if (phase !== "running") return;
@@ -200,7 +250,7 @@ export function Quiz({ testId, title, timeLimitSec, questionCount }: Props) {
       setRemaining(Math.max(0, left));
       if (left <= 0) {
         setTimedOut(true);
-        void submit();
+        void submit("time_up");
       }
     };
     tick();
@@ -208,6 +258,8 @@ export function Quiz({ testId, title, timeLimitSec, questionCount }: Props) {
     return () => window.clearInterval(id);
   }, [phase, limitSec, submit]);
 
+  // Ostrzeżenie przed opuszczeniem strony — wyjście przerywa podejście
+  // (stanu połowicznego testu nie zapisujemy).
   useEffect(() => {
     if (phase !== "running") return;
     const onBeforeUnload = (e: BeforeUnloadEvent) => e.preventDefault();
@@ -215,12 +267,15 @@ export function Quiz({ testId, title, timeLimitSec, questionCount }: Props) {
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
   }, [phase]);
 
-  const setAnswer = (value: string | null) =>
+  const questionIndex = order[step] ?? 0;
+  const setAnswer = (value: QuizAnswer) =>
     setAnswers((prev) => {
       const next = [...prev];
-      next[current] = value;
+      next[questionIndex] = value;
       return next;
     });
+
+  const answeredCount = useMemo(() => answers.filter(isAnswered).length, [answers]);
 
   const header = (
     <div className="text-center">
@@ -267,7 +322,11 @@ export function Quiz({ testId, title, timeLimitSec, questionCount }: Props) {
             <div className="mt-4 min-h-[1.5rem] text-center" aria-live="polite">
               {pinError && <p className="text-sm text-danger">{pinError}</p>}
             </div>
-            <button type="submit" className="btn-primary mt-2 w-full py-3" disabled={checkingPin || pin.length !== LIMITS.pinLength}>
+            <button
+              type="submit"
+              className="btn-primary mt-2 w-full py-3"
+              disabled={checkingPin || pin.length !== LIMITS.pinLength}
+            >
               {checkingPin ? "Sprawdzanie…" : "Dalej →"}
             </button>
           </form>
@@ -321,8 +380,8 @@ export function Quiz({ testId, title, timeLimitSec, questionCount }: Props) {
               {starting ? "Startowanie…" : "Rozpocznij test ▶"}
             </button>
           </form>
-          <p className="mt-4 text-center text-xs text-muted">
-            Czas liczy się od kliknięcia. Po jego upływie test zakończy się automatycznie.
+          <p className="mt-4 text-center text-xs leading-relaxed text-muted">
+            Czas liczy się od kliknięcia. Pytania są w losowej kolejności, a do poprzedniego pytania nie można wrócić.
           </p>
         </div>
       </div>
@@ -337,8 +396,19 @@ export function Quiz({ testId, title, timeLimitSec, questionCount }: Props) {
     const verdict = pct >= 75 ? "Świetnie! 🎉" : pct >= 50 ? "Nieźle, tak trzymaj 💪" : "Warto powtórzyć materiał 📚";
     return (
       <div className="mx-auto max-w-2xl animate-fade-up space-y-4">
+        {result.endedReason === "tab_switch" && (
+          <div className="alert-error text-center font-medium" role="alert">
+            Test zakończony automatycznie — wykryto zmianę karty. Pytania bez odpowiedzi zostały policzone jako błędne.
+          </div>
+        )}
         <div className="card p-6 text-center sm:p-8">
-          <p className="eyebrow">{timedOut ? "// czas minął" : "// test zakończony"}</p>
+          <p className="eyebrow">
+            {result.endedReason === "tab_switch"
+              ? "// zakończony automatycznie"
+              : result.endedReason === "time_up" || timedOut
+                ? "// czas minął"
+                : "// test zakończony"}
+          </p>
           <div className="relative mx-auto mt-5 h-36 w-36">
             <svg viewBox="0 0 120 120" className="h-full w-full -rotate-90">
               <defs>
@@ -372,11 +442,15 @@ export function Quiz({ testId, title, timeLimitSec, questionCount }: Props) {
           <p className="mt-1 text-muted">
             {studentName} · czas {formatDuration(result.durationSec)}
           </p>
+          {result.tabSwitchCount > 0 && (
+            <p className="mt-2 text-sm text-warn">Opuszczenia karty w trakcie testu: {result.tabSwitchCount}</p>
+          )}
         </div>
 
         <ol className="card divide-y divide-white/[0.06] overflow-hidden">
           {test.questions.map((q, i) => {
             const ok = result.results[i] === true;
+            const given = answers[i];
             return (
               <li key={i} className="flex items-start gap-3 p-4 sm:p-5">
                 <span
@@ -391,9 +465,22 @@ export function Quiz({ testId, title, timeLimitSec, questionCount }: Props) {
                 <div className="min-w-0">
                   <p className="font-mono text-xs text-muted">pytanie {i + 1}</p>
                   <p className="mt-0.5 break-words leading-snug">{q.text}</p>
-                  <p className="mt-1.5 break-words text-sm text-muted">
-                    Twoja odpowiedź: <span className={ok ? "text-accent" : "text-fg"}>{answers[i] ?? "— brak —"}</span>
-                  </p>
+                  {q.type === "matching" ? (
+                    <ul className="mt-1.5 space-y-0.5 text-sm text-muted">
+                      {q.left.map((leftItem, li) => (
+                        <li key={leftItem} className="break-words">
+                          {leftItem} → <span className="text-fg">{(Array.isArray(given) && given[li]) || "— brak —"}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="mt-1.5 break-words text-sm text-muted">
+                      Twoja odpowiedź:{" "}
+                      <span className={ok ? "text-accent" : "text-fg"}>
+                        {typeof given === "string" && given !== "" ? given : "— brak —"}
+                      </span>
+                    </p>
+                  )}
                 </div>
               </li>
             );
@@ -418,7 +505,7 @@ export function Quiz({ testId, title, timeLimitSec, questionCount }: Props) {
         <p className="mt-1 text-muted">{errorMsg}</p>
         <div className="mt-6 flex flex-wrap justify-center gap-3">
           {canRetry && (
-            <button type="button" className="btn-primary" onClick={() => void submit()}>
+            <button type="button" className="btn-primary" onClick={() => void submit(lastReasonRef.current)}>
               Spróbuj ponownie
             </button>
           )}
@@ -432,17 +519,18 @@ export function Quiz({ testId, title, timeLimitSec, questionCount }: Props) {
 
   // ================================================================ PYTANIA
   if (!test) return null;
-  const q = test.questions[current];
+  const q = test.questions[questionIndex];
   if (!q) return null;
-  const answer = answers[current] ?? null;
-  const isLast = current === total - 1;
-  const answeredCount = answers.filter((a) => a !== null && a.trim() !== "").length;
+  const answer = answers[questionIndex] ?? null;
+  const isLast = step === total - 1;
   const lowTime = remaining <= 30;
   const busy = phase === "submitting";
   const timePct = limitSec > 0 ? (remaining / limitSec) * 100 : 0;
 
   return (
     <div className="mx-auto max-w-3xl space-y-4">
+      {showWarning && <TabSwitchWarning onConfirm={dismissWarning} />}
+
       {/* pasek: tytuł + zegar */}
       <div className="card overflow-hidden">
         <div className="flex items-center justify-between gap-3 p-4">
@@ -468,46 +556,16 @@ export function Quiz({ testId, title, timeLimitSec, questionCount }: Props) {
         </div>
       </div>
 
-      {/* nawigacja po pytaniach */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap gap-1.5" aria-label="Pytania">
-          {test.questions.map((_, i) => {
-            const answered = answers[i] !== null && answers[i]?.trim() !== "";
-            return (
-              <button
-                key={i}
-                type="button"
-                disabled={busy}
-                onClick={() => setCurrent(i)}
-                aria-label={`Pytanie ${i + 1}${answered ? " (odpowiedziano)" : ""}`}
-                aria-current={i === current ? "step" : undefined}
-                className={`h-8 w-8 rounded-lg font-mono text-xs font-semibold transition ${
-                  i === current
-                    ? "bg-gradient-to-br from-accent to-accent2 text-bg shadow-glow"
-                    : answered
-                      ? "border border-accent/40 bg-accent/10 text-accent"
-                      : "border border-line bg-white/[0.02] text-muted hover:text-fg"
-                }`}
-              >
-                {i + 1}
-              </button>
-            );
-          })}
-        </div>
-        <span className="chip">
-          odpowiedzi: {answeredCount}/{total}
-        </span>
-      </div>
+      {/* postęp — bez nawigacji wstecz: do poprzednich pytań nie można wrócić */}
+      <ProgressBar value={step + 1} max={total} label={`pytanie ${step + 1} z ${total}`} size="sm" />
 
       {/* pytanie */}
-      <div key={current} className="card animate-fade-up p-5 sm:p-8">
+      <div key={step} className="card animate-fade-up p-5 sm:p-8">
         <div className="flex items-center justify-between gap-2">
           <span className="eyebrow">
-            pytanie {current + 1} z {total}
+            pytanie {step + 1} z {total}
           </span>
-          <span className="chip">
-            {q.type === "closed" ? "wybierz jedną" : q.type === "select" ? "wybierz z listy" : "wpisz odpowiedź"}
-          </span>
+          <span className="chip">{TYPE_HINT[q.type]}</span>
         </div>
         <h2 className="mt-4 break-words text-xl font-semibold leading-snug sm:text-2xl">{q.text}</h2>
 
@@ -548,7 +606,7 @@ export function Quiz({ testId, title, timeLimitSec, questionCount }: Props) {
           {q.type === "select" && (
             <select
               className="input py-3 text-base"
-              value={answer ?? ""}
+              value={typeof answer === "string" ? answer : ""}
               disabled={busy}
               onChange={(e) => setAnswer(e.target.value === "" ? null : e.target.value)}
               aria-label="Wybierz odpowiedź"
@@ -565,16 +623,10 @@ export function Quiz({ testId, title, timeLimitSec, questionCount }: Props) {
           {q.type === "input" && (
             <input
               className="input py-3 font-mono text-lg"
-              value={answer ?? ""}
+              value={typeof answer === "string" ? answer : ""}
               disabled={busy}
               maxLength={LIMITS.answer.max}
               onChange={(e) => setAnswer(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !isLast) {
-                  e.preventDefault();
-                  setCurrent((c) => Math.min(total - 1, c + 1));
-                }
-              }}
               placeholder="wpisz odpowiedź…"
               autoComplete="off"
               autoCapitalize="off"
@@ -583,28 +635,38 @@ export function Quiz({ testId, title, timeLimitSec, questionCount }: Props) {
               aria-label="Twoja odpowiedź"
             />
           )}
+
+          {q.type === "matching" && (
+            <MatchingQuestionView
+              question={q}
+              right={rightColumns[questionIndex] ?? q.right}
+              value={
+                Array.isArray(answer) ? answer : Array.from({ length: q.left.length }, (): string | null => null)
+              }
+              onChange={(next) => setAnswer(next)}
+              disabled={busy}
+            />
+          )}
         </div>
       </div>
 
       <div className="flex items-center justify-between gap-3">
-        <button
-          type="button"
-          className="btn-ghost"
-          disabled={current === 0 || busy}
-          onClick={() => setCurrent((c) => Math.max(0, c - 1))}
-        >
-          ← Wstecz
-        </button>
+        <span className="chip">
+          odpowiedzi: {answeredCount}/{total}
+        </span>
         {isLast ? (
-          <button type="button" className="btn-primary px-6" disabled={busy} onClick={() => void submit()}>
+          <button type="button" className="btn-primary px-6" disabled={busy} onClick={() => void submit("completed")}>
             {busy ? "Zapisywanie…" : "Zakończ test ✓"}
           </button>
         ) : (
-          <button type="button" className="btn-primary px-6" disabled={busy} onClick={() => setCurrent((c) => c + 1)}>
+          <button type="button" className="btn-primary px-6" disabled={busy} onClick={() => setStep((s) => s + 1)}>
             Dalej →
           </button>
         )}
       </div>
+      <p className="text-center text-xs text-muted">
+        Po przejściu dalej nie można wrócić do poprzedniego pytania ani zmienić odpowiedzi.
+      </p>
     </div>
   );
 }

@@ -11,8 +11,12 @@ Stack: Next.js 15 (App Router) · TypeScript (strict) · Tailwind CSS · Supabas
    - `supabase/schema.sql` — tabele, RLS, CHECK-i, funkcje, realtime
    - `supabase/002_test_pin.sql` — PIN-y testów, sesje, ocenianie po stronie serwera
    - `supabase/seed.sql` — kategorie, podtematy i 3 przykładowe testy (PIN-y są losowane — zobaczysz je w panelu)
+   - `supabase/003_subtopic_links.sql` — materiały (linki) przy podtematach, zarządzane w panelu
+   - `supabase/004_matching_questions.sql` — czwarty typ pytania: dopasowywanie par
+   - `supabase/005_tab_switch.sql` — powód zakończenia testu i licznik zmian karty
 
-   Masz już bazę z poprzedniej wersji? Uruchom tylko `002_test_pin.sql` — istniejące testy dostaną losowe PIN-y.
+   Masz już bazę z poprzedniej wersji? Uruchom brakujące migracje (`002…`, `003…`) — nic nie nadpisują,
+   a ponowne uruchomienie niczego nie duplikuje.
 2. **Auth** (Authentication → Sign In / Providers):
    - ⚠️ **wyłącz „Allow new users to sign up”**. Każdy zalogowany użytkownik jest adminem,
      więc otwarta rejestracja = każdy może zostać adminem przez API.
@@ -56,11 +60,11 @@ supabase/          schema.sql, seed.sql
 | **CHECK constraints** | długości tekstów, klasa ∈ {2a,4e,4d}, `score ≤ total`, limit 60–7200 s, poprawna struktura JSON pytań |
 | **`test_keys`** (tylko admin) | poprawne odpowiedzi **nie** są w publicznej tabeli `tests` — nie da się ich podejrzeć w DevTools |
 | **PIN + sesja** (`open_test`, `begin_session`) | pytania dostępne dopiero po PIN-ie; kolumna `tests.questions` zablokowana dla anon (uprawnienia kolumnowe); limit prób PIN |
-| **`submit_attempt(session)`** (RPC) | ocena i pomiar czasu po stronie serwera, jeden zapis na sesję, sesja wygasa po limicie + 5 min |
+| **`submit_attempt(session)`** (RPC) | ocena i pomiar czasu po stronie serwera, jeden zapis na sesję, sesja wygasa po limicie + 5 min; powód zakończenia spoza listy → `completed`, licznik zmian karty przycięty do 0–1000 |
 | **`create_test()`** (RPC) | atomowy zapis testu + klucza, ponowna walidacja wszystkich pól w bazie |
 | `lib/validation.ts` | ta sama walidacja w UI i przed każdym wywołaniem Supabase |
 | React JSX | cały tekst użytkownika renderowany jako tekst; brak `dangerouslySetInnerHTML` (reguła ESLint `react/no-danger`) |
-| Linki do teorii/zadań | tylko `https://` (CHECK w bazie + `safeHttpsUrl` w UI) |
+| Materiały (`subtopic_links`) | RLS: odczyt publiczny, zapis tylko dla zalogowanych; `href` tylko dla http(s) (CHECK w bazie + `safeLinkUrl` w UI) |
 | `next.config.ts` | CSP, HSTS, `X-Frame-Options: DENY`, `nosniff`; `connect-src` tylko https/wss do Supabase |
 | `middleware.ts` | sesja weryfikowana przez `getUser()`; `/admin` bez sesji → `/admin/login` |
 
@@ -70,7 +74,38 @@ Pozwalała ona wstawić dowolny wynik bezpośrednio przez API, z pominięciem PI
 **Możliwy kolejny krok:** Supabase Edge Function z rate limitingiem per IP dla całego API
 (obecnie limit dotyczy prób PIN-u, a zapis wyniku jest możliwy raz na sesję).
 
+## Testy — zasady podejścia
+
+- **Cztery typy pytań:** jednokrotny wybór, lista rozwijana, pole tekstowe oraz
+  **dopasowywanie par** (przeciąganie myszą albo dwa dotknięcia: element → pole).
+  Pytanie z parami zalicza się tylko w komplecie, bez punktów częściowych.
+- **Losowa kolejność pytań** przy każdym podejściu (Fisher–Yates, tylko w pamięci przeglądarki).
+  Kolumna z odpowiedziami w pytaniach z parami też jest tasowana. Dane w `tests.questions` zostają bez zmian.
+- **Bez cofania:** nie ma przycisku „Wstecz", a po przejściu dalej odpowiedzi nie da się zmienić.
+  Cały quiz działa na jednym adresie, więc Wstecz w przeglądarce wychodzi z testu, a nie cofa pytanie.
+  Wyjście lub odświeżenie przerywa podejście — stanu w połowie nie zapisujemy.
+- **Zmiana karty:** pierwsze opuszczenie karty pokazuje po powrocie ostrzeżenie blokujące odpowiadanie
+  (zegar nie jest zatrzymywany). Drugie kończy test natychmiast, także gdy uczeń nie wróci; pytania bez
+  odpowiedzi liczą się jako błędne. W panelu widać kolumnę „Zakończenie" (ukończony / koniec czasu /
+  **zmiana karty**) i licznik opuszczeń karty.
+
+  ⚠️ To wykrywa tylko przełączenie karty lub okna w tej samej przeglądarce. Nie wykryje telefonu obok,
+  drugiego monitora ani okna ustawionego w trybie podzielonego ekranu — traktuj to jako sygnał do
+  sprawdzenia, nie jako dowód ściągania.
+
+## Materiały przy podtematach
+
+Każdy podtemat może mieć dowolną liczbę linków (teoria, zadania, film, arkusz…). Zarządza nimi
+**Admin → Materiały**: wybierasz podtemat, dodajesz, edytujesz, usuwasz i przestawiasz kolejność
+strzałkami. Zmiany widać u uczniów na żywo (Realtime na `subtopic_links`), bez redeployu.
+
+Etykieta: 1–120 znaków. Adres: musi zaczynać się od `http://` lub `https://` — sprawdza to
+formularz i `CHECK` w bazie, a `href` w widoku ucznia ustawiamy tylko dla adresów http(s),
+więc `javascript:` nie ma jak trafić do DOM.
+
+Migracja 003 przeniosła dotychczasowe `theory_url` / `tasks_url` do `subtopic_links` jako
+„Teoria” i „Zadania”. Stare kolumny zostały w bazie, ale aplikacja ich już nie używa.
+
 ## Edycja treści mapy
 
 Kategorie i podtematy są w tabelach `categories` / `subtopics` (edycja w Supabase Table Editor).
-Linki `theory_url` / `tasks_url` muszą zaczynać się od `https://` albo być puste.

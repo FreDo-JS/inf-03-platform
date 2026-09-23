@@ -5,6 +5,7 @@ import { friendlyError } from "@/lib/errors";
 import { getBrowserSupabase } from "@/lib/supabase/client";
 import {
   LIMITS,
+  emptyPair,
   emptyQuestion,
   parseCreateTestResult,
   validateTestDraft,
@@ -18,6 +19,7 @@ const TYPE_LABEL: Record<QuestionType, string> = {
   closed: "zamknięte (jednokrotny wybór)",
   select: "lista rozwijana",
   input: "pole tekstowe",
+  matching: "dopasowywanie (drag & drop)",
 };
 
 /** Losowy PIN po stronie klienta (crypto) — tylko podpowiedź, baza i tak waliduje format. */
@@ -67,9 +69,15 @@ export function NewTestTab() {
   const changeType = (i: number, type: QuestionType) =>
     updateQuestion(i, (q) => {
       if (type === q.type) return q;
-      if (type === "input") return { ...q, type, options: [], correctIndex: null, accepted: q.accepted.length ? q.accepted : [""] };
+      if (type === "input") {
+        return { ...q, type, options: [], correctIndex: null, accepted: q.accepted.length ? q.accepted : [""], pairs: [] };
+      }
+      if (type === "matching") {
+        return { ...q, type, options: [], correctIndex: null, accepted: [], pairs: q.pairs.length >= 2 ? q.pairs : [emptyPair(), emptyPair()] };
+      }
       const options = q.options.length >= 2 ? q.options : ["", ""];
-      return { ...q, type, options, correctIndex: q.type === "input" ? null : q.correctIndex, accepted: [] };
+      const keepCorrect = q.type === "closed" || q.type === "select";
+      return { ...q, type, options, correctIndex: keepCorrect ? q.correctIndex : null, accepted: [], pairs: [] };
     });
 
   const save = async (e: React.FormEvent) => {
@@ -266,7 +274,7 @@ function QuestionEditor({ index, count, question: q, errors, onChange, onType, o
             value={q.type}
             onChange={(e) => {
               const v = e.target.value;
-              if (v === "closed" || v === "select" || v === "input") onType(v);
+              if (v === "closed" || v === "select" || v === "input" || v === "matching") onType(v);
             }}
             aria-label="Typ pytania"
           >
@@ -311,7 +319,7 @@ function QuestionEditor({ index, count, question: q, errors, onChange, onType, o
         {q.text.length}/{LIMITS.questionText.max}
       </p>
 
-      {q.type !== "input" ? (
+      {q.type === "closed" || q.type === "select" ? (
         <fieldset className="mt-2">
           <legend className="label">Opcje — zaznacz poprawną</legend>
           <ul className="space-y-2">
@@ -363,6 +371,62 @@ function QuestionEditor({ index, count, question: q, errors, onChange, onType, o
           >
             + opcja
           </button>
+        </fieldset>
+      ) : q.type === "matching" ? (
+        <fieldset className="mt-2">
+          <legend className="label">Pary do dopasowania (lewa ↔ prawa)</legend>
+          <ul className="space-y-2">
+            {q.pairs.map((pair, pi) => (
+              <li key={pi} className="flex items-center gap-2">
+                <span className="w-5 shrink-0 font-mono text-xs text-muted">{pi + 1}.</span>
+                <input
+                  className="input py-1.5"
+                  value={pair.left}
+                  maxLength={LIMITS.pairSide.max}
+                  placeholder={`lewa ${pi + 1}`}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    onChange((x) => ({ ...x, pairs: x.pairs.map((p, k) => (k === pi ? { ...p, left: v } : p)) }));
+                  }}
+                  aria-label={`Lewa strona pary ${pi + 1}`}
+                />
+                <span className="shrink-0 text-muted" aria-hidden>
+                  ↔
+                </span>
+                <input
+                  className="input py-1.5"
+                  value={pair.right}
+                  maxLength={LIMITS.pairSide.max}
+                  placeholder={`prawa ${pi + 1}`}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    onChange((x) => ({ ...x, pairs: x.pairs.map((p, k) => (k === pi ? { ...p, right: v } : p)) }));
+                  }}
+                  aria-label={`Prawa strona pary ${pi + 1}`}
+                />
+                <button
+                  type="button"
+                  className="btn-ghost shrink-0 px-2 py-1"
+                  disabled={q.pairs.length <= LIMITS.pairs.min}
+                  aria-label={`Usuń parę ${pi + 1}`}
+                  onClick={() => onChange((x) => ({ ...x, pairs: x.pairs.filter((_, k) => k !== pi) }))}
+                >
+                  −
+                </button>
+              </li>
+            ))}
+          </ul>
+          <button
+            type="button"
+            className="btn-ghost mt-2 px-3 py-1 text-xs"
+            disabled={q.pairs.length >= LIMITS.pairs.max}
+            onClick={() => onChange((x) => ({ ...x, pairs: [...x.pairs, emptyPair()] }))}
+          >
+            + dodaj parę
+          </button>
+          <p className="mt-2 text-xs text-muted">
+            Uczeń zobaczy prawą kolumnę potasowaną i przeciąga ją na pasujące pola po lewej.
+          </p>
         </fieldset>
       ) : (
         <fieldset className="mt-2">

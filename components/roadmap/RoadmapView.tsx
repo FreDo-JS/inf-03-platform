@@ -4,20 +4,23 @@ import { useCallback, useMemo, useState } from "react";
 import { ClassTabs } from "@/components/ClassTabs";
 import { LiveBadge } from "@/components/LiveBadge";
 import { ProgressBar } from "@/components/ProgressBar";
+import { useRealtimeLinks } from "@/lib/hooks/useRealtimeLinks";
 import { progressKey, useRealtimeProgress } from "@/lib/hooks/useRealtimeProgress";
 import { useSelectedClass } from "@/lib/hooks/useSelectedClass";
-import type { CategoryRow, ProgressRow, SubtopicRow } from "@/types/db";
+import type { CategoryRow, ProgressRow, SubtopicLinkRow, SubtopicRow } from "@/types/db";
 import { CategoryModal } from "./CategoryModal";
 
 type Props = {
   categories: CategoryRow[];
   subtopics: SubtopicRow[];
   initialProgress: Pick<ProgressRow, "class_name" | "subtopic_id">[];
+  initialLinks: SubtopicLinkRow[];
 };
 
-export function RoadmapView({ categories, subtopics, initialProgress }: Props) {
+export function RoadmapView({ categories, subtopics, initialProgress, initialLinks }: Props) {
   const [cls, setCls] = useSelectedClass();
   const { done, status } = useRealtimeProgress(initialProgress);
+  const { bySubtopic } = useRealtimeLinks(initialLinks);
   const [openId, setOpenId] = useState<string | null>(null);
   const closeModal = useCallback(() => setOpenId(null), []);
 
@@ -123,6 +126,7 @@ export function RoadmapView({ categories, subtopics, initialProgress }: Props) {
           category={openCategory}
           subtopics={byCategory.get(openCategory.id) ?? []}
           isDone={(id) => done.has(progressKey(cls, id))}
+          linksBySubtopic={bySubtopic}
           className={cls}
           onClose={closeModal}
         />

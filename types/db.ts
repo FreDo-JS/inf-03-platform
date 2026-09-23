@@ -5,14 +5,25 @@ export type Json = string | number | boolean | null | { [key: string]: Json | un
 export const CLASS_NAMES = ["2a", "4e", "4d"] as const;
 export type ClassName = (typeof CLASS_NAMES)[number];
 
-export type QuestionType = "closed" | "select" | "input";
+export type QuestionType = "closed" | "select" | "input" | "matching";
 
 /** Pytanie w postaci publicznej (bez poprawnej odpowiedzi). */
 export type ChoiceQuestion = { type: "closed" | "select"; text: string; options: string[] };
 export type InputQuestion = { type: "input"; text: string };
-export type PublicQuestion = ChoiceQuestion | InputQuestion;
+/** Dopasowywanie par. Kolumna "right" jest zapisana w losowej kolejności — nie zdradza par. */
+export type MatchingQuestion = { type: "matching"; text: string; left: string[]; right: string[] };
+export type PublicQuestion = ChoiceQuestion | InputQuestion | MatchingQuestion;
 
-/** Klucz odpowiedzi: dla każdego pytania lista akceptowanych odpowiedzi. */
+/**
+ * Odpowiedź ucznia na jedno pytanie: napis (closed/select/input) albo —
+ * dla matching — wartości z prawej kolumny w kolejności lewej.
+ */
+export type QuizAnswer = string | null | (string | null)[];
+
+/**
+ * Klucz odpowiedzi. Dla closed/select/input: lista akceptowanych odpowiedzi.
+ * Dla matching: wartości prawej kolumny w kolejności lewej.
+ */
 export type AnswerKeys = string[][];
 
 export type ProgressRow = {
@@ -37,6 +48,15 @@ export type SubtopicRow = {
   tasks_url: string | null;
 };
 
+export type SubtopicLinkRow = {
+  id: string;
+  subtopic_id: string;
+  label: string;
+  url: string;
+  sort_order: number;
+  created_at: string;
+};
+
 export type TestRow = {
   id: string;
   title: string;
@@ -47,6 +67,9 @@ export type TestRow = {
   created_by: string | null;
 };
 
+/** Powód zakończenia podejścia. */
+export type EndedReason = "completed" | "time_up" | "tab_switch";
+
 export type AttemptRow = {
   id: string;
   test_id: string | null;
@@ -56,6 +79,9 @@ export type AttemptRow = {
   total: number;
   duration_sec: number;
   created_at: string;
+  ended_reason: EndedReason;
+  /** ile razy uczeń opuścił kartę w trakcie podejścia (sygnał, nie dowód) */
+  tab_switch_count: number;
 };
 
 export type TestKeysRow = {
@@ -69,6 +95,8 @@ export type SubmitResult = {
   total: number;
   results: boolean[];
   durationSec: number;
+  endedReason: EndedReason;
+  tabSwitchCount: number;
 };
 
 /** Wynik open_test po poprawnym PIN-ie. */
@@ -94,6 +122,11 @@ export type Database = {
       progress: Table<ProgressRow, { class_name: ClassName; subtopic_id: string; updated_at?: string }>;
       categories: Table<CategoryRow, CategoryRow>;
       subtopics: Table<SubtopicRow, SubtopicRow>;
+      subtopic_links: Table<
+        SubtopicLinkRow,
+        { id?: string; subtopic_id: string; label: string; url: string; sort_order?: number; created_at?: string },
+        { label?: string; url?: string; sort_order?: number }
+      >;
       tests: Table<
         TestRow,
         { id?: string; title: string; time_limit: number; questions: Json; created_at?: string; created_by?: string | null },
@@ -129,7 +162,7 @@ export type Database = {
         Returns: Json;
       };
       submit_attempt: {
-        Args: { p_session_id: string; p_answers: Json };
+        Args: { p_session_id: string; p_answers: Json; p_ended_reason?: EndedReason; p_tab_switches?: number };
         Returns: Json;
       };
       set_test_pin: {

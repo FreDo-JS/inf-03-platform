@@ -2,36 +2,48 @@
 
 import { useEffect, useRef } from "react";
 import { ProgressBar } from "@/components/ProgressBar";
-import { safeHttpsUrl } from "@/lib/validation";
-import type { CategoryRow, ClassName, SubtopicRow } from "@/types/db";
+import { safeLinkUrl } from "@/lib/validation";
+import type { CategoryRow, ClassName, SubtopicLinkRow, SubtopicRow } from "@/types/db";
 
 type Props = {
   index: number;
   category: CategoryRow;
   subtopics: SubtopicRow[];
   isDone: (subtopicId: string) => boolean;
+  linksBySubtopic: Map<string, SubtopicLinkRow[]>;
   className: ClassName;
   onClose: () => void;
 };
 
-function ExtLink({ href, children }: { href: string | null; children: React.ReactNode }) {
-  const safe = safeHttpsUrl(href);
-  if (!safe) {
-    return <span className="chip cursor-default opacity-50">{children} · brak</span>;
+/** Materiały podtematu. Etykieta renderowana jako tekst (JSX escapuje), href tylko dla http(s). */
+function SubtopicLinks({ links }: { links: SubtopicLinkRow[] }) {
+  const safe = links
+    .map((l) => ({ id: l.id, label: l.label, href: safeLinkUrl(l.url) }))
+    .filter((l): l is { id: string; label: string; href: string } => l.href !== null);
+
+  if (safe.length === 0) {
+    return <p className="mt-2 text-xs text-muted/70">Brak materiałów — dodaj je w panelu Admin.</p>;
   }
+
   return (
-    <a
-      href={safe}
-      target="_blank"
-      rel="noopener noreferrer nofollow"
-      className="chip transition hover:border-accent/50 hover:text-accent"
-    >
-      {children} <span aria-hidden>↗</span>
-    </a>
+    <ul className="mt-2.5 flex flex-wrap gap-2">
+      {safe.map((l) => (
+        <li key={l.id}>
+          <a
+            href={l.href}
+            target="_blank"
+            rel="noopener noreferrer nofollow"
+            className="chip max-w-full transition hover:border-accent/50 hover:text-accent"
+          >
+            <span className="truncate">{l.label}</span> <span aria-hidden>↗</span>
+          </a>
+        </li>
+      ))}
+    </ul>
   );
 }
 
-export function CategoryModal({ index, category, subtopics, isDone, className, onClose }: Props) {
+export function CategoryModal({ index, category, subtopics, isDone, linksBySubtopic, className, onClose }: Props) {
   const closeRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -103,10 +115,7 @@ export function CategoryModal({ index, category, subtopics, isDone, className, o
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className={`font-medium leading-snug ${done ? "text-fg" : "text-fg/85"}`}>{s.title}</p>
-                    <div className="mt-2.5 flex flex-wrap gap-2">
-                      <ExtLink href={s.theory_url}>📖 teoria</ExtLink>
-                      <ExtLink href={s.tasks_url}>✏️ zadania</ExtLink>
-                    </div>
+                    <SubtopicLinks links={linksBySubtopic.get(s.id) ?? []} />
                   </div>
                 </div>
               </li>

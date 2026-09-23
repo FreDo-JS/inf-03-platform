@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { getBrowserSupabase } from "@/lib/supabase/client";
 import type { CategoryRow, ProgressRow, SubtopicRow } from "@/types/db";
+import { LinksTab } from "./LinksTab";
 import { NewTestTab } from "./NewTestTab";
 import { ProgressTab } from "./ProgressTab";
 import { ResultsTab } from "./ResultsTab";
@@ -11,6 +12,7 @@ import { TestsTab } from "./TestsTab";
 
 const TABS = [
   { id: "progress", label: "📊 Postępy klas" },
+  { id: "links", label: "🔗 Materiały" },
   { id: "tests", label: "📝 Testy i PIN-y" },
   { id: "new", label: "➕ Nowy test" },
   { id: "results", label: "🏆 Wyniki" },
@@ -72,6 +74,7 @@ export function AdminPanel({ email, categories, subtopics, initialProgress }: Pr
         {tab === "progress" && (
           <ProgressTab categories={categories} subtopics={subtopics} initialProgress={initialProgress} />
         )}
+        {tab === "links" && <LinksTab categories={categories} subtopics={subtopics} />}
         {tab === "tests" && <TestsTab />}
         {tab === "new" && <NewTestTab />}
         {tab === "results" && <ResultsTab />}

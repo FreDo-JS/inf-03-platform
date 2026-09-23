@@ -3,15 +3,18 @@
 // każdym zapytaniem do Supabase. Baza ma dodatkowo własne CHECK constraints
 // i walidację w funkcjach create_test / submit_attempt (supabase/schema.sql).
 
+import { shuffle } from "@/lib/shuffle";
 import {
   CLASS_NAMES,
   type AnswerKeys,
   type ClassName,
+  type EndedReason,
   type Json,
   type OpenedTest,
   type OpenTestFailure,
   type PublicQuestion,
   type QuestionType,
+  type QuizAnswer,
   type SubmitResult,
 } from "@/types/db";
 
@@ -26,6 +29,11 @@ export const LIMITS = {
   timeLimitMinutes: { min: 1, max: 120 },
   answer: { max: 500 },
   pinLength: 6,
+  pairs: { min: 2, max: 10 },
+  pairSide: { min: 1, max: 150 },
+  linkLabel: { min: 1, max: 120 },
+  linkUrl: { min: 1, max: 500 },
+  sortOrder: { min: 0, max: 999 },
 } as const;
 
 export type Result<T> = { ok: true; value: T } | { ok: false; error: string };
@@ -94,17 +102,65 @@ export function safeHttpsUrl(v: unknown): string | null {
   }
 }
 
-/** Odpowiedzi ucznia przed wysłaniem: string lub null, przycięte do limitu. */
-export function sanitizeAnswers(answers: readonly (string | null)[], total: number): (string | null)[] {
-  const out: (string | null)[] = [];
+// ---------------------------------------------------------------------------
+// Materiały (linki) przy podtematach
+// ---------------------------------------------------------------------------
+
+/**
+ * URL materiału do wstawienia w href — tylko http(s), tak jak CHECK w bazie.
+ * Wszystko inne (javascript:, data:, //evil) zwraca null i nie trafia do DOM.
+ */
+export function safeLinkUrl(v: unknown): string | null {
+  if (typeof v !== "string") return null;
+  try {
+    const u = new URL(v.trim());
+    return u.protocol === "https:" || u.protocol === "http:" ? u.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
+export function validateLinkLabel(raw: unknown): Result<string> {
+  const label = cleanText(raw);
+  if (label.length === 0) return { ok: false, error: "Etykieta jest wymagana." };
+  if (!lengthOk(label, LIMITS.linkLabel)) return { ok: false, error: `Etykieta: maks. ${LIMITS.linkLabel.max} znaków.` };
+  return { ok: true, value: label };
+}
+
+export function validateLinkUrl(raw: unknown): Result<string> {
+  const url = typeof raw === "string" ? stripControlChars(raw).trim() : "";
+  if (url.length === 0) return { ok: false, error: "Adres URL jest wymagany." };
+  if (url.length > LIMITS.linkUrl.max) return { ok: false, error: `Adres URL: maks. ${LIMITS.linkUrl.max} znaków.` };
+  if (safeLinkUrl(url) === null) return { ok: false, error: "Adres musi zaczynać się od http:// lub https://" };
+  return { ok: true, value: url };
+}
+
+export function validateSortOrder(raw: unknown): Result<number> {
+  const s = typeof raw === "number" ? String(raw) : typeof raw === "string" ? raw.trim() : "";
+  if (s === "") return { ok: true, value: 0 };
+  if (!/^\d{1,3}$/.test(s)) return { ok: false, error: "Kolejność: liczba 0–999." };
+  const n = Number(s);
+  if (!Number.isSafeInteger(n) || n < 0 || n > LIMITS.sortOrder.max) {
+    return { ok: false, error: `Kolejność: liczba 0–${LIMITS.sortOrder.max}.` };
+  }
+  return { ok: true, value: n };
+}
+
+function cleanAnswer(a: unknown): string | null {
+  if (typeof a !== "string") return null;
+  const cleaned = stripControlChars(a).trim().slice(0, LIMITS.answer.max);
+  return cleaned.length > 0 ? cleaned : null;
+}
+
+/**
+ * Odpowiedzi ucznia przed wysłaniem. Dla closed/select/input: napis albo null.
+ * Dla matching: tablica wartości prawej kolumny w kolejności lewej (null = brak).
+ */
+export function sanitizeAnswers(answers: readonly QuizAnswer[], total: number): QuizAnswer[] {
+  const out: QuizAnswer[] = [];
   for (let i = 0; i < total; i++) {
     const a = answers[i];
-    if (typeof a !== "string") {
-      out.push(null);
-      continue;
-    }
-    const cleaned = stripControlChars(a).trim().slice(0, LIMITS.answer.max);
-    out.push(cleaned.length > 0 ? cleaned : null);
+    out.push(Array.isArray(a) ? a.slice(0, LIMITS.pairs.max).map(cleanAnswer) : cleanAnswer(a));
   }
   return out;
 }
@@ -137,6 +193,8 @@ export function validateTimeLimitMinutes(raw: unknown): Result<number> {
 // Kreator testu (admin)
 // ---------------------------------------------------------------------------
 
+export type DraftPair = { left: string; right: string };
+
 export type DraftQuestion = {
   type: QuestionType;
   text: string;
@@ -146,6 +204,8 @@ export type DraftQuestion = {
   correctIndex: number | null;
   /** input: akceptowane warianty odpowiedzi */
   accepted: string[];
+  /** matching: pary do dopasowania */
+  pairs: DraftPair[];
 };
 
 export type TestDraft = {
@@ -176,10 +236,15 @@ export function emptyQuestion(type: QuestionType = "closed"): DraftQuestion {
   return {
     type,
     text: "",
-    options: type === "input" ? [] : ["", ""],
+    options: type === "closed" || type === "select" ? ["", ""] : [],
     correctIndex: null,
     accepted: type === "input" ? [""] : [],
+    pairs: type === "matching" ? [emptyPair(), emptyPair()] : [],
   };
+}
+
+export function emptyPair(): DraftPair {
+  return { left: "", right: "" };
 }
 
 function validateQuestion(q: DraftQuestion): { errors: string[]; question?: PublicQuestion; key?: string[] } {
@@ -204,6 +269,37 @@ function validateQuestion(q: DraftQuestion): { errors: string[]; question?: Publ
 
     if (errors.length > 0 || correct === undefined) return { errors };
     return { errors, question: { type: q.type, text, options }, key: [correct] };
+  }
+
+  if (q.type === "matching") {
+    const pairs = q.pairs.map((p) => ({ left: cleanText(p.left), right: cleanText(p.right) }));
+    if (pairs.length < LIMITS.pairs.min || pairs.length > LIMITS.pairs.max) {
+      errors.push(`Pytanie musi mieć od ${LIMITS.pairs.min} do ${LIMITS.pairs.max} par.`);
+    }
+    if (pairs.some((p) => p.left.length === 0 || p.right.length === 0)) {
+      errors.push("Obie strony każdej pary muszą być wypełnione.");
+    }
+    if (pairs.some((p) => !lengthOk(p.left, LIMITS.pairSide) && p.left.length > 0)) {
+      errors.push(`Lewa strona pary: maks. ${LIMITS.pairSide.max} znaków.`);
+    }
+    if (pairs.some((p) => !lengthOk(p.right, LIMITS.pairSide) && p.right.length > 0)) {
+      errors.push(`Prawa strona pary: maks. ${LIMITS.pairSide.max} znaków.`);
+    }
+    if (new Set(pairs.map((p) => p.left)).size !== pairs.length) {
+      errors.push("Lewa kolumna nie może się powtarzać.");
+    }
+    if (new Set(pairs.map((p) => p.right)).size !== pairs.length) {
+      errors.push("Prawa kolumna nie może się powtarzać.");
+    }
+
+    if (errors.length > 0) return { errors };
+    // Prawą kolumnę zapisujemy potasowaną, żeby kolejność w bazie nie zdradzała par.
+    // Uczeń i tak zobaczy ją potasowaną ponownie przy każdym podejściu.
+    return {
+      errors,
+      question: { type: "matching", text, left: pairs.map((p) => p.left), right: shuffle(pairs.map((p) => p.right)) },
+      key: pairs.map((p) => p.right),
+    };
   }
 
   // input
@@ -276,6 +372,8 @@ function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 
+const isStringArray = (v: unknown): v is string[] => Array.isArray(v) && v.every((x) => typeof x === "string");
+
 export function parseQuestions(json: Json | unknown): PublicQuestion[] | null {
   if (!Array.isArray(json)) return null;
   const out: PublicQuestion[] = [];
@@ -283,6 +381,10 @@ export function parseQuestions(json: Json | unknown): PublicQuestion[] | null {
     if (!isRecord(item) || typeof item.text !== "string") return null;
     if (item.type === "input") {
       out.push({ type: "input", text: item.text });
+    } else if (item.type === "matching") {
+      const { left, right } = item;
+      if (!isStringArray(left) || !isStringArray(right) || left.length !== right.length || left.length < 2) return null;
+      out.push({ type: "matching", text: item.text, left, right });
     } else if (item.type === "closed" || item.type === "select") {
       const opts = item.options;
       if (!Array.isArray(opts) || !opts.every((o): o is string => typeof o === "string")) return null;
@@ -294,12 +396,23 @@ export function parseQuestions(json: Json | unknown): PublicQuestion[] | null {
   return out;
 }
 
+export function isEndedReason(v: unknown): v is EndedReason {
+  return v === "completed" || v === "time_up" || v === "tab_switch";
+}
+
 export function parseSubmitResult(json: unknown): SubmitResult | null {
   if (!isRecord(json)) return null;
-  const { score, total, results, duration_sec } = json;
+  const { score, total, results, duration_sec, ended_reason, tab_switch_count } = json;
   if (typeof score !== "number" || typeof total !== "number" || !Array.isArray(results)) return null;
   if (!results.every((r): r is boolean => typeof r === "boolean")) return null;
-  return { score, total, results, durationSec: typeof duration_sec === "number" ? duration_sec : 0 };
+  return {
+    score,
+    total,
+    results,
+    durationSec: typeof duration_sec === "number" ? duration_sec : 0,
+    endedReason: isEndedReason(ended_reason) ? ended_reason : "completed",
+    tabSwitchCount: typeof tab_switch_count === "number" ? tab_switch_count : 0,
+  };
 }
 
 export function parseOpenTest(

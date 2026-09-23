@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { getBrowserSupabase } from "@/lib/supabase/client";
 import { isClassName, isSubtopicId } from "@/lib/validation";
 import type { ClassName, ProgressRow } from "@/types/db";
@@ -30,6 +30,8 @@ function rowKey(rec: unknown): string | null {
 export function useRealtimeProgress(initial: readonly Pick<ProgressRow, "class_name" | "subtopic_id">[]) {
   const [done, setDone] = useState<Set<string>>(() => toKeys(initial));
   const [status, setStatus] = useState<LiveStatus>("connecting");
+  // unikalna nazwa kanału na instancję — dwa komponenty nie mogą dzielić tematu
+  const channelId = useId();
 
   useEffect(() => {
     const supabase = getBrowserSupabase();
@@ -43,7 +45,7 @@ export function useRealtimeProgress(initial: readonly Pick<ProgressRow, "class_n
     };
 
     const channel = supabase
-      .channel("progress-live")
+      .channel(`progress-live:${channelId}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "progress" }, (payload) => {
         setDone((prev) => {
           const next = new Set(prev);
@@ -71,7 +73,7 @@ export function useRealtimeProgress(initial: readonly Pick<ProgressRow, "class_n
       cancelled = true;
       void supabase.removeChannel(channel);
     };
-  }, []);
+  }, [channelId]);
 
   return { done, setDone, status };
 }

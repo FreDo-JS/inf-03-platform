@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { getBrowserSupabase } from "@/lib/supabase/client";
 import { TEST_SUMMARY_COLUMNS, pluralPytania, toSummaries, type TestSummary } from "@/lib/tests";
 
 /** Lista testów odświeżana na żywo, gdy admin doda lub usunie test. */
 export function TestsList({ initial }: { initial: TestSummary[] }) {
   const [tests, setTests] = useState(initial);
+  const channelId = useId();
 
   useEffect(() => {
     const supabase = getBrowserSupabase();
@@ -23,7 +24,7 @@ export function TestsList({ initial }: { initial: TestSummary[] }) {
 
     // Payload zdarzenia ignorujemy — zawsze dociągamy listę (tylko kolumny publiczne).
     const channel = supabase
-      .channel("tests-live")
+      .channel(`tests-live:${channelId}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "tests" }, () => void refetch())
       .subscribe((s) => {
         if (s === "SUBSCRIBED") void refetch();
@@ -33,7 +34,7 @@ export function TestsList({ initial }: { initial: TestSummary[] }) {
       cancelled = true;
       void supabase.removeChannel(channel);
     };
-  }, []);
+  }, [channelId]);
 
   if (tests.length === 0) {
     return (
