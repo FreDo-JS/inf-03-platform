@@ -109,6 +109,67 @@ export type OpenedTest = {
 
 export type OpenTestFailure = "bad_pin" | "rate_limited" | "not_found";
 
+// Wiersze modułu Praktyka w postaci „bazodanowej” (jsonb jako Json)
+type PracticalTaskRowDb = {
+  id: string;
+  title: string;
+  summary: string;
+  content_md: string;
+  files: Json;
+  reference_files: Json;
+  auto_tests: Json;
+  manual_criteria: Json;
+  default_minutes: number;
+  allow_new_files: boolean;
+  student_can_run_tests: boolean;
+  is_ready: boolean;
+  schema_info: string;
+  db_sql: string;
+  db_sql_sqlite: string;
+  assets: Json;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type PracticalSessionRowDb = {
+  id: string;
+  task_id: string;
+  class_name: string;
+  pin: string;
+  status: string;
+  minutes: number;
+  allow_paste: boolean;
+  pass_threshold: number;
+  started_at: string | null;
+  ends_at: string | null;
+  created_by: string | null;
+  created_at: string;
+};
+
+type PracticalAttemptRowDb = {
+  id: string;
+  session_id: string;
+  student_name: string;
+  attempt_token_hash: string;
+  result_token: string;
+  files: Json;
+  last_saved_at: string | null;
+  status: string;
+  submitted_at: string | null;
+  ended_reason: string | null;
+  tab_switch_count: number;
+  large_paste_count: number;
+  auto_results: Json;
+  auto_checked_at: string | null;
+  overrides: Json;
+  manual_scores: Json;
+  teacher_comment: string;
+  final_percent: number | null;
+  published_at: string | null;
+  created_at: string;
+};
+
 type Table<Row, Insert, Update = Partial<Insert>> = {
   Row: Row;
   Insert: Insert;
@@ -146,6 +207,14 @@ export type Database = {
         }
       >;
       test_keys: Table<TestKeysRow, { test_id: string; answers: Json; pin?: string }>;
+      // moduł Praktyka — uczeń nie ma do tych tabel dostępu (RLS), admin tak
+      practical_tasks: Table<PracticalTaskRowDb, Partial<PracticalTaskRowDb> & { title: string }>;
+      practical_sessions: Table<PracticalSessionRowDb, Partial<PracticalSessionRowDb>>;
+      practical_attempts: Table<PracticalAttemptRowDb, Partial<PracticalAttemptRowDb>>;
+      practical_events: Table<
+        { id: number; attempt_id: string; type: string; details: Json; created_at: string },
+        { attempt_id: string; type: string; details?: Json }
+      >;
     };
     Views: { [_ in never]: never };
     Functions: {
@@ -169,6 +238,19 @@ export type Database = {
         Args: { p_test_id: string; p_pin?: string | null };
         Returns: string;
       };
+      practical_join: { Args: { p_pin: string; p_name: string }; Returns: Json };
+      practical_state: { Args: { p_token: string }; Returns: Json };
+      practical_save: { Args: { p_token: string; p_files: Json }; Returns: Json };
+      practical_event: { Args: { p_token: string; p_type: string; p_details?: Json }; Returns: Json };
+      practical_submit: { Args: { p_token: string; p_files: Json; p_reason?: string }; Returns: Json };
+      practical_result: { Args: { p_result_token: string }; Returns: Json };
+      practical_create_session: {
+        Args: { p_task_id: string; p_class: string; p_minutes: number; p_allow_paste?: boolean; p_pass_threshold?: number };
+        Returns: Json;
+      };
+      practical_start_session: { Args: { p_session_id: string }; Returns: Json };
+      practical_finish_session: { Args: { p_session_id: string }; Returns: Json };
+      practical_recalc: { Args: { p_attempt_id: string }; Returns: number };
     };
     Enums: { [_ in never]: never };
     CompositeTypes: { [_ in never]: never };

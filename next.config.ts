@@ -17,11 +17,15 @@ try {
 const csp = [
   "default-src 'self'",
   // Next.js wstrzykuje skrypty inline przy hydratacji; 'unsafe-eval' tylko w dev (HMR).
-  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
+  // blob: — workery Monaco. Podgląd pracy ucznia to iframe ze srcdoc, który
+  // dziedziczy tę politykę: kod ucznia działa inline, ale nie pobierze niczego z sieci.
+  `script-src 'self' 'unsafe-inline' blob:${isDev ? " 'unsafe-eval'" : ""}`,
+  "worker-src 'self' blob:",
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data:",
-  "font-src 'self'",
+  "img-src 'self' data: blob: https:",
+  "font-src 'self' data:",
   `connect-src 'self' ${supabaseOrigins}${isDev ? " ws://localhost:*" : ""}`,
+  "frame-src 'self' blob:",
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",

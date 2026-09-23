@@ -12,3 +12,6 @@ next-env.d.ts
 .env.*.local
 .env.development
 .env.production
+
+# Monaco kopiowane przy starcie/buildzie (scripts/copy-monaco.mjs)
+public/monaco/
