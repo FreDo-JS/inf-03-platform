@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { ProgressBar } from "@/components/ProgressBar";
+import { TeacherMark } from "@/components/TeacherMark";
 import { safeLinkUrl } from "@/lib/validation";
 import type { CategoryRow, ClassName, SubtopicLinkRow, SubtopicRow } from "@/types/db";
 
@@ -10,6 +11,8 @@ type Props = {
   category: CategoryRow;
   subtopics: SubtopicRow[];
   isDone: (subtopicId: string) => boolean;
+  /** nazwa nauczyciela, który oznaczył podtemat — null, gdy nieoznaczony lub bez nazwy */
+  markedBy: (subtopicId: string) => string | null;
   linksBySubtopic: Map<string, SubtopicLinkRow[]>;
   className: ClassName;
   onClose: () => void;
@@ -43,7 +46,7 @@ function SubtopicLinks({ links }: { links: SubtopicLinkRow[] }) {
   );
 }
 
-export function CategoryModal({ index, category, subtopics, isDone, linksBySubtopic, className, onClose }: Props) {
+export function CategoryModal({ index, category, subtopics, isDone, markedBy, linksBySubtopic, className, onClose }: Props) {
   const closeRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -117,6 +120,7 @@ export function CategoryModal({ index, category, subtopics, isDone, linksBySubto
                     <p className={`font-medium leading-snug ${done ? "text-fg" : "text-fg/85"}`}>{s.title}</p>
                     <SubtopicLinks links={linksBySubtopic.get(s.id) ?? []} />
                   </div>
+                  <TeacherMark name={markedBy(s.id)} size="sm" />
                 </div>
               </li>
             );

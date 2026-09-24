@@ -28,6 +28,7 @@ Stack: Next.js 15 (App Router) · TypeScript (strict) · Tailwind CSS · Supabas
    - `supabase/009_server_clock.sql` — zegar po stronie serwera i rejestrowanie utraty fokusa okna
    - `supabase/010_inf04.sql` — druga kwalifikacja: tabela `classes`, kolumna `qualification`
    - `supabase/011_inf04_seed.sql` — mapa nauki INF.04 (12 kategorii, ponad 50 podtematów, materiały)
+   - `supabase/012_progress_author.sql` — podpis nauczyciela przy oznaczonym podtemacie
 
    Masz już bazę z poprzedniej wersji? Uruchom brakujące migracje (`002…`, `003…`) — nic nie nadpisują,
    a ponowne uruchomienie niczego nie duplikuje.
@@ -198,6 +199,20 @@ więc `javascript:` nie ma jak trafić do DOM.
 
 Migracja 003 przeniosła dotychczasowe `theory_url` / `tasks_url` do `subtopic_links` jako
 „Teoria” i „Zadania”. Stare kolumny zostały w bazie, ale aplikacja ich już nie używa.
+
+## Kto oznaczył podtemat
+
+Przy każdym ukończonym podtemacie — na mapie i w panelu — po prawej stronie kafelka
+widnieje podpis nauczyciela, który go odhaczył.
+
+- **Autora wpisuje trigger** z `auth.uid()`, nie przeglądarka. Cokolwiek klient przyśle
+  w kolumnie `marked_by`, baza to nadpisze — nie da się podpisać cudzym nazwiskiem.
+- Pokazujemy **nazwę własną**, którą nauczyciel ustawia w panelu (pole „Twój podpis przy
+  tematach”, maks. 40 znaków). **E-mail ani identyfikator konta nigdy nie trafiają na stronę.**
+- Puste pole = brak podpisu. Wpisy sprzed tej migracji zostają bez autora — nie zgadujemy,
+  kto je zrobił.
+- Podpis widzą też uczniowie, bo mapa jest publiczna. Nie chcesz tego? Zostaw pole puste,
+  wtedy nie pokaże się nic.
 
 ## Dwie kwalifikacje — jak to jest poukładane
 

@@ -66,6 +66,14 @@ export type ProgressRow = {
   class_name: ClassName;
   subtopic_id: string;
   updated_at: string;
+  /** kto oznaczył podtemat — wpisuje trigger z auth.uid(), nie klient */
+  marked_by: string | null;
+};
+
+/** Nauczyciel widoczny przy podtemacie. Widok teachers: bez e-maila. */
+export type TeacherRow = {
+  id: string;
+  display_name: string;
 };
 
 export type CategoryRow = {
@@ -263,7 +271,9 @@ export type Database = {
         { attempt_id: string; type: string; details?: Json }
       >;
     };
-    Views: { [_ in never]: never };
+    Views: {
+      teachers: { Row: TeacherRow; Relationships: [] };
+    };
     Functions: {
       create_test: {
         Args: {
@@ -305,6 +315,7 @@ export type Database = {
       practical_start_session: { Args: { p_session_id: string }; Returns: Json };
       practical_finish_session: { Args: { p_session_id: string }; Returns: Json };
       practical_recalc: { Args: { p_attempt_id: string }; Returns: number };
+      set_my_display_name: { Args: { p_name: string }; Returns: string };
       quiz_time: { Args: { p_session_id: string }; Returns: Json };
       practical_time: { Args: { p_token: string }; Returns: Json };
     };

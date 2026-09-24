@@ -3,7 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { getBrowserSupabase } from "@/lib/supabase/client";
-import type { CategoryRow, ProgressRow, SubtopicRow } from "@/types/db";
+import { friendlyError } from "@/lib/errors";
+import type { CategoryRow, ProgressRow, SubtopicRow, TeacherRow } from "@/types/db";
 import { PracticalSessionsTab } from "./practical/PracticalSessionsTab";
 import { PracticalTasksTab } from "./practical/PracticalTasksTab";
 import { PracticalWorksTab } from "./practical/PracticalWorksTab";
@@ -29,10 +30,73 @@ type Props = {
   email: string;
   categories: CategoryRow[];
   subtopics: SubtopicRow[];
-  initialProgress: Pick<ProgressRow, "class_name" | "subtopic_id">[];
+  initialProgress: (Pick<ProgressRow, "class_name" | "subtopic_id"> & { marked_by: string | null })[];
+  teachers: TeacherRow[];
+  /** identyfikator zalogowanego nauczyciela — do podpowiedzi „to Ty” */
+  myId: string;
 };
 
-export function AdminPanel({ email, categories, subtopics, initialProgress }: Props) {
+
+/**
+ * Nazwa podpisywana przy podtematach, które oznaczysz. Zapisuje ją funkcja
+ * set_my_display_name — 008 celowo odebrało kontom prawo zapisu do tabeli
+ * admins, żeby nikt nie nadał sobie uprawnień przez API.
+ */
+function DisplayNameField({ initial }: { initial: string }) {
+  const [name, setName] = useState(initial);
+  const [saving, setSaving] = useState(false);
+  const [state, setState] = useState<"idle" | "saved" | "error">("idle");
+  const [message, setMessage] = useState<string | null>(null);
+
+  const save = async () => {
+    setSaving(true);
+    setState("idle");
+    const { data, error } = await getBrowserSupabase().rpc("set_my_display_name", { p_name: name });
+    setSaving(false);
+    if (error) {
+      setState("error");
+      setMessage(friendlyError(error, "Nie udało się zapisać nazwy."));
+      return;
+    }
+    if (typeof data === "string") setName(data);
+    setState("saved");
+    setMessage(null);
+  };
+
+  return (
+    <div className="min-w-0">
+      <label htmlFor="display-name" className="label">
+        Twój podpis przy tematach
+      </label>
+      <div className="flex gap-2">
+        <input
+          id="display-name"
+          className="input py-2 text-sm"
+          value={name}
+          maxLength={40}
+          placeholder="np. p. Kowalska"
+          onChange={(e) => {
+            setName(e.target.value);
+            setState("idle");
+          }}
+        />
+        <button type="button" className="btn-ghost btn-sm shrink-0" onClick={() => void save()} disabled={saving}>
+          {saving ? "Zapisywanie…" : "Zapisz"}
+        </button>
+      </div>
+      <p className="mt-1 text-xs text-muted">
+        {state === "error" ? (
+          <span className="text-danger">{message}</span>
+        ) : state === "saved" ? (
+          <span className="text-accent">Zapisano — podpis widać przy oznaczonych tematach.</span>
+        ) : (
+          "Widoczny także dla uczniów. Puste pole = bez podpisu."
+        )}
+      </p>
+    </div>
+  );
+}
+export function AdminPanel({ email, categories, subtopics, initialProgress, teachers, myId }: Props) {
   const router = useRouter();
   const [tab, setTab] = useState<TabId>("progress");
   const [loggingOut, setLoggingOut] = useState(false);
@@ -54,6 +118,7 @@ export function AdminPanel({ email, categories, subtopics, initialProgress }: Pr
           </h1>
           <p className="mt-2 truncate text-sm text-muted">Zalogowano jako {email}</p>
         </div>
+        <DisplayNameField initial={teachers.find((t) => t.id === myId)?.display_name ?? ""} />
         <button type="button" className="btn-ghost" onClick={() => void logout()} disabled={loggingOut}>
           {loggingOut ? "Wylogowywanie…" : "⏻ Wyloguj"}
         </button>
@@ -78,7 +143,12 @@ export function AdminPanel({ email, categories, subtopics, initialProgress }: Pr
 
       <div role="tabpanel" key={tab} className="animate-fade-up">
         {tab === "progress" && (
-          <ProgressTab categories={categories} subtopics={subtopics} initialProgress={initialProgress} />
+          <ProgressTab
+            categories={categories}
+            subtopics={subtopics}
+            initialProgress={initialProgress}
+            teachers={teachers}
+          />
         )}
         {tab === "links" && <LinksTab categories={categories} subtopics={subtopics} />}
         {tab === "tests" && <TestsTab />}

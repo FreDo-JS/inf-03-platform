@@ -8,17 +8,28 @@ export const dynamic = "force-dynamic";
 
 export default async function RoadmapPage() {
   const supabase = await getServerSupabase();
-  const [cats, subs, prog, links] = await Promise.all([
+  const [cats, subs, prog, links, teachers] = await Promise.all([
     supabase.from("categories").select("id, position, title, description, qualification").order("position"),
     supabase.from("subtopics").select("id, category_id, position, title, theory_url, tasks_url").order("position"),
-    supabase.from("progress").select("class_name, subtopic_id"),
+    supabase.from("progress").select("class_name, subtopic_id, marked_by"),
     supabase.from("subtopic_links").select(LINK_COLUMNS),
+    supabase.from("teachers").select("id, display_name"),
   ]);
 
+  // Brak nazw nauczycieli nie jest powodem, żeby nie pokazać mapy — podpisy
+  // po prostu się nie pojawią.
   if (cats.error || subs.error || prog.error || links.error) {
     // error.tsx pokaże ogólny komunikat bez szczegółów
     throw new Error("roadmap_load_failed");
   }
 
-  return <RoadmapView categories={cats.data} subtopics={subs.data} initialProgress={prog.data} initialLinks={links.data} />;
+  return (
+    <RoadmapView
+      categories={cats.data}
+      subtopics={subs.data}
+      initialProgress={prog.data}
+      initialLinks={links.data}
+      teachers={teachers.error ? [] : teachers.data}
+    />
+  );
 }

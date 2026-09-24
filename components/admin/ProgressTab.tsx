@@ -9,17 +9,27 @@ import { progressKey, useRealtimeProgress } from "@/lib/hooks/useRealtimeProgres
 import { useSelectedClass } from "@/lib/hooks/useSelectedClass";
 import { getBrowserSupabase } from "@/lib/supabase/client";
 import { isClassName, isSubtopicId } from "@/lib/validation";
-import { CLASS_QUALIFICATION, type CategoryRow, type ClassName, type ProgressRow, type SubtopicRow } from "@/types/db";
+import { TeacherMark, teacherNames } from "@/components/TeacherMark";
+import {
+  CLASS_QUALIFICATION,
+  type CategoryRow,
+  type ClassName,
+  type ProgressRow,
+  type SubtopicRow,
+  type TeacherRow,
+} from "@/types/db";
 
 type Props = {
   categories: CategoryRow[];
+  teachers?: TeacherRow[];
   subtopics: SubtopicRow[];
-  initialProgress: Pick<ProgressRow, "class_name" | "subtopic_id">[];
+  initialProgress: (Pick<ProgressRow, "class_name" | "subtopic_id"> & { marked_by: string | null })[];
 };
 
-export function ProgressTab({ categories, subtopics, initialProgress }: Props) {
+export function ProgressTab({ categories, subtopics, initialProgress, teachers = [] }: Props) {
   const [cls, setCls] = useSelectedClass();
-  const { done, setDone, status } = useRealtimeProgress(initialProgress);
+  const { done, setDone, authors, status } = useRealtimeProgress(initialProgress);
+  const names = useMemo(() => teacherNames(teachers), [teachers]);
   const [pending, setPending] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
 
@@ -127,7 +137,10 @@ export function ProgressTab({ categories, subtopics, initialProgress }: Props) {
                           disabled={busy}
                           onChange={() => void toggle(cls, s.id)}
                         />
-                        <span className={`text-[15px] leading-snug ${checked ? "text-fg" : "text-fg/70"}`}>{s.title}</span>
+                        <span className={`min-w-0 flex-1 text-[15px] leading-snug ${checked ? "text-fg" : "text-fg/70"}`}>
+                          {s.title}
+                        </span>
+                        {checked && <TeacherMark name={names.get(authors.get(key) ?? "") ?? null} size="sm" />}
                       </label>
                     </li>
                   );
