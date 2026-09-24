@@ -12,6 +12,11 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
+// CSP z nonce wymaga renderowania na żądanie: nonce powstaje w middleware dla
+// każdego żądania, więc strona zapisana na etapie budowania nie mogłaby go mieć,
+// a jej skrypty zostałyby zablokowane.
+export const dynamic = "force-dynamic";
+
 export const viewport: Viewport = {
   themeColor: "#0b1116",
   width: "device-width",

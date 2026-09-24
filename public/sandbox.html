@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<title>Piaskownica podglądu</title>
+<style>html,body{margin:0;height:100%;background:#fff}iframe{display:block;width:100%;height:100%;border:0}</style>
+</head>
+<body>
+<script>
+/*
+ * Gospodarz piaskownicy dla kodu ucznia.
+ *
+ * Po co osobny plik: aplikacja ma ścisłą CSP z nonce (bez 'unsafe-inline'),
+ * a praca ucznia musi wykonywać własne skrypty inline. Dokument tworzony przez
+ * srcdoc dziedziczy politykę dokumentu, który go utworzył — dlatego tworzymy go
+ * tutaj: ten plik serwowany jest z osobną, celowo luźną CSP (next.config.ts),
+ * więc kod ucznia dostaje politykę stąd, a nie z aplikacji.
+ *
+ * Układ: aplikacja → (ta strona, zwykła ramka) → wewnętrzna ramka z atrybutem
+ * sandbox bez allow-same-origin, w której działa kod ucznia. Kod ucznia ma
+ * origin null i nie dosięgnie ani aplikacji, ani tej strony. Jedyny kanał to
+ * postMessage — my wyłącznie przekazujemy wiadomości, nigdy ich nie wykonujemy.
+ */
+(function () {
+  "use strict";
+  var inner = null;
+
+  function relayToParent(data) {
+    try { parent.postMessage(data, "*"); } catch (e) { /* rodzic zniknął */ }
+  }
+
+  window.addEventListener("message", function (event) {
+    var data = event.data;
+    if (!data || typeof data !== "object") return;
+
+    // wiadomości od aplikacji
+    if (event.source === parent) {
+      if (data.source === "inf03-host" && data.type === "sandbox-write" && typeof data.html === "string") {
+        if (inner) inner.remove();
+        inner = document.createElement("iframe");
+        inner.setAttribute("sandbox", "allow-scripts allow-forms");
+        inner.setAttribute("title", "Praca ucznia");
+        inner.srcdoc = data.html;
+        document.body.appendChild(inner);
+      } else if (data.source === "inf03-runner" && inner && inner.contentWindow) {
+        inner.contentWindow.postMessage(data, "*");
+      }
+      return;
+    }
+
+    // wiadomości od kodu ucznia — przekazujemy dalej bez zmian
+    if (inner && event.source === inner.contentWindow) {
+      relayToParent(data);
+    }
+  });
+
+  relayToParent({ source: "inf03-preview", type: "sandbox-ready" });
+})();
+</script>
+</body>
+</html>

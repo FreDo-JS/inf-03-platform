@@ -1,7 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
-import { PREVIEW_SANDBOX, buildPreviewDocument, isPreviewMessage, previewablePages } from "@/lib/practical/preview";
+import {
+  SANDBOX_URL,
+  buildPreviewDocument,
+  isPreviewMessage,
+  previewablePages,
+  writeToSandbox,
+} from "@/lib/practical/preview";
 import type { ProjectFile } from "@/types/practical";
 
 type ConsoleEntry = { id: number; level: "log" | "info" | "warn" | "error"; text: string; at: string };
@@ -25,7 +31,11 @@ export function PreviewPane({ files, revision }: Props) {
   const pages = useMemo(() => previewablePages(files), [files]);
   const [page, setPage] = useState<string>(() => pages[0] ?? "");
   const [autoRun, setAutoRun] = useState(false);
-  const [doc, setDoc] = useState<string>("");
+  // Dokument nie idzie do srcdoc, tylko do /sandbox.html (własna, luźna CSP).
+  // Każde uruchomienie to nowy iframe — document.write wykonuje się raz.
+  const [runId, setRunId] = useState(0);
+  const pendingHtml = useRef<string | null>(null);
+  const [hasRun, setHasRun] = useState(false);
   const [missing, setMissing] = useState<string[]>([]);
   const [entries, setEntries] = useState<ConsoleEntry[]>([]);
   const [consoleOpen, setConsoleOpen] = useState(false);
@@ -42,8 +52,10 @@ export function PreviewPane({ files, revision }: Props) {
       if (!p) return;
       setEntries([]);
       const built = buildPreviewDocument(files, p, { frameId });
-      setDoc(built.html);
+      pendingHtml.current = built.html;
       setMissing(built.missing);
+      setHasRun(true);
+      setRunId((n) => n + 1); // nowy iframe → gospodarz piaskownicy zgłosi gotowość
       setStaleRevision(null);
     },
     [files, page, frameId],
@@ -66,7 +78,10 @@ export function PreviewPane({ files, revision }: Props) {
       const frameWindow = frameRef.current?.contentWindow ?? null;
       if (!isPreviewMessage(event, frameWindow, frameId)) return;
       const data = event.data;
-      if (data.type === "console") {
+      if (data.type === "sandbox-ready") {
+        const html = pendingHtml.current;
+        if (html !== null) writeToSandbox(frameRef.current, html);
+      } else if (data.type === "console") {
         setEntries((prev) => {
           const entry: ConsoleEntry = {
             id: nextId.current++,
@@ -117,7 +132,7 @@ export function PreviewPane({ files, revision }: Props) {
             </option>
           ))}
         </select>
-        {staleRevision !== null && doc !== "" && <span className="chip border-warn/50 text-warn">zmiany nieodświeżone</span>}
+        {staleRevision !== null && hasRun && <span className="chip border-warn/50 text-warn">zmiany nieodświeżone</span>}
         <button
           type="button"
           className={`btn-ghost btn-sm ml-auto ${errorCount > 0 ? "border-danger/50 text-danger" : ""}`}
@@ -134,17 +149,17 @@ export function PreviewPane({ files, revision }: Props) {
       )}
 
       <div className="relative min-h-0 flex-1 bg-white">
-        {doc === "" ? (
+        {!hasRun ? (
           <div className="flex h-full items-center justify-center bg-bg text-sm text-muted">
             Kliknij „Uruchom”, aby zobaczyć stronę.
           </div>
         ) : (
           <iframe
+            key={runId}
             ref={frameRef}
             title="Podgląd strony"
             className="h-full w-full border-0 bg-white"
-            sandbox={PREVIEW_SANDBOX}
-            srcDoc={doc}
+            src={SANDBOX_URL}
           />
         )}
       </div>

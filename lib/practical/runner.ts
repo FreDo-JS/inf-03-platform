@@ -7,7 +7,7 @@
 // wykonywanie cudzego kodu po stronie serwera to niepotrzebne ryzyko.
 // Każdy test dostaje świeży iframe (sandbox bez allow-same-origin) i limit czasu.
 
-import { PREVIEW_SANDBOX, buildPreviewDocument } from "@/lib/practical/preview";
+import { SANDBOX_URL, buildPreviewDocument, writeToSandbox } from "@/lib/practical/preview";
 import { RUNNER_SCRIPT } from "@/lib/practical/runnerScript";
 import type { AutoResult, AutoTest, ProjectFile } from "@/types/practical";
 
@@ -39,11 +39,12 @@ async function runInFrame(files: readonly ProjectFile[], test: AutoTest, page: s
   });
 
   const frame = document.createElement("iframe");
-  frame.setAttribute("sandbox", PREVIEW_SANDBOX);
   frame.setAttribute("title", `Sprawdzanie: ${test.name}`);
   frame.setAttribute("aria-hidden", "true");
   frame.style.cssText = "position:fixed;left:-10000px;top:0;width:1024px;height:768px;border:0;visibility:hidden";
-  frame.srcdoc = built.html;
+  // Kod ucznia uruchamia się w /sandbox.html — dokumencie z osobną CSP,
+  // dzięki czemu aplikacja może mieć politykę z nonce i bez 'unsafe-inline'.
+  frame.src = SANDBOX_URL;
 
   return new Promise<FrameResult>((resolve) => {
     let done = false;
@@ -66,7 +67,13 @@ async function runInFrame(files: readonly ProjectFile[], test: AutoTest, page: s
       const data: unknown = event.data;
       if (typeof data !== "object" || data === null) return;
       const msg = data as { source?: unknown; frameId?: unknown; type?: unknown; payload?: unknown };
-      if (msg.source !== "inf03-preview" || msg.frameId !== frameId) return;
+      if (msg.source !== "inf03-preview") return;
+
+      if (msg.type === "sandbox-ready") {
+        writeToSandbox(frame, built.html);
+        return;
+      }
+      if (msg.frameId !== frameId) return;
 
       if (msg.type === "ready") {
         requested = true;

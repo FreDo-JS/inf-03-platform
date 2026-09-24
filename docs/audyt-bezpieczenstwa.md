@@ -25,7 +25,7 @@ Audyt składał się z czterech części:
 | M3 | Średnia | Brak ograniczenia częstotliwości autozapisu pracy praktycznej | **Naprawione** |
 | L1 | Niska | Regresja wykryta w trakcie audytu: anonim dostawał błąd zamiast pustego wyniku | **Naprawione** |
 | L2 | Niska | Komunikat „to imię jest zajęte" potwierdza obecność danej osoby w sesji | Zaakceptowane |
-| L3 | Niska | CSP dopuszcza `script-src 'unsafe-inline'` (wymóg hydratacji Next.js) | Do rozważenia |
+| L3 | Niska | CSP dopuszczała `script-src 'unsafe-inline'` (wymóg hydratacji Next.js) | **Naprawione** (nonce + strict-dynamic) |
 | L4 | Niska | `attempt_token` w `sessionStorage` — XSS w aplikacji pozwoliłby go przejąć | Ryzyko szczątkowe |
 
 ## 3. Szczegóły
@@ -94,12 +94,35 @@ zamiast pustego wyniku — polityki tabel z publicznym odczytem (mapa, lista tes
 dla nich. To złamałoby widok ucznia. Funkcja dostała uprawnienie `execute` dla `anon`; zwraca wtedy
 `false`, więc nic nie ujawnia.
 
-### L2–L4. Ryzyka zaakceptowane
+### L3. CSP bez `unsafe-inline` — naprawione
+
+**Na czym polegało.** `script-src` dopuszczał `'unsafe-inline'`, bo Next.js wstrzykuje skrypty startowe
+do HTML-a. Taka polityka nie zatrzymałaby skryptu wstrzykniętego przez ewentualny XSS.
+
+**Poprawka.** `middleware.ts` losuje **nonce na każde żądanie** i wysyła go w nagłówku CSP oraz w
+nagłówku żądania do Next.js, który dokleja go do swoich skryptów. Polityka:
+`script-src 'self' 'nonce-…' 'strict-dynamic'` — bez `unsafe-inline`. `strict-dynamic` pozwala działać
+skryptom doładowanym przez zaufany kod (loader Monaco), a blokuje wstrzyknięte `<script>` bez nonce.
+
+**Konsekwencja architektoniczna.** Kod ucznia musi wykonywać własne skrypty inline, a dokument w
+`srcdoc` dziedziczy politykę rodzica — pod nową CSP podgląd przestałby działać. Dlatego praca ucznia
+uruchamia się teraz w `public/sandbox.html`: osobnym dokumencie z własną, celowo luźną CSP
+(`script-src 'unsafe-inline' 'unsafe-eval'`, ale też `default-src 'none'` i **`connect-src 'none'`** —
+kod ucznia nie wyśle niczego w świat). Układ: aplikacja → `sandbox.html` → wewnętrzna ramka
+`sandbox="allow-scripts allow-forms"` (origin `null`) z pracą ucznia. Izolacja jest ta sama co wcześniej,
+a luźna polityka obowiązuje wyłącznie w tym jednym dokumencie.
+
+Wymuszone jest też renderowanie stron na żądanie (`force-dynamic` w `app/layout.tsx`) — strona zapisana
+na etapie budowania nie mogłaby zawierać nonce z bieżącego żądania, więc jej skrypty zostałyby zablokowane.
+
+**Weryfikacja.** W wersji produkcyjnej wszystkie trasy zawierają nonce w HTML, `script-src` nie ma już
+`unsafe-inline`, strony się hydratują, Monaco ładuje 21 modułów przez `strict-dynamic`, podgląd i testy
+automatyczne działają (wzorzec 11/11, praca ze skryptem fałszującym → wykryta manipulacja).
+
+### L2, L4. Ryzyka zaakceptowane
 
 - **L2:** komunikat „ktoś ma już takie imię" jest potrzebny w klasie (uczeń musi wiedzieć, że ma dopisać
   inicjał). Ujawnia obecność imienia komuś, kto zna PIN sesji — czyli i tak uczestnikowi lekcji.
-- **L3:** `unsafe-inline` w `script-src` wynika z hydratacji Next.js. Docelowo da się to zastąpić CSP
-  z nonce generowanym w middleware — do zrobienia, jeśli uznasz za potrzebne.
 - **L4:** token podejścia leży w `sessionStorage` (ginie po zamknięciu karty). Przejęcie wymagałoby
   XSS-a w naszej aplikacji, a tych nie znalazłem; token nie daje dostępu do niczego poza własną pracą.
 
@@ -141,8 +164,10 @@ dla nich. To złamałoby widok ucznia. Funkcja dostała uprawnienie `execute` dl
 - `CHECK`-i odrzucają wynik większy niż liczba pytań, procent > 100, nieznany status, PIN z liter, obcą klasę.
 
 **Konfiguracja aplikacji**
-- Nagłówki w wersji produkcyjnej: CSP, HSTS (2 lata, `preload`), `X-Frame-Options: DENY`, `nosniff`,
-  `Referrer-Policy`, `Permissions-Policy`; brak `X-Powered-By`.
+- Nagłówki w wersji produkcyjnej: CSP z nonce (bez `unsafe-inline` dla skryptów), HSTS (2 lata, `preload`),
+  `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy`, `Permissions-Policy`; brak `X-Powered-By`.
+  Wyjątkiem jest `/sandbox.html` — własna, luźna CSP dla kodu ucznia i `frame-ancestors 'self'`
+  zamiast `X-Frame-Options` (ten nagłówek blokuje ramkę osadzoną z atrybutem sandbox).
 - `/admin` bez sesji → przekierowanie na `/admin/login` (307).
 - `npm audit` (produkcja): 0 podatności. Monaco serwowane z własnego origin, bez CDN.
 - Brak sekretów w kodzie i w całej historii gita; `.env.local` w `.gitignore`.

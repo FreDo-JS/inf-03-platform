@@ -11,10 +11,24 @@
 import type { ProjectFile } from "@/types/practical";
 
 export type PreviewMessage =
+  | { type: "sandbox-ready" }
   | { type: "ready" }
   | { type: "console"; level: "log" | "info" | "warn" | "error"; text: string }
   | { type: "navigate"; page: string }
   | { type: "test-result"; payload: unknown };
+
+/**
+ * Dokument-gospodarz piaskownicy (public/sandbox.html). Ma własną, luźną CSP,
+ * bo kod ucznia musi wykonywać swoje skrypty inline — aplikacja ma politykę
+ * z nonce i nie dopuszcza inline'u. Do tego dokumentu wpisujemy pracę ucznia
+ * przez postMessage.
+ */
+export const SANDBOX_URL = "/sandbox.html";
+
+/** Wysyła zbudowany dokument do gospodarza piaskownicy. */
+export function writeToSandbox(frame: HTMLIFrameElement | null, html: string): void {
+  frame?.contentWindow?.postMessage({ source: "inf03-host", type: "sandbox-write", html }, "*");
+}
 
 /** Skrypt mostka wstrzykiwany jako PIERWSZY element <head> — przed kodem ucznia. */
 function bridgeScript(frameId: string): string {
@@ -165,24 +179,27 @@ export function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] ?? c);
 }
 
-/** Sprawdza, czy wiadomość faktycznie przyszła z naszego iframe podglądu. */
+/**
+ * Sprawdza, czy wiadomość faktycznie przyszła z naszego iframe podglądu.
+ * Treść wiadomości to dane od kodu ucznia — nigdy ich nie wykonujemy.
+ * Wyjątek na frameId dotyczy tylko „sandbox-ready", które wysyła gospodarz
+ * piaskownicy, zanim wpiszemy do niego dokument z identyfikatorem.
+ */
 export function isPreviewMessage(
   event: MessageEvent,
   frameWindow: Window | null,
   frameId: string,
-): event is MessageEvent<PreviewMessage & { source: "inf03-preview"; frameId: string }> {
+): event is MessageEvent<PreviewMessage & { source: "inf03-preview"; frameId?: string }> {
   if (frameWindow === null || event.source !== frameWindow) return false;
   const data: unknown = event.data;
-  return (
-    typeof data === "object" &&
-    data !== null &&
-    (data as { source?: unknown }).source === "inf03-preview" &&
-    (data as { frameId?: unknown }).frameId === frameId &&
-    typeof (data as { type?: unknown }).type === "string"
-  );
+  if (typeof data !== "object" || data === null) return false;
+  const msg = data as { source?: unknown; frameId?: unknown; type?: unknown };
+  if (msg.source !== "inf03-preview" || typeof msg.type !== "string") return false;
+  return msg.type === "sandbox-ready" || msg.frameId === frameId;
 }
 
-export const PREVIEW_SANDBOX = "allow-scripts allow-forms";
+// Atrybut sandbox nakłada gospodarz piaskownicy na ramkę wewnętrzną
+// (public/sandbox.html) — tam działa kod ucznia z origin null.
 
 /** Strony, które da się wyświetlić w podglądzie. */
 export function previewablePages(files: readonly ProjectFile[]): string[] {

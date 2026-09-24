@@ -78,7 +78,8 @@ supabase/          schema.sql, seed.sql
 | `lib/validation.ts` | ta sama walidacja w UI i przed każdym wywołaniem Supabase |
 | React JSX | cały tekst użytkownika renderowany jako tekst; brak `dangerouslySetInnerHTML` (reguła ESLint `react/no-danger`) |
 | Materiały (`subtopic_links`) | RLS: odczyt publiczny, zapis tylko dla zalogowanych; `href` tylko dla http(s) (CHECK w bazie + `safeLinkUrl` w UI) |
-| `next.config.ts` | CSP, HSTS, `X-Frame-Options: DENY`, `nosniff`; `connect-src` tylko https/wss do Supabase |
+| Nagłówki (`middleware.ts` + `next.config.ts`) | **CSP z nonce na każde żądanie** (`strict-dynamic`, bez `unsafe-inline`), HSTS, `X-Frame-Options: DENY`, `nosniff`; `connect-src` tylko https/wss do Supabase |
+| Kod ucznia (`public/sandbox.html`) | osobny dokument z własną, luźną CSP i `connect-src 'none'`; praca ucznia w zagnieżdżonej ramce `sandbox` (origin null) |
 | `middleware.ts` | sesja weryfikowana przez `getUser()`; `/admin` bez sesji → `/admin/login` |
 | Moduł Praktyka (RLS) | anon **nie ma** dostępu do żadnej tabeli modułu — tylko funkcje `SECURITY DEFINER` z tokenem podejścia (hash SHA-256 w bazie, token w `sessionStorage`) |
 | Praktyka: limity | 10 prób PIN-u na minutę z IP, nazwy plików z listy zadania, 200 KB na plik i 1 MB na projekt, limit zdarzeń na podejście |
