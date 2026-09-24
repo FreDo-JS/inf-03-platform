@@ -10,6 +10,7 @@ import { useProctorGuard, type ProctorKind } from "@/lib/hooks/useProctorGuard";
 import { useSingleTabLock } from "@/lib/hooks/useSingleTabLock";
 import { parseAttemptState, parseEvent, parseJoin, parseSave, parseSubmit } from "@/lib/practical/parse";
 import { PRACTICAL_LIMITS, validateFiles, validatePracticalName } from "@/lib/practical/validation";
+import { formatClock } from "@/lib/tests";
 import { getBrowserSupabase } from "@/lib/supabase/client";
 import { LIMITS, parseServerTime, validatePin } from "@/lib/validation";
 import type { AttemptState, PracticalEndedReason, ProjectFile } from "@/types/practical";
@@ -400,13 +401,20 @@ export function PracticalStudent() {
       setNotice("Bez trybu pełnoekranowego nie można rozpocząć. Zezwól przeglądarce na pełny ekran i spróbuj ponownie.");
       return;
     }
+    // Gdyby serwer nie podał terminu (sesja bez ends_at albo błąd RPC), odliczamy
+    // lokalnie od limitu sesji — lepiej to niż zamrożone 0:00. Najbliższa
+    // synchronizacja z serwerem i tak nadpisze ten termin.
+    if (endsAtRef.current === null) {
+      endsAtRef.current = Date.now() + clockOffsetRef.current + state.session.minutes * 60000;
+    }
     await getBrowserSupabase().rpc("practical_event", { p_token: token, p_type: "start", p_details: {} });
     setNotice(null);
     setPhase("working");
   };
 
   const confirmSubmit = () => {
-    if (window.confirm("Zakończyć i oddać pracę? Po oddaniu nie można już nic zmienić."))
+    const left = remainingSec > 0 ? `Do końca zostało jeszcze ${formatClock(remainingSec)}. ` : "";
+    if (window.confirm(`${left}Zakończyć podejście i oddać pracę? Po oddaniu nie można już nic zmienić.`))
       void submit("completed");
   };
 
@@ -435,7 +443,7 @@ export function PracticalStudent() {
           onLargePaste={onLargePaste}
         />
         {notice && (
-          <div className="fixed bottom-4 left-1/2 z-30 -translate-x-1/2">
+          <div className="fixed bottom-4 left-1/2 z-50 -translate-x-1/2">
             <p className="alert-error shadow-card">{notice}</p>
           </div>
         )}

@@ -98,6 +98,12 @@ gdyby `quiz_time` nie odpowiedział.
 **Nadzór**: `useProctorGuard` (visibilitychange + blur z filtrem na iframe + fullscreenchange,
 dedupe 1 s, limit 2 przewinień) i `useSingleTabLock` (heartbeat w localStorage co 2 s).
 
+**Praktyka — pasek IDE**: panel ma `z-40`, bo `SiteNav` jest `sticky z-30` i zasłaniał zegar
+oraz przycisk oddania. Dodatkowo `body.ide-open` chowa nawigację, żeby nie dało się do niej dojść
+Tabem i wyjść z egzaminu. Czas pokazuje `formatClock` (h:mm:ss) — `formatDuration` zrobiłby z
+150 minut „150:00”. Gdy serwer nie poda `ends_at`, `startWork` ustawia termin lokalnie z
+`session.minutes`, żeby zegar nie stał na 0:00.
+
 **Praktyka — koniec pracy**: uczeń **nie dostaje linku do wyniku**. Po „Zakończ i oddaj"
 ekran wraca do wpisywania PIN-u (20 s albo od razu przyciskiem), czyszcząc token, pliki
 i zegar, żeby usiadł kolejny uczeń. Link do wyniku kopiuje nauczyciel w zakładce *Prace*.

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CodeEditor, languageForFile } from "@/components/practical/CodeEditor";
 import { PreviewPane } from "@/components/practical/PreviewPane";
 import { TaskSheet } from "@/components/practical/TaskSheet";
-import { formatDuration } from "@/lib/tests";
+import { formatClock } from "@/lib/tests";
 import type { AttemptState, ProjectFile } from "@/types/practical";
 
 export type SaveStatus = "idle" | "saving" | "saved" | "error";
@@ -90,6 +90,12 @@ export function IdeWorkspace({
     };
   }, []);
 
+  // Panel zajmuje cały ekran — zdejmujemy resztę strony także z kolejności Tab.
+  useEffect(() => {
+    document.body.classList.add("ide-open");
+    return () => document.body.classList.remove("ide-open");
+  }, []);
+
   const lowTime = remainingSec <= 600;
   const veryLowTime = remainingSec <= 60;
 
@@ -129,7 +135,7 @@ export function IdeWorkspace({
   );
 
   return (
-    <div className="fixed inset-0 z-20 flex flex-col bg-bg">
+    <div className="fixed inset-0 z-40 flex flex-col bg-bg">
       {/* pasek górny */}
       <header className="flex shrink-0 flex-wrap items-center gap-3 border-b border-white/[0.07] bg-panel/80 px-3 py-2 backdrop-blur">
         <span className="font-mono text-sm font-bold">
@@ -143,7 +149,7 @@ export function IdeWorkspace({
           {SAVE_LABEL[saveStatus]}
         </span>
         <div
-          className={`ml-auto rounded-xl border px-3 py-1 font-mono text-lg font-bold tabular-nums ${
+          className={`ml-auto flex items-center gap-2 rounded-xl border px-3 py-1 ${
             veryLowTime
               ? "animate-pulse border-danger/60 bg-danger/10 text-danger"
               : lowTime
@@ -153,10 +159,17 @@ export function IdeWorkspace({
           role="timer"
           aria-label="Pozostały czas"
         >
-          {formatDuration(remainingSec)}
+          <span className="hidden text-[0.7rem] uppercase tracking-wide opacity-70 sm:inline">Pozostały czas</span>
+          <span className="font-mono text-lg font-bold tabular-nums">{formatClock(remainingSec)}</span>
         </div>
-        <button type="button" className="btn-primary btn-sm" onClick={onSubmit} disabled={submitting || readOnly}>
-          {submitting ? "Oddawanie…" : "Zakończ i oddaj"}
+        <button
+          type="button"
+          className="btn-primary btn-sm"
+          onClick={onSubmit}
+          disabled={submitting || readOnly}
+          title="Oddaj pracę i zakończ podejście — także wtedy, gdy skończysz przed czasem"
+        >
+          {submitting ? "Oddawanie…" : "Zakończ podejście"}
         </button>
       </header>
 

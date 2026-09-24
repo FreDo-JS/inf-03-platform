@@ -30,6 +30,20 @@ export function formatDuration(totalSec: number): string {
   return `${m}:${String(rest).padStart(2, "0")}`;
 }
 
+/**
+ * Zegar odliczający dla dłuższych podejść: h:mm:ss powyżej godziny, m:ss poniżej.
+ * (formatDuration pokazałby 150-minutowy egzamin jako „150:00”.)
+ */
+export function formatClock(totalSec: number): string {
+  const s = Math.max(0, Math.floor(totalSec));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const rest = s % 60;
+  const mm = String(m).padStart(2, "0");
+  const ss = String(rest).padStart(2, "0");
+  return h > 0 ? `${h}:${mm}:${ss}` : `${m}:${ss}`;
+}
+
 export function pluralPytania(n: number): string {
   if (n === 1) return "pytanie";
   const d = n % 10;
