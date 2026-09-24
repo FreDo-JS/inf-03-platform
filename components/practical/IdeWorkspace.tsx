@@ -156,7 +156,7 @@ export function IdeWorkspace({
           {formatDuration(remainingSec)}
         </div>
         <button type="button" className="btn-primary btn-sm" onClick={onSubmit} disabled={submitting || readOnly}>
-          {submitting ? "Oddawanie…" : "Oddaj pracę"}
+          {submitting ? "Oddawanie…" : "Zakończ i oddaj"}
         </button>
       </header>
 

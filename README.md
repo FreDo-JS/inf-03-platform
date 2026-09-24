@@ -147,7 +147,10 @@ powstaje w dwóch krokach — testy automatyczne, potem weryfikacja nauczyciela.
 
 **Uczeń:** `/praktyka` → PIN i imię → poczekalnia → tryb pełnoekranowy → IDE (arkusz | edytor | podgląd).
 Kod zapisuje się sam (3 s po przerwie w pisaniu i co 30 s), odświeżenie strony wraca do pracy.
-Po oddaniu dostaje link z tokenem — wynik pojawia się tam dopiero po publikacji przez nauczyciela.
+Kończy przyciskiem **Zakończ i oddaj**; po oddaniu ekran sam wraca do wpisywania PIN-u (po 20 s lub
+od razu przyciskiem), więc przy tym komputerze może usiąść kolejny uczeń. Uczeń **nie dostaje linku do
+wyniku** — praca leży w bazie, a ocenę ogłasza nauczyciel (w zakładce *Prace* jest przycisk kopiujący
+link do wyniku, gdyby chciał go komuś przekazać).
 
 **Jak to jest uruchamiane i oceniane**
 - Podgląd i testy działają w `<iframe sandbox="allow-scripts allow-forms">` **bez** `allow-same-origin`,

@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { IdeWorkspace, type SaveStatus } from "@/components/practical/IdeWorkspace";
 import { PinInput } from "@/components/tests/PinInput";
@@ -41,7 +40,6 @@ export function PracticalStudent() {
   const [phase, setPhase] = useState<Phase>("join");
   const [state, setState] = useState<AttemptState | null>(null);
   const [files, setFiles] = useState<ProjectFile[]>([]);
-  const [resultToken, setResultToken] = useState<string | null>(null);
 
   // ekran dołączania
   const [pin, setPin] = useState("");
@@ -56,6 +54,7 @@ export function PracticalStudent() {
   const [remainingSec, setRemainingSec] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [resetIn, setResetIn] = useState(20);
 
   const tokenRef = useRef<string | null>(null);
   const filesRef = useRef<ProjectFile[]>([]);
@@ -80,7 +79,6 @@ export function PracticalStudent() {
 
     if (next.status !== "in_progress") {
       submittedRef.current = true;
-      setResultToken(next.resultToken);
       setPhase("submitted");
     } else if (next.session.status === "active") {
       setPhase((p) => (p === "working" ? p : "lobby"));
@@ -126,6 +124,53 @@ export function PracticalStudent() {
     }, 5000);
     return () => window.clearInterval(id);
   }, [phase]);
+
+  /**
+   * Powrót do ekranu wyboru egzaminu (wpisania PIN-u). Czyścimy token podejścia
+   * i całą pracę z pamięci, żeby kolejny uczeń przy tym komputerze zaczynał
+   * od zera i nie wszedł w cudze podejście.
+   */
+  const resetToJoin = useCallback(() => {
+    if (debounceRef.current !== null) window.clearTimeout(debounceRef.current);
+    writeToken(null);
+    tokenRef.current = null;
+    filesRef.current = [];
+    submittedRef.current = false;
+    dirtyRef.current = false;
+    savingRef.current = false;
+    endsAtRef.current = null;
+    clockOffsetRef.current = 0;
+
+    setState(null);
+    setFiles([]);
+    setPin("");
+    setName("");
+    setJoinError(null);
+    setNotice(null);
+    setSaveStatus("idle");
+    setLastSavedAt(null);
+    setRemainingSec(0);
+    setResetIn(20);
+    setPhase("join");
+
+    if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
+  }, []);
+
+  // odliczanie do automatycznego powrotu po oddaniu pracy
+  useEffect(() => {
+    if (phase !== "submitted") return;
+    const id = window.setInterval(() => {
+      setResetIn((n) => {
+        if (n <= 1) {
+          window.clearInterval(id);
+          resetToJoin();
+          return 0;
+        }
+        return n - 1;
+      });
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [phase, resetToJoin]);
 
   // ------------------------------------------------------------- dołączanie
   const join = async (e: React.FormEvent) => {
@@ -257,12 +302,16 @@ export function PracticalStudent() {
         setNotice(friendlyError(error, "Nie udało się oddać pracy. Spróbuj jeszcze raz."));
         return;
       }
-      const parsed = parseSubmit(data);
-      setResultToken(parsed?.resultToken ?? state?.resultToken ?? null);
+      // Tokenu wyniku uczniowi nie pokazujemy — ocenę ogłasza nauczyciel.
+      // Sprawdzamy tylko, czy serwer potwierdził przyjęcie pracy.
+      if (parseSubmit(data) === null) {
+        setNotice("Praca została wysłana, ale serwer odpowiedział nietypowo. Zgłoś to nauczycielowi.");
+      }
+      setResetIn(20);
       setPhase("submitted");
       if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
     },
-    [state],
+    [],
   );
 
   // ------------------------------------------------- nadzór: karta i pełny ekran
@@ -357,7 +406,8 @@ export function PracticalStudent() {
   };
 
   const confirmSubmit = () => {
-    if (window.confirm("Oddać pracę? Po oddaniu nie można już nic zmienić.")) void submit("completed");
+    if (window.confirm("Zakończyć i oddać pracę? Po oddaniu nie można już nic zmienić."))
+      void submit("completed");
   };
 
   // =============================================================== ekrany
@@ -394,26 +444,23 @@ export function PracticalStudent() {
   }
 
   if (phase === "submitted") {
-    const link = resultToken ? `/praktyka/wynik/${resultToken}` : null;
+    // Bez linku do wyniku: praca siedzi w bazie, ocenę pokazuje nauczyciel.
+    // Po chwili ekran sam wraca do wyboru egzaminu, żeby przy tym komputerze
+    // mógł usiąść kolejny uczeń.
     return (
       <div className="mx-auto max-w-lg animate-fade-up">
         <div className="card p-6 text-center sm:p-8">
-          <p className="text-5xl">📨</p>
+          <p className="text-5xl">✅</p>
           <h1 className="mt-4 text-2xl font-bold">Praca oddana</h1>
           <p className="mt-2 text-muted">
-            {state?.studentName}, Twoja praca została zapisana. Wynik zobaczysz, gdy nauczyciel ją sprawdzi i opublikuje.
+            {state?.studentName}, Twoja praca została zapisana. Wynik ogłosi nauczyciel po sprawdzeniu.
           </p>
-          {link && (
-            <div className="mt-6 rounded-xl border border-accent/40 bg-accent/[0.06] p-4 text-left">
-              <p className="label mb-1">Twój link do wyniku — zapisz go lub zrób zdjęcie</p>
-              <Link href={link} className="break-all font-mono text-sm text-accent hover:underline">
-                {typeof window !== "undefined" ? `${window.location.origin}${link}` : link}
-              </Link>
-            </div>
-          )}
-          <Link href="/" className="btn-ghost mt-6">
-            ← strona główna
-          </Link>
+          <p className="mt-6 text-sm text-muted">
+            Ekran wróci do wyboru egzaminu za <span className="font-mono text-accent">{resetIn}</span> s.
+          </p>
+          <button type="button" className="btn-primary mt-4 w-full py-3" onClick={resetToJoin}>
+            Gotowe — zwolnij komputer
+          </button>
         </div>
       </div>
     );

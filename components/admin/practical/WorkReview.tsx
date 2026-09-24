@@ -125,6 +125,20 @@ export function WorkReview({ attempt, task, session, onClose, onCheck, onPublish
           <button type="button" className="btn-ghost btn-sm" onClick={onClose}>
             ← lista prac
           </button>
+          {/* Uczeń nie dostaje linku do wyniku (po oddaniu ekran wraca do wyboru
+              egzaminu). Nauczyciel może go skopiować i przekazać indywidualnie. */}
+          <button
+            type="button"
+            className="btn-ghost btn-sm"
+            onClick={() => {
+              void navigator.clipboard
+                .writeText(`${window.location.origin}/praktyka/wynik/${attempt.result_token}`)
+                .then(() => setInfo("Skopiowano link do wyniku tej pracy."))
+                .catch(() => setError("Nie udało się skopiować linku."));
+            }}
+          >
+            🔗 Kopiuj link do wyniku
+          </button>
           <button type="button" className="btn-ghost btn-sm" onClick={onCheck} disabled={busy || task.auto_tests.length === 0}>
             {progress ? `Sprawdzanie… ${progress.done}/${progress.total}` : "▶ Sprawdź automatycznie"}
           </button>
