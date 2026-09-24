@@ -12,6 +12,15 @@
 -- w panelu nauczyciela bez ruszania kodu.
 -- =============================================================================
 
+do $$
+begin
+  if to_regclass('public.categories') is null
+     or not exists (select 1 from information_schema.columns
+                    where table_schema = 'public' and table_name = 'categories' and column_name = 'qualification') then
+    raise exception 'Brakuje migracji 010_inf04.sql — uruchom ją przed 011_inf04_seed.sql.';
+  end if;
+end $$;
+
 -- -----------------------------------------------------------------------------
 -- Kategorie (position = kolejność w roku szkolnym, patrz plan 36 tygodni)
 -- -----------------------------------------------------------------------------

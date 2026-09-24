@@ -406,6 +406,11 @@ grant execute on function public.practical_save(text, jsonb) to anon, authentica
 -- Uczeń nasłuchuje zmian w tabeli tests, żeby widzieć nowe testy od razu.
 -- Bez listy kolumn ładunek zdarzenia zawierałby też pytania (kolumna questions),
 -- czyli treść chronioną PIN-em. Publikujemy wyłącznie dane z listy testów.
+--
+-- question_count jest kolumną GENEROWANĄ, a Postgres nie przyjmuje takich na
+-- liście kolumn publikacji ("cannot use generated column ... in publication
+-- column list"). Nie szkodzi: klient i tak ignoruje ładunek zdarzenia i po
+-- każdym powiadomieniu dociąga listę testów zapytaniem.
 
 do $$
 begin
@@ -415,6 +420,6 @@ end $$;
 
 do $$
 begin
-  alter publication supabase_realtime add table tests (id, title, time_limit, question_count, created_at);
+  alter publication supabase_realtime add table tests (id, title, time_limit, created_at);
 exception when duplicate_object then null;
 end $$;

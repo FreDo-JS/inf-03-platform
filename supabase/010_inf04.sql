@@ -16,6 +16,29 @@
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------
+-- 0. Sprawdzenie kolejności
+--
+-- Ta migracja korzysta z tabel i funkcji z wcześniejszych plików. Zamiast
+-- niejasnego „function public.is_admin() does not exist” mówimy wprost, czego
+-- brakuje i co uruchomić.
+-- -----------------------------------------------------------------------------
+do $$
+begin
+  if to_regclass('public.categories') is null then
+    raise exception 'Brakuje podstawowego schematu. Uruchom najpierw supabase/schema.sql, potem 002_test_pin.sql i kolejne migracje po numerach.';
+  end if;
+  if to_regclass('public.subtopic_links') is null then
+    raise exception 'Brakuje migracji 003_subtopic_links.sql. Uruchom migracje po kolei: 003, 004, 005, 006, 007, 008, 009, dopiero potem 010.';
+  end if;
+  if to_regclass('public.practical_sessions') is null then
+    raise exception 'Brakuje migracji 006_practical.sql. Uruchom migracje po kolei: 006, 007, 008, 009, dopiero potem 010.';
+  end if;
+  if to_regproc('public.is_admin') is null then
+    raise exception 'Brakuje migracji 008_security_hardening.sql (to ona tworzy tabele admins i funkcje is_admin). Uruchom 008, potem 009, dopiero potem 010.';
+  end if;
+end $$;
+
+-- -----------------------------------------------------------------------------
 -- 1. Klasy
 -- -----------------------------------------------------------------------------
 create table if not exists classes (
@@ -124,7 +147,7 @@ end $$;
 do $$
 begin
   alter publication supabase_realtime add table tests
-    (id, title, time_limit, question_count, qualification, created_at);
+    (id, title, time_limit, qualification, created_at);
 exception when duplicate_object then null;
 end $$;
 

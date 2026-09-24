@@ -83,6 +83,14 @@ to ocenić w przeglądarce; to byłaby ściema, nie funkcja.
 
 ## Rzeczy, które łatwo zepsuć
 
+**PGlite ≠ Postgres.** Testy SQL chodzą na PGlite i ono przyjmuje rzeczy, które
+Supabase odrzuca — np. kolumnę **generowaną na liście kolumn publikacji**
+(`question_count` w 008 wywracało migrację na produkcji: „cannot use generated
+column … in publication column list”). Po każdej zmianie w publikacjach albo
+w rzadszych konstrukcjach DDL dopisz asercję sprawdzającą sam katalog systemowy
+(w `security.mjs` jest taka na `pg_publication_rel`), bo samo „migracja się wykonała”
+niczego nie dowodzi.
+
 **CSP z nonce.** `middleware.ts` generuje nonce per request (`script-src 'self' 'nonce-…'
 'strict-dynamic'`). Dlatego `app/layout.tsx` ma `export const dynamic = "force-dynamic"` —
 bez tego strony statyczne trafiają do produkcji bez nonce i hydracja pada. Nie usuwaj tego.

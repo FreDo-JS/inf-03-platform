@@ -164,5 +164,39 @@ await ok("sesja dla nowej klasy 4a przechodzi",
 await err("sesja dla nieistniejącej klasy odrzucona",
   `select practical_create_session('${taskId}'::uuid, '9z', 60)`, "invalid_class");
 
+console.log("\n== KOLEJNOŚĆ MIGRACJI ==");
+// Uruchomienie 010 na bazie bez 008 dawało gołe „function public.is_admin()
+// does not exist”. Teraz ma powiedzieć wprost, której migracji brakuje.
+{
+  const fresh = new PGlite();
+  await fresh.exec(`
+    create role anon nologin; create role authenticated nologin;
+    create schema auth; create table auth.users (id uuid primary key);
+    create function auth.role() returns text language sql stable as $$ select 'anon' $$;
+    create function auth.uid() returns uuid language sql stable as $$ select null::uuid $$;
+    grant usage on schema auth to anon, authenticated;
+    grant execute on all functions in schema auth to anon, authenticated;
+    grant usage on schema public to anon, authenticated;
+    alter default privileges in schema public grant all on tables to anon, authenticated;
+    alter default privileges in schema public grant all on functions to anon, authenticated;
+    alter default privileges in schema public grant all on sequences to anon, authenticated;
+    create publication supabase_realtime;`);
+  for (const f of ["schema.sql", "002_test_pin.sql", "seed.sql", "003_subtopic_links.sql",
+                   "004_matching_questions.sql", "005_tab_switch.sql", "006_practical.sql",
+                   "007_practical_seed.sql"]) {
+    await fresh.exec(f === "schema.sql" ? read(f).replace("create extension if not exists pgcrypto;", "") : read(f));
+  }
+  const guard = async (label, file, expect) => {
+    try {
+      await fresh.exec(read(file));
+      fail++; console.log("  FAIL ", label, "→ migracja przeszła mimo braku zależności");
+    } catch (e) {
+      if (e.message.includes(expect)) { pass++; console.log("  ok   ", label); }
+      else { fail++; console.log("  FAIL ", label, "→ niejasny komunikat:", e.message.slice(0, 90)); }
+    }
+  };
+  await guard("010 bez 008 mówi, której migracji brakuje", "010_inf04.sql", "008_security_hardening");
+  await guard("011 bez 010 mówi, której migracji brakuje", "011_inf04_seed.sql", "010_inf04");
+}
 console.log(`\n${pass} ok, ${fail} fail`);
 process.exit(fail ? 1 : 0);

@@ -214,6 +214,30 @@ await blocked("PIN sesji z liter",
 await blocked("klasa spoza listy w sesji",
   `update practical_sessions set class_name='5x' where id='${psession.id}'`);
 
+console.log("\n== PUBLIKACJE REALTIME ==");
+// PGlite przyjmuje kolumnę generowaną na liście kolumn publikacji, a prawdziwy
+// Postgres nie ("cannot use generated column ... in publication column list").
+// Migracja 008 wywracała się przez to na Supabase — tu pilnujemy, żeby nie wróciło.
+await ok("żadna publikowana kolumna nie jest generowana",
+  `select count(*)::int n
+   from pg_publication_rel pr
+   join unnest(pr.prattrs::int2[]) as att(attnum) on true
+   join pg_attribute a on a.attrelid = pr.prrelid and a.attnum = att.attnum
+   where a.attgenerated <> ''`,
+  (r) => r[0].n === 0);
+await ok("publikacja tests nie wypuszcza kolumny questions",
+  `select count(*)::int n
+   from pg_publication_rel pr
+   join pg_class c on c.oid = pr.prrelid
+   join unnest(pr.prattrs::int2[]) as att(attnum) on true
+   join pg_attribute a on a.attrelid = pr.prrelid and a.attnum = att.attnum
+   where c.relname = 'tests' and a.attname = 'questions'`,
+  (r) => r[0].n === 0);
+await ok("publikacja tests ma listę kolumn (nie całą tabelę)",
+  `select count(*)::int n from pg_publication_rel pr join pg_class c on c.oid = pr.prrelid
+   where c.relname = 'tests' and pr.prattrs is not null`,
+  (r) => r[0].n === 1);
+
 console.log(`\n${pass} ok, ${fail} uwag`);
 if (findings.length) console.log("Do poprawy:\n- " + findings.join("\n- "));
 process.exit(0);
