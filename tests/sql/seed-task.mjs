@@ -53,12 +53,14 @@ await ok("pliki startowe są puste w miejscach do uzupełnienia",
    where pt.title like 'Rowerownia%' order by 1`,
   (r) => r.length === 3 && r.every((x) => x.len < 400));
 
-// Zapisujemy rozwiązanie wzorcowe i testy do plików — sprawdzimy je w przeglądarce
-const [{ ref, tests }] = (await db.query(
-  `select reference_files::text ref, auto_tests::text tests from practical_tasks where title like 'Rowerownia%'`)).rows;
-// (zapis pliku pomocniczego pominięty w repozytorium)
-console.log("  ok    rozwiazanie wzorcowe i testy odczytane z bazy");
-pass++;
+// Rozwiązanie wzorcowe i testy muszą dać się odczytać (sprawdzenie „na wzorcu"
+// uruchamia je potem w przeglądarce nauczyciela).
+await ok(
+  "rozwiązanie wzorcowe i testy dają się odczytać z bazy",
+  `select jsonb_array_length(reference_files) r, jsonb_array_length(auto_tests) t
+   from practical_tasks where title like 'Rowerownia%'`,
+  (r) => r[0].r === 3 && r[0].t === 11,
+);
 
 console.log(`\n${pass} ok, ${fail} fail`);
 process.exit(fail ? 1 : 0);

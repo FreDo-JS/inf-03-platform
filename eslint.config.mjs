@@ -15,8 +15,8 @@ const config = [
       "no-console": ["error", { allow: ["warn", "error"] }],
     },
   },
-  // skrypty budowania działają w terminalu — tam console.log jest na miejscu
-  { files: ["scripts/**/*.mjs"], rules: { "no-console": "off" } },
+  // skrypty budowania i testy bazy działają w terminalu — tam console.log jest na miejscu
+  { files: ["scripts/**/*.mjs", "tests/**/*.mjs"], rules: { "no-console": "off" } },
 ];
 
 export default config;
