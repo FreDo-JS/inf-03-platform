@@ -17,6 +17,7 @@ Stack: Next.js 15 (App Router) · TypeScript (strict) · Tailwind CSS · Supabas
    - `supabase/006_practical.sql` — moduł Praktyka (zadania, sesje, prace)
    - `supabase/007_practical_seed.sql` — przykładowe zadanie praktyczne „Rowerownia”
    - `supabase/008_security_hardening.sql` — **lista adminów** i poprawki po audycie bezpieczeństwa
+   - `supabase/009_server_clock.sql` — zegar po stronie serwera i rejestrowanie utraty fokusa okna
 
    Masz już bazę z poprzedniej wersji? Uruchom brakujące migracje (`002…`, `003…`) — nic nie nadpisują,
    a ponowne uruchomienie niczego nie duplikuje.
@@ -88,10 +89,13 @@ supabase/          schema.sql, seed.sql
 | **Lista adminów** (008) | uprawnienia ma tylko konto wpisane do `admins`; samo zalogowanie nie wystarcza, dopisać się przez API nie można |
 | **Ocena bez JS ucznia** (008) | testy strukturalne biegną z wyłączonymi skryptami ucznia; przy teście interakcyjnym dwa zgłoszenia wyniku = wykryta manipulacja i 0 pkt |
 | Realtime na `tests` | publikowane tylko kolumny publiczne — treść pytań nie wychodzi w zdarzeniu realtime |
+| **Zegar egzaminu** (009) | termin liczy baza (`quiz_time`, `practical_time`), klient synchronizuje się co 15–20 s; przestawienie zegara w systemie nic nie daje |
+| **Nadzór** (`useProctorGuard`) | karta, **fokus okna** i pełny ekran — wspólnie dla części teoretycznej i praktycznej; obie wymagają pełnego ekranu |
+| **Jedna karta** (`useSingleTabLock`) | egzamin otwarty w drugiej karcie tej przeglądarki jest blokowany (pracuje pierwsza) |
 
 ### Audyt bezpieczeństwa
 
-Pełny audyt (216 automatycznych sprawdzeń: RLS, wstrzyknięcia, podszywanie się, limity, nagłówki,
+Pełny audyt (230 automatycznych sprawdzeń: RLS, wstrzyknięcia, podszywanie się, limity, nagłówki,
 izolacja piaskownicy) opisuje [docs/audyt-bezpieczenstwa.md](docs/audyt-bezpieczenstwa.md).
 
 **Odstępstwo od specyfikacji:** migracja 002 usuwa politykę `"anyone can submit attempt"`.
@@ -110,14 +114,19 @@ Pozwalała ona wstawić dowolny wynik bezpośrednio przez API, z pominięciem PI
 - **Bez cofania:** nie ma przycisku „Wstecz", a po przejściu dalej odpowiedzi nie da się zmienić.
   Cały quiz działa na jednym adresie, więc Wstecz w przeglądarce wychodzi z testu, a nie cofa pytanie.
   Wyjście lub odświeżenie przerywa podejście — stanu w połowie nie zapisujemy.
-- **Zmiana karty:** pierwsze opuszczenie karty pokazuje po powrocie ostrzeżenie blokujące odpowiadanie
-  (zegar nie jest zatrzymywany). Drugie kończy test natychmiast, także gdy uczeń nie wróci; pytania bez
-  odpowiedzi liczą się jako błędne. W panelu widać kolumnę „Zakończenie" (ukończony / koniec czasu /
-  **zmiana karty**) i licznik opuszczeń karty.
+- **Pełny ekran:** test otwiera się na pełnym ekranie (jak część praktyczna) i musi w nim pozostać.
+  Bez zgody przeglądarki na pełny ekran nie da się zacząć.
+- **Nadzór:** przełączenie karty, **przejście do innego okna** (nawet gdy karta pozostaje widoczna)
+  i wyjście z pełnego ekranu. Pierwsze zdarzenie to ostrzeżenie blokujące odpowiadanie (zegar nie stoi),
+  drugie kończy test natychmiast — także gdy uczeń nie wróci. Pytania bez odpowiedzi liczą się jako błędne.
+  W panelu widać kolumnę „Zakończenie" i licznik opuszczeń.
+- **Jedna karta:** otwarcie tego samego testu w drugiej karcie tej przeglądarki jest zablokowane —
+  druga karta dostaje komunikat, pierwsza pracuje dalej.
+- **Czas liczy serwer:** odliczanie startuje od terminu podanego przez bazę i jest z nią synchronizowane
+  co 15 s (`quiz_time`). Przestawienie zegara w systemie nic nie daje.
 
-  ⚠️ To wykrywa tylko przełączenie karty lub okna w tej samej przeglądarce. Nie wykryje telefonu obok,
-  drugiego monitora ani okna ustawionego w trybie podzielonego ekranu — traktuj to jako sygnał do
-  sprawdzenia, nie jako dowód ściągania.
+  ⚠️ To wykrywa zachowanie tej przeglądarki. Nie wykryje telefonu obok ani drugiego komputera —
+  traktuj to jako sygnał do sprawdzenia, nie jako dowód ściągania.
 
 ## Praktyka — symulator części praktycznej (HTML/CSS/JS)
 
@@ -151,10 +160,13 @@ Po oddaniu dostaje link z tokenem — wynik pojawia się tam dopiero po publikac
 - Procent liczy baza (`practical_recalc`): punkty automatyczne po korektach + ręczne / maksimum.
 - **Żadnej oceny przez AI.**
 
-**Nadzór nad uczniem** — ten sam hook co w module Testy, rozszerzony o pełny ekran: pierwsza zmiana
-karty lub wyjście z pełnego ekranu daje ostrzeżenie, druga oddaje pracę (`ended_reason = 'tab_switch'`).
-Duże wklejenia (≥200 znaków) trafiają do dziennika: długość, plik i czas — **bez treści**.
-Zegar nie zatrzymuje się na czas ostrzeżenia.
+**Nadzór nad uczniem** — ten sam hook co w module Testy (`useProctorGuard`): przełączenie karty,
+przejście do innego okna i wyjście z pełnego ekranu. Pierwsze zdarzenie daje ostrzeżenie, drugie oddaje
+pracę (`ended_reason = 'tab_switch'`). Każde zdarzenie trafia do dziennika z rodzajem (`tab_hidden`,
+`focus_lost`, `fullscreen_exit`), a licznik prowadzi serwer. Duże wklejenia (≥200 znaków) zapisujemy
+z długością, nazwą pliku i czasem — **bez treści**. Zegar nie zatrzymuje się na czas ostrzeżenia,
+a termin końca jest odpytywany z serwera co 20 s (`practical_time`). Praca może być otwarta tylko
+w jednej karcie.
 
 ⚠️ To wszystko są sygnały dla nauczyciela, nie blokada ściągania: nie wykryjemy telefonu obok ani
 drugiego komputera. Pełną kontrolę daje Safe Exam Browser (tu nieintegrowany).

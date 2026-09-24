@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ProgressBar } from "@/components/ProgressBar";
 import { friendlyError, isDuplicateAttempt } from "@/lib/errors";
-import { useTabSwitchGuard } from "@/lib/hooks/useTabSwitchGuard";
+import { useProctorGuard } from "@/lib/hooks/useProctorGuard";
+import { useSingleTabLock } from "@/lib/hooks/useSingleTabLock";
 import { shuffle } from "@/lib/shuffle";
 import { getBrowserSupabase } from "@/lib/supabase/client";
 import { formatDuration, pluralPytania } from "@/lib/tests";
@@ -12,6 +13,7 @@ import {
   LIMITS,
   parseBeginSession,
   parseOpenTest,
+  parseServerTime,
   parseSubmitResult,
   sanitizeAnswers,
   validatePin,
@@ -19,8 +21,9 @@ import {
 } from "@/lib/validation";
 import type { EndedReason, OpenedTest, QuizAnswer, SubmitResult } from "@/types/db";
 import { MatchingQuestionView } from "./MatchingQuestionView";
-import { TabSwitchWarning } from "./TabSwitchWarning";
 import { PinInput } from "./PinInput";
+import { ProctorWarning } from "./ProctorWarning";
+import { SecondTabBlocked } from "./SecondTabBlocked";
 
 type Props = {
   testId: string;
@@ -81,7 +84,9 @@ export function Quiz({ testId, title, timeLimitSec, questionCount }: Props) {
   const [timedOut, setTimedOut] = useState(false);
 
   const answersRef = useRef(answers);
-  const startedAtRef = useRef(0);
+  // zegar: termin i przesunięcie względem czasu serwera (klientowi nie ufamy)
+  const endsAtRef = useRef<number | null>(null);
+  const clockOffsetRef = useRef(0);
   const submittingRef = useRef(false);
   const submittedRef = useRef(false);
   const tabSwitchesRef = useRef(0);
@@ -184,12 +189,32 @@ export function Quiz({ testId, title, timeLimitSec, questionCount }: Props) {
     });
     setRightColumns(columns);
 
+    // Część teoretyczna też idzie na pełny ekran — inaczej obok testu można
+    // trzymać otwarte okno z czatem albo wyszukiwarką.
+    try {
+      await document.documentElement.requestFullscreen();
+    } catch {
+      setNameError("Test wymaga trybu pełnoekranowego. Zezwól przeglądarce na pełny ekran i spróbuj ponownie.");
+      return;
+    }
+
     setStudentName(name);
-    startedAtRef.current = Date.now();
-    setRemaining(test.timeLimitSec);
+    await syncClock(test.sessionId);
     setStep(0);
     setPhase("running");
   };
+
+  /** Termin końca bierzemy z serwera — zmiana zegara w systemie nic nie daje. */
+  const syncClock = useCallback(async (sessionId: string) => {
+    const { data, error } = await getBrowserSupabase().rpc("quiz_time", { p_session_id: sessionId });
+    if (error) return;
+    const parsed = parseServerTime(data);
+    if (!parsed) return;
+    clockOffsetRef.current = parsed.serverNow - Date.now();
+    if (parsed.endsAt !== null) endsAtRef.current = parsed.endsAt;
+    const left = endsAtRef.current === null ? null : Math.max(0, Math.round((endsAtRef.current - (Date.now() + clockOffsetRef.current)) / 1000));
+    if (left !== null) setRemaining(left);
+  }, []);
 
   // ------------------------------------------------------------ 3. wysłanie
   const submit = useCallback(async (reason: EndedReason = "completed") => {
@@ -225,29 +250,40 @@ export function Quiz({ testId, title, timeLimitSec, questionCount }: Props) {
     submittedRef.current = true;
     setResult(parsed);
     setPhase("done");
+    if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
   }, [test]);
 
-  // Wykrywanie zmiany karty: 1. wyjście → ostrzeżenie po powrocie,
-  // 2. wyjście → natychmiastowy koniec testu (bez czekania na powrót).
-  const { countRef: tabCountRef, showWarning, dismissWarning } = useTabSwitchGuard({
+  // Nadzór: przełączenie karty, przejście do innego okna albo wyjście
+  // z pełnego ekranu. Pierwsze → ostrzeżenie, drugie → koniec testu.
+  const { countRef: tabCountRef, showWarning, dismissWarning, lastKind } = useProctorGuard({
     active: phase === "running",
+    watchFullscreen: true,
+    onViolation: (_kind, count) => {
+      tabSwitchesRef.current = count;
+    },
     onLimitExceeded: (count) => {
       tabSwitchesRef.current = count;
       void submit("tab_switch");
     },
   });
 
+  // Egzamin tylko w jednej karcie — druga dostaje ekran z informacją.
+  const secondTab = useSingleTabLock(`test-${testId}`, phase !== "pin");
+
   // licznik trzymamy też w refie widocznym dla submit()
   useEffect(() => {
     tabSwitchesRef.current = tabCountRef.current;
   });
 
-  // Odliczanie od znacznika startu (odporne na usypianie kart w tle).
+  // Odliczanie względem terminu z serwera (a nie zegara systemowego ucznia).
   useEffect(() => {
     if (phase !== "running") return;
     const tick = () => {
-      const left = limitSec - Math.floor((Date.now() - startedAtRef.current) / 1000);
-      setRemaining(Math.max(0, left));
+      const endsAt = endsAtRef.current;
+      if (endsAt === null) return;
+      const serverNow = Date.now() + clockOffsetRef.current;
+      const left = Math.max(0, Math.round((endsAt - serverNow) / 1000));
+      setRemaining(left);
       if (left <= 0) {
         setTimedOut(true);
         void submit("time_up");
@@ -256,7 +292,15 @@ export function Quiz({ testId, title, timeLimitSec, questionCount }: Props) {
     tick();
     const id = window.setInterval(tick, 250);
     return () => window.clearInterval(id);
-  }, [phase, limitSec, submit]);
+  }, [phase, submit]);
+
+  // Co 15 s pytamy serwer o czas — przestawienie zegara w systemie zostaje
+  // wyprostowane przy najbliższej synchronizacji.
+  useEffect(() => {
+    if (phase !== "running" || !test) return;
+    const id = window.setInterval(() => void syncClock(test.sessionId), 15000);
+    return () => window.clearInterval(id);
+  }, [phase, test, syncClock]);
 
   // Ostrzeżenie przed opuszczeniem strony — wyjście przerywa podejście
   // (stanu połowicznego testu nie zapisujemy).
@@ -289,6 +333,8 @@ export function Quiz({ testId, title, timeLimitSec, questionCount }: Props) {
       </div>
     </div>
   );
+
+  if (secondTab) return <SecondTabBlocked title="Ten test jest już otwarty w innej karcie" />;
 
   // ================================================================ PIN
   if (phase === "pin") {
@@ -380,9 +426,12 @@ export function Quiz({ testId, title, timeLimitSec, questionCount }: Props) {
               {starting ? "Startowanie…" : "Rozpocznij test ▶"}
             </button>
           </form>
-          <p className="mt-4 text-center text-xs leading-relaxed text-muted">
-            Czas liczy się od kliknięcia. Pytania są w losowej kolejności, a do poprzedniego pytania nie można wrócić.
-          </p>
+          <ul className="mt-4 space-y-1 text-left text-xs leading-relaxed text-muted">
+            <li>• Test otworzy się na pełnym ekranie i musi w nim pozostać.</li>
+            <li>• Zmiana karty lub przejście do innego okna są rejestrowane; za drugim razem test kończy się sam.</li>
+            <li>• Czas liczy serwer — zmiana zegara w komputerze nic nie daje.</li>
+            <li>• Pytania są w losowej kolejności, a do poprzedniego pytania nie można wrócić.</li>
+          </ul>
         </div>
       </div>
     );
@@ -529,7 +578,13 @@ export function Quiz({ testId, title, timeLimitSec, questionCount }: Props) {
 
   return (
     <div className="mx-auto max-w-3xl space-y-4">
-      {showWarning && <TabSwitchWarning onConfirm={dismissWarning} />}
+      {showWarning && (
+        <ProctorWarning
+          kind={lastKind}
+          onConfirm={dismissWarning}
+          onReturnFullscreen={() => void document.documentElement.requestFullscreen().catch(() => undefined)}
+        />
+      )}
 
       {/* pasek: tytuł + zegar */}
       <div className="card overflow-hidden">

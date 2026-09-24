@@ -4,11 +4,11 @@ Data: 24.09.2026 · Zakres: cała aplikacja (Next.js + Supabase) wraz z modułem
 
 ## 1. Metoda
 
-Audyt składał się z czterech części:
+Audyt składał się z czterech części (po nim doszły jeszcze zmiany opisane w sekcji 4a):
 
 1. **Przegląd kodu** — wyszukiwanie niebezpiecznych wzorców (`dangerouslySetInnerHTML`, `innerHTML`,
    `eval`, ręcznie sklejany SQL), przegląd polityk RLS, funkcji bazodanowych i przepływu tokenów.
-2. **Testy atakujące bazę** — 216 automatycznych sprawdzeń na Postgresie uruchomionym z migracji
+2. **Testy atakujące bazę** — 230 automatycznych sprawdzeń na Postgresie uruchomionym z migracji
    (PGlite), w rolach `anon` / `authenticated` / właściciela. `npm run test:sql`.
 3. **Testy w przeglądarce** — izolacja piaskownicy z kodem ucznia, XSS w arkuszu i danych ucznia,
    próby sfałszowania wyników testów automatycznych, nagłówki odpowiedzi w wersji produkcyjnej.
@@ -171,6 +171,26 @@ automatyczne działają (wzorzec 11/11, praca ze skryptem fałszującym → wykr
 - `/admin` bez sesji → przekierowanie na `/admin/login` (307).
 - `npm audit` (produkcja): 0 podatności. Monaco serwowane z własnego origin, bez CDN.
 - Brak sekretów w kodzie i w całej historii gita; `.env.local` w `.gitignore`.
+
+## 4a. Wzmocnienie nadzoru (migracja 009)
+
+Po audycie doszły trzy rzeczy, o które prosił nauczyciel:
+
+1. **Wykrywanie utraty fokusa okna.** Samo `visibilitychange` nie łapie sytuacji, w której uczeń
+   pracuje w oknie obok albo na drugim monitorze — karta pozostaje wtedy widoczna. Hook
+   `useProctorGuard` nasłuchuje dodatkowo `blur` okna i odróżnia go od kliknięcia w ramkę podglądu
+   (sprawdza `document.hasFocus()` i `document.activeElement`). Zdarzenia z tej samej sekundy
+   (blur + visibilitychange przy jednym przełączeniu) liczą się jako jedno naruszenie.
+   W module praktycznym trafiają do dziennika jako osobny typ `focus_lost`.
+2. **Zegar z serwera.** Funkcje `quiz_time` i `practical_time` zwracają czas serwera i termin końca;
+   klient synchronizuje się co 15–20 s i odlicza względem serwera, a nie zegara systemowego.
+   Zweryfikowane: gdy serwer zmienia termin ze 180 s na 40 s, odliczanie przeskakuje przy najbliższej
+   synchronizacji. (Samej podmiany zegara systemowego nie dało się zasymulować w narzędziu
+   automatyzującym — jego JavaScript działa w osobnym świecie i nie podmienia `Date` strony.)
+3. **Pełny ekran w części teoretycznej** (wcześniej tylko w praktycznej) oraz **blokada drugiej karty**
+   (`useSingleTabLock`): karta pracująca odświeża wpis w `localStorage` co 2 s, a nowa karta z tym samym
+   egzaminem dostaje ekran z informacją. Działa w obrębie jednej przeglądarki i profilu — okna incognito
+   to nie obejmuje, tam pozostaje wykrywanie fokusa i blokada zajętego imienia po stronie serwera.
 
 ## 5. Zalecenia operacyjne (poza kodem)
 

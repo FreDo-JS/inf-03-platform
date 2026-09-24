@@ -4,13 +4,15 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { IdeWorkspace, type SaveStatus } from "@/components/practical/IdeWorkspace";
 import { PinInput } from "@/components/tests/PinInput";
-import { TabSwitchWarning } from "@/components/tests/TabSwitchWarning";
+import { ProctorWarning } from "@/components/tests/ProctorWarning";
+import { SecondTabBlocked } from "@/components/tests/SecondTabBlocked";
 import { friendlyError } from "@/lib/errors";
-import { useTabSwitchGuard } from "@/lib/hooks/useTabSwitchGuard";
+import { useProctorGuard, type ProctorKind } from "@/lib/hooks/useProctorGuard";
+import { useSingleTabLock } from "@/lib/hooks/useSingleTabLock";
 import { parseAttemptState, parseEvent, parseJoin, parseSave, parseSubmit } from "@/lib/practical/parse";
 import { PRACTICAL_LIMITS, validateFiles, validatePracticalName } from "@/lib/practical/validation";
 import { getBrowserSupabase } from "@/lib/supabase/client";
-import { LIMITS, validatePin } from "@/lib/validation";
+import { LIMITS, parseServerTime, validatePin } from "@/lib/validation";
 import type { AttemptState, PracticalEndedReason, ProjectFile } from "@/types/practical";
 
 const TOKEN_KEY = "inf03.practical.token";
@@ -264,12 +266,12 @@ export function PracticalStudent() {
   );
 
   // ------------------------------------------------- nadzór: karta i pełny ekran
-  const reportSwitch = useCallback(async (kind: "tab" | "fullscreen") => {
+  const reportSwitch = useCallback(async (kind: ProctorKind) => {
     const token = tokenRef.current;
     if (!token || submittedRef.current) return;
     const { data, error } = await getBrowserSupabase().rpc("practical_event", {
       p_token: token,
-      p_type: kind === "tab" ? "tab_hidden" : "fullscreen_exit",
+      p_type: kind === "tab" ? "tab_hidden" : kind === "focus" ? "focus_lost" : "fullscreen_exit",
       p_details: {},
     });
     if (error) return;
@@ -278,12 +280,15 @@ export function PracticalStudent() {
     if (parsed?.shouldEnd) void submit("tab_switch");
   }, [submit]);
 
-  const { showWarning, dismissWarning } = useTabSwitchGuard({
+  const { showWarning, dismissWarning, lastKind } = useProctorGuard({
     active: phase === "working",
     watchFullscreen: true,
-    onSwitch: (kind) => void reportSwitch(kind),
+    onViolation: (kind) => void reportSwitch(kind),
     onLimitExceeded: () => void submit("tab_switch"),
   });
+
+  // Praca tylko w jednej karcie — druga dostaje ekran z informacją.
+  const secondTab = useSingleTabLock("praktyka", phase === "working" || phase === "lobby");
 
   const onLargePaste = useCallback((length: number, file: string) => {
     const token = tokenRef.current;
@@ -295,6 +300,23 @@ export function PracticalStudent() {
       p_details: { length, file },
     });
   }, []);
+
+  // Co 20 s pytamy serwer o czas: przestawienie zegara w komputerze zostaje
+  // wyprostowane, a wcześniejsze zakończenie sesji przez nauczyciela — zauważone.
+  useEffect(() => {
+    if (phase !== "working") return;
+    const id = window.setInterval(async () => {
+      const token = tokenRef.current;
+      if (!token || submittedRef.current) return;
+      const { data, error } = await getBrowserSupabase().rpc("practical_time", { p_token: token });
+      if (error) return;
+      const parsed = parseServerTime(data);
+      if (!parsed) return;
+      clockOffsetRef.current = parsed.serverNow - Date.now();
+      if (parsed.endsAt !== null) endsAtRef.current = parsed.endsAt;
+    }, 20000);
+    return () => window.clearInterval(id);
+  }, [phase]);
 
   // ------------------------------------------------------------- zegar
   useEffect(() => {
@@ -339,10 +361,18 @@ export function PracticalStudent() {
   };
 
   // =============================================================== ekrany
+  if (secondTab) return <SecondTabBlocked title="Praca praktyczna jest już otwarta w innej karcie" />;
+
   if (phase === "working" && state) {
     return (
       <>
-        {showWarning && <TabSwitchWarning onConfirm={dismissWarning} />}
+        {showWarning && (
+          <ProctorWarning
+            kind={lastKind}
+            onConfirm={dismissWarning}
+            onReturnFullscreen={() => void document.documentElement.requestFullscreen().catch(() => undefined)}
+          />
+        )}
         <IdeWorkspace
           state={state}
           files={files}
@@ -419,8 +449,9 @@ export function PracticalStudent() {
                 Nauczyciel rozpoczął egzamin. Po kliknięciu poniżej strona przejdzie w tryb pełnoekranowy.
               </div>
               <ul className="mt-4 space-y-1 text-left text-sm text-muted">
-                <li>• Wyjście z pełnego ekranu lub zmiana karty są rejestrowane.</li>
+                <li>• Wyjście z pełnego ekranu, zmiana karty i przejście do innego okna są rejestrowane.</li>
                 <li>• Za drugim razem praca zostanie oddana automatycznie.</li>
+                <li>• Czas liczy serwer — zmiana zegara w komputerze nic nie daje.</li>
                 <li>• Kod zapisuje się sam — po odświeżeniu strony wracasz do swojej pracy.</li>
               </ul>
               <button type="button" className="btn-primary mt-6 w-full py-3" onClick={() => void startWork()}>

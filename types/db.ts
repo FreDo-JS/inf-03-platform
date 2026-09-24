@@ -251,6 +251,8 @@ export type Database = {
       practical_start_session: { Args: { p_session_id: string }; Returns: Json };
       practical_finish_session: { Args: { p_session_id: string }; Returns: Json };
       practical_recalc: { Args: { p_attempt_id: string }; Returns: number };
+      quiz_time: { Args: { p_session_id: string }; Returns: Json };
+      practical_time: { Args: { p_token: string }; Returns: Json };
     };
     Enums: { [_ in never]: never };
     CompositeTypes: { [_ in never]: never };

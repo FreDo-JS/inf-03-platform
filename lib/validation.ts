@@ -400,6 +400,18 @@ export function isEndedReason(v: unknown): v is EndedReason {
   return v === "completed" || v === "time_up" || v === "tab_switch";
 }
 
+/**
+ * Czas z serwera (quiz_time / practical_time). Zwracamy znaczniki w
+ * milisekundach — odliczanie liczymy względem czasu serwera, nie zegara ucznia.
+ */
+export function parseServerTime(json: unknown): { serverNow: number; endsAt: number | null } | null {
+  if (!isRecord(json)) return null;
+  const now = typeof json.server_now === "string" ? Date.parse(json.server_now) : NaN;
+  if (Number.isNaN(now)) return null;
+  const ends = typeof json.ends_at === "string" ? Date.parse(json.ends_at) : NaN;
+  return { serverNow: now, endsAt: Number.isNaN(ends) ? null : ends };
+}
+
 export function parseSubmitResult(json: unknown): SubmitResult | null {
   if (!isRecord(json)) return null;
   const { score, total, results, duration_sec, ended_reason, tab_switch_count } = json;
