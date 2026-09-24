@@ -16,13 +16,24 @@ Stack: Next.js 15 (App Router) · TypeScript (strict) · Tailwind CSS · Supabas
    - `supabase/005_tab_switch.sql` — powód zakończenia testu i licznik zmian karty
    - `supabase/006_practical.sql` — moduł Praktyka (zadania, sesje, prace)
    - `supabase/007_practical_seed.sql` — przykładowe zadanie praktyczne „Rowerownia”
+   - `supabase/008_security_hardening.sql` — **lista adminów** i poprawki po audycie bezpieczeństwa
 
    Masz już bazę z poprzedniej wersji? Uruchom brakujące migracje (`002…`, `003…`) — nic nie nadpisują,
    a ponowne uruchomienie niczego nie duplikuje.
 2. **Auth** (Authentication → Sign In / Providers):
-   - ⚠️ **wyłącz „Allow new users to sign up”**. Każdy zalogowany użytkownik jest adminem,
-     więc otwarta rejestracja = każdy może zostać adminem przez API.
-   - załóż konta adminów ręcznie: Authentication → Users → *Add user* (e-mail + hasło).
+   - załóż konta nauczycieli ręcznie: Authentication → Users → *Add user* (e-mail + hasło).
+   - **nadaj im uprawnienia** — od migracji 008 samo zalogowanie nie wystarczy, konto musi być
+     na liście w tabeli `admins`:
+
+     ```sql
+     insert into admins (user_id, note)
+     select id, 'nauczyciel' from auth.users where email = 'adres@szkola.pl'
+     on conflict (user_id) do nothing;
+     ```
+
+     Migracja 008 automatycznie dopisała konta, które istniały w chwili jej uruchomienia.
+     Odebranie dostępu: `delete from admins where user_id = '…';`
+   - zalecane mimo to: wyłącz „Allow new users to sign up”, żeby nie powstawały niepotrzebne konta.
 3. **Zmienne środowiskowe** — skopiuj `.env.example` do `.env.local` i wpisz URL oraz
    **anon key** (Project Settings → API). Service role key nie jest potrzebny i nie może
    trafić do aplikacji.
@@ -73,6 +84,14 @@ supabase/          schema.sql, seed.sql
 | Praktyka: limity | 10 prób PIN-u na minutę z IP, nazwy plików z listy zadania, 200 KB na plik i 1 MB na projekt, limit zdarzeń na podejście |
 | Uruchamianie kodu ucznia | iframe `sandbox` bez `allow-same-origin`, komunikacja tylko przez `postMessage` ze sprawdzaniem źródła; w panelu kod pokazujemy w Monaco (read-only) |
 | Eksport CSV | wartości zaczynające się od `=`, `+`, `-`, `@` poprzedzone apostrofem (formula injection) |
+| **Lista adminów** (008) | uprawnienia ma tylko konto wpisane do `admins`; samo zalogowanie nie wystarcza, dopisać się przez API nie można |
+| **Ocena bez JS ucznia** (008) | testy strukturalne biegną z wyłączonymi skryptami ucznia; przy teście interakcyjnym dwa zgłoszenia wyniku = wykryta manipulacja i 0 pkt |
+| Realtime na `tests` | publikowane tylko kolumny publiczne — treść pytań nie wychodzi w zdarzeniu realtime |
+
+### Audyt bezpieczeństwa
+
+Pełny audyt (216 automatycznych sprawdzeń: RLS, wstrzyknięcia, podszywanie się, limity, nagłówki,
+izolacja piaskownicy) opisuje [docs/audyt-bezpieczenstwa.md](docs/audyt-bezpieczenstwa.md).
 
 **Odstępstwo od specyfikacji:** migracja 002 usuwa politykę `"anyone can submit attempt"`.
 Pozwalała ona wstawić dowolny wynik bezpośrednio przez API, z pominięciem PIN-u i oceniania.

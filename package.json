@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "copy:monaco": "node scripts/copy-monaco.mjs",
     "predev": "node scripts/copy-monaco.mjs",
-    "prebuild": "node scripts/copy-monaco.mjs"
+    "prebuild": "node scripts/copy-monaco.mjs",
+    "test:sql": "node tests/sql/run-all.mjs"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
@@ -25,6 +26,7 @@
     "server-only": "^0.0.1"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
     "@eslint/eslintrc": "^3.3.7",
     "@types/node": "^22.20.4",
     "@types/react": "^19.3.0",

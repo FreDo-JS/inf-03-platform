@@ -78,7 +78,7 @@ export type BuildResult = { html: string; missing: string[] };
 export function buildPreviewDocument(
   files: readonly ProjectFile[],
   page: string,
-  options: { frameId: string; extraScript?: string } ,
+  options: { frameId: string; extraScript?: string; disableStudentScripts?: boolean },
 ): BuildResult {
   const pageFile = byName(files, page);
   const missing: string[] = [];
@@ -112,19 +112,27 @@ export function buildPreviewDocument(
     link.replaceWith(style);
   });
 
-  // <script src="skrypt.js"> → <script>…</script>
-  doc.querySelectorAll("script[src]").forEach((script) => {
-    const name = baseName(script.getAttribute("src") ?? "");
-    const file = byName(files, name);
-    if (!file) {
-      if (name) missing.push(name);
-      return;
-    }
-    const inline = doc.createElement("script");
-    inline.setAttribute("data-inf03-file", name);
-    inline.textContent = file.content;
-    script.replaceWith(inline);
-  });
+  if (options.disableStudentScripts === true) {
+    // Sprawdzanie testów strukturalnych bez JS ucznia: skrypt ucznia działa
+    // w tym samym kontekście co nasz sprawdzacz, więc mógłby podmienić DOM
+    // albo podszyć się pod wynik testu. Testy, które JS-u nie potrzebują,
+    // uruchamiamy na samym HTML i CSS.
+    doc.querySelectorAll("script").forEach((script) => script.remove());
+  } else {
+    // <script src="skrypt.js"> → <script>…</script>
+    doc.querySelectorAll("script[src]").forEach((script) => {
+      const name = baseName(script.getAttribute("src") ?? "");
+      const file = byName(files, name);
+      if (!file) {
+        if (name) missing.push(name);
+        return;
+      }
+      const inline = doc.createElement("script");
+      inline.setAttribute("data-inf03-file", name);
+      inline.textContent = file.content;
+      script.replaceWith(inline);
+    });
+  }
 
   // linki do innych stron projektu — przełączają podgląd zamiast wychodzić z aplikacji
   doc.querySelectorAll("a[href]").forEach((a) => {

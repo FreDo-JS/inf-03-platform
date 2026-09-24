@@ -21,10 +21,22 @@ function newFrameId(): string {
   return `rt-${buf[0]?.toString(36) ?? ""}${buf[1]?.toString(36) ?? ""}`;
 }
 
-/** Uruchamia jeden test w izolowanym iframe. Zawsze rozwiązuje się (błąd = 0 pkt). */
+/**
+ * Uruchamia jeden test w izolowanym iframe. Zawsze rozwiązuje się (błąd = 0 pkt).
+ *
+ * Testy strukturalne (wszystkie poza `interaction`) wykonujemy z wyłączonym
+ * JavaScriptem ucznia — wtedy nie ma jak podmienić DOM ani podszyć się pod
+ * wiadomość z wynikiem. Przy `interaction` skrypt ucznia musi działać, więc
+ * tam pilnujemy tylko, czy nie przyszło więcej niż jedno zgłoszenie wyniku.
+ */
 async function runInFrame(files: readonly ProjectFile[], test: AutoTest, page: string): Promise<FrameResult> {
   const frameId = newFrameId();
-  const built = buildPreviewDocument(files, page, { frameId, extraScript: RUNNER_SCRIPT });
+  const scriptsDisabled = test.type !== "interaction";
+  const built = buildPreviewDocument(files, page, {
+    frameId,
+    extraScript: RUNNER_SCRIPT,
+    disableStudentScripts: scriptsDisabled,
+  });
 
   const frame = document.createElement("iframe");
   frame.setAttribute("sandbox", PREVIEW_SANDBOX);
@@ -35,10 +47,15 @@ async function runInFrame(files: readonly ProjectFile[], test: AutoTest, page: s
 
   return new Promise<FrameResult>((resolve) => {
     let done = false;
+    let requested = false;
+    let firstResult: FrameResult | null = null;
+    let settle: number | undefined;
+
     const finish = (result: FrameResult) => {
       if (done) return;
       done = true;
       window.clearTimeout(timeout);
+      window.clearTimeout(settle);
       window.removeEventListener("message", onMessage);
       frame.remove();
       resolve(result);
@@ -52,13 +69,34 @@ async function runInFrame(files: readonly ProjectFile[], test: AutoTest, page: s
       if (msg.source !== "inf03-preview" || msg.frameId !== frameId) return;
 
       if (msg.type === "ready") {
+        requested = true;
         frame.contentWindow?.postMessage({ source: "inf03-runner", type: "run-test", frameId, test }, "*");
       } else if (msg.type === "test-result") {
+        // wynik przed wysłaniem zlecenia może pochodzić tylko od kodu ucznia
+        if (!requested) {
+          finish({ passed: false, message: "Wykryto próbę podszycia się pod wynik testu — test niezaliczony." });
+          return;
+        }
         const payload = msg.payload as { passed?: unknown; message?: unknown } | null;
-        finish({
+        const result: FrameResult = {
           passed: payload?.passed === true,
           message: typeof payload?.message === "string" ? payload.message.slice(0, 500) : "",
-        });
+        };
+        if (firstResult === null) {
+          firstResult = result;
+          if (scriptsDisabled) {
+            // JS ucznia nie działa, więc drugi wynik nie ma skąd przyjść
+            finish(result);
+          } else {
+            // krótkie okno na wykrycie drugiego (sfałszowanego) zgłoszenia
+            settle = window.setTimeout(() => finish(result), 150);
+          }
+        } else {
+          finish({
+            passed: false,
+            message: "Wykryto dwa różne wyniki tego samego testu (próba manipulacji) — test niezaliczony.",
+          });
+        }
       }
     };
 
