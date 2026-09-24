@@ -16,7 +16,7 @@ export default async function AdminPage() {
   if (!user) redirect("/admin/login");
 
   const [cats, subs, prog] = await Promise.all([
-    supabase.from("categories").select("id, position, title, description").order("position"),
+    supabase.from("categories").select("id, position, title, description, qualification").order("position"),
     supabase.from("subtopics").select("id, category_id, position, title, theory_url, tasks_url").order("position"),
     supabase.from("progress").select("class_name, subtopic_id"),
   ]);

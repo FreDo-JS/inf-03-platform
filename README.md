@@ -1,7 +1,15 @@
-# INF.03 — mapa nauki i testy
+# INF.03 i INF.04 — mapa nauki i testy
 
-Aplikacja dla klas **2a / 4e / 4d**: mapa tematów kwalifikacji INF.03 z postępem
-aktualizowanym na żywo, testy w stylu Kahoot oraz panel administratora.
+Aplikacja dla dwóch kwalifikacji w jednej bazie i jednym wdrożeniu:
+
+| Kwalifikacja | Klasy | Zakres |
+|---|---|---|
+| **INF.03** | 2a, 4e, 4d | Tworzenie i administrowanie stronami i aplikacjami internetowymi oraz bazami danych |
+| **INF.04** | 4a, 4g | Projektowanie, programowanie i testowanie aplikacji (C# i React) |
+
+Mapa tematów z postępem aktualizowanym na żywo, testy w stylu Kahoot i panel
+nauczyciela. Klasa decyduje, którą kwalifikację widzi uczeń — jedna poprawka
+bezpieczeństwa chroni obie, zamiast żyć w dwóch kopiach repozytorium.
 
 Stack: Next.js 15 (App Router) · TypeScript (strict) · Tailwind CSS · Supabase (Postgres + Auth + Realtime).
 
@@ -18,6 +26,8 @@ Stack: Next.js 15 (App Router) · TypeScript (strict) · Tailwind CSS · Supabas
    - `supabase/007_practical_seed.sql` — przykładowe zadanie praktyczne „Rowerownia”
    - `supabase/008_security_hardening.sql` — **lista adminów** i poprawki po audycie bezpieczeństwa
    - `supabase/009_server_clock.sql` — zegar po stronie serwera i rejestrowanie utraty fokusa okna
+   - `supabase/010_inf04.sql` — druga kwalifikacja: tabela `classes`, kolumna `qualification`
+   - `supabase/011_inf04_seed.sql` — mapa nauki INF.04 (12 kategorii, ponad 50 podtematów, materiały)
 
    Masz już bazę z poprzedniej wersji? Uruchom brakujące migracje (`002…`, `003…`) — nic nie nadpisują,
    a ponowne uruchomienie niczego nie duplikuje.
@@ -71,7 +81,7 @@ supabase/          schema.sql, seed.sql
 | Warstwa | Co chroni |
 |---|---|
 | **RLS** na wszystkich 6 tabelach | anon: tylko odczyt mapy i testów; zapis wyłącznie przez zalogowanych |
-| **CHECK constraints** | długości tekstów, klasa ∈ {2a,4e,4d}, `score ≤ total`, limit 60–7200 s, poprawna struktura JSON pytań |
+| **CHECK constraints** | długości tekstów, klasa musi istnieć w tabeli `classes` (FK), `score ≤ total`, limit 60–7200 s, poprawna struktura JSON pytań |
 | **`test_keys`** (tylko admin) | poprawne odpowiedzi **nie** są w publicznej tabeli `tests` — nie da się ich podejrzeć w DevTools |
 | **PIN + sesja** (`open_test`, `begin_session`) | pytania dostępne dopiero po PIN-ie; kolumna `tests.questions` zablokowana dla anon (uprawnienia kolumnowe); limit prób PIN |
 | **`submit_attempt(session)`** (RPC) | ocena i pomiar czasu po stronie serwera, jeden zapis na sesję, sesja wygasa po limicie + 5 min; powód zakończenia spoza listy → `completed`, licznik zmian karty przycięty do 0–1000 |
@@ -188,6 +198,23 @@ więc `javascript:` nie ma jak trafić do DOM.
 
 Migracja 003 przeniosła dotychczasowe `theory_url` / `tasks_url` do `subtopic_links` jako
 „Teoria” i „Zadania”. Stare kolumny zostały w bazie, ale aplikacja ich już nie używa.
+
+## Dwie kwalifikacje — jak to jest poukładane
+
+Kwalifikacja jest kolumną, nie osobną instalacją:
+
+- `classes` — lista klas i ich kwalifikacja. **Dopisanie kolejnej klasy to jeden
+  insert** plus wpis w `CLASS_QUALIFICATION` w [types/db.ts](types/db.ts); nie trzeba już zmieniać CHECK-ów.
+- `categories.qualification` — mapa nauki. Uczeń widzi kategorie swojej klasy.
+- `tests.qualification` — nauczyciel wybiera kwalifikację przy tworzeniu testu,
+  uczeń przełącza listę na `/testy`. Stare testy mają `inf03` z domyślnej wartości kolumny.
+- Pozycje kategorii są unikalne **w obrębie kwalifikacji**, więc obie mogą mieć swoją „jedynkę”.
+
+**Czego to nie obejmuje:** moduł Praktyka to nadal symulator HTML/CSS/JS. Egzamin
+praktyczny INF.04 (aplikacja konsolowa w C#, aplikacja desktopowa/mobilna, dokumentacja)
+wymaga kompilacji i uruchomienia kodu poza przeglądarką, czego ten IDE nie robi i nie
+udaje, że robi. Sesje praktyczne można założyć dla 4a i 4g, ale sensownie wykorzystasz
+je tylko do zadań webowych bez kroku budowania.
 
 ## Edycja treści mapy
 

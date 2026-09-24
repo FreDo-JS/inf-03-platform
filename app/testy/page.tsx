@@ -20,10 +20,10 @@ export default async function TestsPage() {
       <div className="max-w-2xl animate-fade-up">
         <p className="eyebrow">{"// sprawdź się"}</p>
         <h1 className="page-title mt-2">
-          Testy <span className="text-gradient">INF.03</span>
+          Testy <span className="text-gradient">INF.03 i INF.04</span>
         </h1>
         <p className="mt-3 text-[15px] leading-relaxed text-muted">
-          Wybierz test, wpisz PIN podany przez nauczyciela i swoje imię — i odpowiadaj na czas.
+          Wybierz swoją kwalifikację, kliknij test, wpisz PIN od nauczyciela i swoje imię — i odpowiadaj na czas.
         </p>
       </div>
       <TestsList initial={toSummaries(data)} />

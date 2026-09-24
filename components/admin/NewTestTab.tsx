@@ -13,7 +13,7 @@ import {
   type DraftQuestion,
   type TestDraft,
 } from "@/lib/validation";
-import type { QuestionType } from "@/types/db";
+import { QUALIFICATIONS, QUALIFICATION_LABEL, type Qualification, type QuestionType } from "@/types/db";
 
 const TYPE_LABEL: Record<QuestionType, string> = {
   closed: "zamknięte (jednokrotny wybór)",
@@ -37,6 +37,8 @@ export function NewTestTab() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [created, setCreated] = useState<{ title: string; pin: string } | null>(null);
+  // Test trafia do jednej kwalifikacji — uczeń zobaczy go tylko tam.
+  const [qualification, setQualification] = useState<Qualification>("inf03");
 
   // Walidacja na żywo (po pierwszej próbie zapisu) — ta sama funkcja co przed zapytaniem.
   const validation = validateTestDraft(draft);
@@ -101,6 +103,7 @@ export function NewTestTab() {
       p_questions: r.value.questions,
       p_keys: r.value.keys,
       p_pin: r.value.pin,
+      p_qualification: qualification,
     });
     setSaving(false);
 
@@ -129,6 +132,26 @@ export function NewTestTab() {
         </div>
       )}
       <div className="card grid gap-4 p-4 sm:grid-cols-[1fr_10rem_13rem] sm:p-6">
+        <div className="sm:col-span-3">
+          <p className="label">Kwalifikacja</p>
+          <div className="flex gap-2">
+            {QUALIFICATIONS.map((q) => (
+              <button
+                key={q}
+                type="button"
+                onClick={() => setQualification(q)}
+                className={`rounded-lg border px-4 py-2 font-mono text-sm font-semibold transition ${
+                  qualification === q
+                    ? "border-accent/50 bg-accent/10 text-accent"
+                    : "border-line text-muted hover:bg-white/[0.04] hover:text-fg"
+                }`}
+                aria-pressed={qualification === q}
+              >
+                {QUALIFICATION_LABEL[q]}
+              </button>
+            ))}
+          </div>
+        </div>
         <div>
           <label htmlFor="t-title" className="label">
             Tytuł testu

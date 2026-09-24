@@ -51,6 +51,8 @@ CHECK-i i funkcje. **Każda zmiana w `supabase/*.sql` musi mieć pokrycie w `tes
 | `007_practical_seed.sql` | zadanie „Rowerownia": 11 testów auto (35 pkt) + 2 kryteria ręczne (10 pkt) |
 | `008_security_hardening.sql` | tabela `admins` + `is_admin()`, whitelist `practical_events.details`, throttle zapisu |
 | `009_server_clock.sql` | `quiz_time()` / `practical_time()` — zegar z serwera, zdarzenie `focus_lost` |
+| `010_inf04.sql` | druga kwalifikacja: tabela `classes` (FK zamiast list w CHECK-ach), `qualification` w `categories` i `tests`, `create_test` z szóstym argumentem |
+| `011_inf04_seed.sql` | mapa INF.04: 12 kategorii, ponad 50 podtematów, materiały do C# i Reacta |
 
 ### Nienaruszalne zasady bezpieczeństwa
 
@@ -67,6 +69,17 @@ CHECK-i i funkcje. **Każda zmiana w `supabase/*.sql` musi mieć pokrycie w `tes
 - Walidacja **po obu stronach**, komunikaty błędów po polsku i bez szczegółów technicznych.
 
 Raport z pełnego audytu: `docs/audyt-bezpieczenstwa.md`.
+
+## Dwie kwalifikacje
+
+INF.03 (klasy 2a, 4e, 4d) i INF.04 (4a, 4g) dzielą kod i bazę. Kwalifikacja jest
+kolumną w `categories` i `tests`, a klasa wskazuje kwalifikację przez tabelę `classes`
+(w TypeScripcie lustrzane `CLASS_QUALIFICATION` w `types/db.ts`). Dopisanie klasy = insert
+do `classes` + wpis w tej mapie; CHECK-i z listą klas już nie istnieją, jest FK.
+
+Moduł Praktyka celowo **nie** został rozciągnięty na INF.04 — jego IDE uruchamia
+HTML/CSS/JS w iframe, a egzamin INF.04 wymaga kompilacji C#. Nie udawaj, że da się
+to ocenić w przeglądarce; to byłaby ściema, nie funkcja.
 
 ## Rzeczy, które łatwo zepsuć
 
@@ -123,7 +136,7 @@ i zegar, żeby usiadł kolejny uczeń. Link do wyniku kopiuje nauczyciel w zakł
 ## Po stronie użytkownika (wciąż otwarte)
 
 1. Wkleić `NEXT_PUBLIC_SUPABASE_ANON_KEY` do `.env.local` (przeze mnie skasowany).
-2. Wykonać migracje **003–009** w Supabase SQL Editor — nic z nich nie było testowane
+2. Wykonać migracje **003–011** w Supabase SQL Editor — nic z nich nie było testowane
    na prawdziwej bazie, tylko na PGlite.
 3. Dopisać konta nauczycieli do tabeli `admins` i wyłączyć publiczną rejestrację.
 

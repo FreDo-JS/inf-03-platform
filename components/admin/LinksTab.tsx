@@ -5,7 +5,7 @@ import { friendlyError } from "@/lib/errors";
 import { useRealtimeLinks } from "@/lib/hooks/useRealtimeLinks";
 import { getBrowserSupabase } from "@/lib/supabase/client";
 import { LIMITS, isSubtopicId, safeLinkUrl, validateLinkLabel, validateLinkUrl, validateSortOrder } from "@/lib/validation";
-import type { CategoryRow, SubtopicLinkRow, SubtopicRow } from "@/types/db";
+import { QUALIFICATIONS, QUALIFICATION_LABEL, type CategoryRow, type Qualification, type SubtopicLinkRow, type SubtopicRow } from "@/types/db";
 
 type Props = {
   categories: CategoryRow[];
@@ -18,6 +18,7 @@ const emptyDraft = (): Draft => ({ label: "", url: "", sortOrder: "" });
 
 export function LinksTab({ categories, subtopics }: Props) {
   const { bySubtopic, refetch } = useRealtimeLinks([]);
+  const [qualification, setQualification] = useState<Qualification>("inf03");
   const [subtopicId, setSubtopicId] = useState<string>(subtopics[0]?.id ?? "");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -37,12 +38,23 @@ export function LinksTab({ categories, subtopics }: Props) {
 
   const grouped = useMemo(
     () =>
-      categories.map((c) => ({
-        category: c,
-        items: subtopics.filter((s) => s.category_id === c.id).sort((a, b) => a.position - b.position),
-      })),
-    [categories, subtopics],
+      categories
+        .filter((c) => c.qualification === qualification)
+        .map((c) => ({
+          category: c,
+          items: subtopics.filter((s) => s.category_id === c.id).sort((a, b) => a.position - b.position),
+        })),
+    [categories, subtopics, qualification],
   );
+
+  // Po zmianie kwalifikacji wybrany podtemat może już nie być na liście.
+  useEffect(() => {
+    const first = grouped.flatMap((g) => g.items)[0]?.id;
+    if (!grouped.some((g) => g.items.some((s) => s.id === subtopicId))) {
+      setSubtopicId(first ?? "");
+      setEditingId(null);
+    }
+  }, [grouped, subtopicId]);
 
   const links = bySubtopic.get(subtopicId) ?? [];
   const subtopic = subtopics.find((s) => s.id === subtopicId);
@@ -158,6 +170,22 @@ export function LinksTab({ categories, subtopics }: Props) {
         <label htmlFor="subtopic-pick" className="label">
           Podtemat
         </label>
+        <div className="mb-3 flex gap-2">
+          {QUALIFICATIONS.map((q) => (
+            <button
+              key={q}
+              type="button"
+              onClick={() => setQualification(q)}
+              className={`rounded-lg border px-3 py-1.5 font-mono text-xs font-semibold transition ${
+                qualification === q
+                  ? "border-accent/50 bg-accent/10 text-accent"
+                  : "border-line text-muted hover:bg-white/[0.04] hover:text-fg"
+              }`}
+            >
+              {QUALIFICATION_LABEL[q]}
+            </button>
+          ))}
+        </div>
         <select
           id="subtopic-pick"
           className="input"

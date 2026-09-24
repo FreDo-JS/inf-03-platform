@@ -21,6 +21,8 @@ export function SiteNav() {
           </span>
           <span className="font-mono text-sm font-bold tracking-tight">
             INF<span className="text-accent">.03</span>
+            <span className="mx-1 text-muted">/</span>
+            INF<span className="text-accent2">.04</span>
           </span>
         </Link>
         <ul className="flex items-center gap-1 rounded-xl border border-white/[0.06] bg-white/[0.02] p-1 text-sm">

@@ -1,15 +1,30 @@
+import { QUALIFICATIONS, type Qualification } from "@/types/db";
+
+/** Czy napis z bazy jest znaną kwalifikacją (kolumna może mieć starą wartość). */
+export function isQualification(v: unknown): v is Qualification {
+  return typeof v === "string" && (QUALIFICATIONS as readonly string[]).includes(v);
+}
+
 export type TestSummary = {
   id: string;
   title: string;
   timeLimitSec: number;
   questionCount: number;
+  qualification: Qualification;
   createdAt: string;
 };
 
 // Bez kolumny questions — anon ma do niej dostęp dopiero po podaniu PIN-u (open_test).
-export const TEST_SUMMARY_COLUMNS = "id, title, time_limit, question_count, created_at" as const;
+export const TEST_SUMMARY_COLUMNS = "id, title, time_limit, question_count, qualification, created_at" as const;
 
-type SummarySource = { id: string; title: string; time_limit: number; question_count: number; created_at: string };
+type SummarySource = {
+  id: string;
+  title: string;
+  time_limit: number;
+  question_count: number;
+  qualification: string;
+  created_at: string;
+};
 
 export function toSummaries(rows: readonly SummarySource[]): TestSummary[] {
   return rows
@@ -19,6 +34,8 @@ export function toSummaries(rows: readonly SummarySource[]): TestSummary[] {
       title: r.title,
       timeLimitSec: r.time_limit,
       questionCount: r.question_count,
+      // nieznana wartość z bazy traktowana jak INF.03 — tak samo jak default kolumny
+      qualification: isQualification(r.qualification) ? r.qualification : "inf03",
       createdAt: r.created_at,
     }));
 }

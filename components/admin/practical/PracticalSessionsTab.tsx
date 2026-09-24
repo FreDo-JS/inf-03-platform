@@ -5,7 +5,7 @@ import { PinPresenter } from "@/components/admin/PinPresenter";
 import { friendlyError } from "@/lib/errors";
 import { fetchTasks } from "@/lib/practical/tasks";
 import { getBrowserSupabase } from "@/lib/supabase/client";
-import { CLASS_NAMES } from "@/types/db";
+import { CLASS_NAMES, CLASS_QUALIFICATION, QUALIFICATIONS, QUALIFICATION_LABEL } from "@/types/db";
 import type { PracticalAttemptRow, PracticalSessionRow, PracticalTaskRow, SessionStatus } from "@/types/practical";
 
 const SESSION_COLUMNS = "id, task_id, class_name, pin, status, minutes, allow_paste, pass_threshold, started_at, ends_at, created_at" as const;
@@ -139,10 +139,14 @@ export function PracticalSessionsTab() {
             Klasa
           </label>
           <select id="sess-class" className="input" value={className} onChange={(e) => setClassName(e.target.value)}>
-            {CLASS_NAMES.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
+            {QUALIFICATIONS.map((q) => (
+              <optgroup key={q} label={QUALIFICATION_LABEL[q]}>
+                {CLASS_NAMES.filter((c) => CLASS_QUALIFICATION[c] === q).map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </optgroup>
             ))}
           </select>
         </div>

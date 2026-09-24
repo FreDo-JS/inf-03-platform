@@ -9,7 +9,7 @@ import { progressKey, useRealtimeProgress } from "@/lib/hooks/useRealtimeProgres
 import { useSelectedClass } from "@/lib/hooks/useSelectedClass";
 import { getBrowserSupabase } from "@/lib/supabase/client";
 import { isClassName, isSubtopicId } from "@/lib/validation";
-import type { CategoryRow, ClassName, ProgressRow, SubtopicRow } from "@/types/db";
+import { CLASS_QUALIFICATION, type CategoryRow, type ClassName, type ProgressRow, type SubtopicRow } from "@/types/db";
 
 type Props = {
   categories: CategoryRow[];
@@ -28,6 +28,12 @@ export function ProgressTab({ categories, subtopics, initialProgress }: Props) {
     for (const s of subtopics) m.set(s.category_id, [...(m.get(s.category_id) ?? []), s]);
     return m;
   }, [subtopics]);
+
+  // Pokazujemy tylko kategorie kwalifikacji, której uczy się wybrana klasa.
+  const shownCategories = useMemo(
+    () => categories.filter((c) => c.qualification === CLASS_QUALIFICATION[cls]),
+    [categories, cls],
+  );
 
   const toggle = async (c: ClassName, subtopicId: string) => {
     // walidacja przed zapytaniem
@@ -88,7 +94,7 @@ export function ProgressTab({ categories, subtopics, initialProgress }: Props) {
       )}
 
       <div className="grid gap-4 lg:grid-cols-2">
-        {categories.map((cat, i) => {
+        {shownCategories.map((cat, i) => {
           const subs = byCategory.get(cat.id) ?? [];
           const n = subs.filter((s) => done.has(progressKey(cls, s.id))).length;
           return (

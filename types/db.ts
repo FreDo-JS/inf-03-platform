@@ -2,8 +2,44 @@
 
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
-export const CLASS_NAMES = ["2a", "4e", "4d"] as const;
+/** Kwalifikacje obsługiwane przez aplikację. Klasa decyduje, którą uczeń widzi. */
+export const QUALIFICATIONS = ["inf03", "inf04"] as const;
+export type Qualification = (typeof QUALIFICATIONS)[number];
+
+export const QUALIFICATION_LABEL: Record<Qualification, string> = {
+  inf03: "INF.03",
+  inf04: "INF.04",
+};
+
+export const QUALIFICATION_FULL: Record<Qualification, string> = {
+  inf03: "Tworzenie i administrowanie stronami i aplikacjami internetowymi oraz bazami danych",
+  inf04: "Projektowanie, programowanie i testowanie aplikacji",
+};
+
+export const CLASS_NAMES = ["2a", "4e", "4d", "4a", "4g"] as const;
 export type ClassName = (typeof CLASS_NAMES)[number];
+
+/**
+ * Do której kwalifikacji należy klasa. Odpowiednik tabeli classes w bazie —
+ * tutaj jest po to, żeby interfejs nie musiał czekać na zapytanie.
+ */
+export const CLASS_QUALIFICATION: Record<ClassName, Qualification> = {
+  "2a": "inf03",
+  "4e": "inf03",
+  "4d": "inf03",
+  "4a": "inf04",
+  "4g": "inf04",
+};
+
+export function classesOf(q: Qualification): ClassName[] {
+  return CLASS_NAMES.filter((c) => CLASS_QUALIFICATION[c] === q);
+}
+
+export type ClassRow = {
+  name: ClassName;
+  qualification: Qualification;
+  position: number;
+};
 
 export type QuestionType = "closed" | "select" | "input" | "matching";
 
@@ -37,6 +73,7 @@ export type CategoryRow = {
   position: number;
   title: string;
   description: string;
+  qualification: Qualification;
 };
 
 export type SubtopicRow = {
@@ -63,6 +100,7 @@ export type TestRow = {
   time_limit: number; // sekundy
   questions: Json;
   question_count: number; // kolumna generowana
+  qualification: Qualification;
   created_at: string;
   created_by: string | null;
 };
@@ -181,6 +219,7 @@ export type Database = {
   public: {
     Tables: {
       progress: Table<ProgressRow, { class_name: ClassName; subtopic_id: string; updated_at?: string }>;
+      classes: Table<ClassRow, ClassRow>;
       categories: Table<CategoryRow, CategoryRow>;
       subtopics: Table<SubtopicRow, SubtopicRow>;
       subtopic_links: Table<
@@ -190,8 +229,16 @@ export type Database = {
       >;
       tests: Table<
         TestRow,
-        { id?: string; title: string; time_limit: number; questions: Json; created_at?: string; created_by?: string | null },
-        { title?: string; time_limit?: number; questions?: Json }
+        {
+          id?: string;
+          title: string;
+          time_limit: number;
+          questions: Json;
+          qualification?: Qualification;
+          created_at?: string;
+          created_by?: string | null;
+        },
+        { title?: string; time_limit?: number; questions?: Json; qualification?: Qualification }
       >;
       attempts: Table<
         AttemptRow,
@@ -219,7 +266,14 @@ export type Database = {
     Views: { [_ in never]: never };
     Functions: {
       create_test: {
-        Args: { p_title: string; p_time_limit: number; p_questions: Json; p_keys: Json; p_pin?: string | null };
+        Args: {
+          p_title: string;
+          p_time_limit: number;
+          p_questions: Json;
+          p_keys: Json;
+          p_pin?: string | null;
+          p_qualification?: Qualification;
+        };
         Returns: Json;
       };
       open_test: {

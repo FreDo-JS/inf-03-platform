@@ -7,8 +7,8 @@ const inter = Inter({ subsets: ["latin", "latin-ext"], variable: "--font-sans", 
 const mono = JetBrains_Mono({ subsets: ["latin", "latin-ext"], variable: "--font-mono", display: "swap" });
 
 export const metadata: Metadata = {
-  title: { default: "INF.03 — mapa nauki", template: "%s · INF.03" },
-  description: "Mapa nauki i testy z kwalifikacji INF.03 dla klas 2a, 4e, 4d.",
+  title: { default: "INF.03 i INF.04 — mapa nauki", template: "%s · INF.03 / INF.04" },
+  description: "Mapa nauki i testy: INF.03 dla klas 2a, 4e, 4d oraz INF.04 dla klas 4a, 4g.",
   robots: { index: false, follow: false },
 };
 

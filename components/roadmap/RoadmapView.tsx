@@ -7,7 +7,15 @@ import { ProgressBar } from "@/components/ProgressBar";
 import { useRealtimeLinks } from "@/lib/hooks/useRealtimeLinks";
 import { progressKey, useRealtimeProgress } from "@/lib/hooks/useRealtimeProgress";
 import { useSelectedClass } from "@/lib/hooks/useSelectedClass";
-import type { CategoryRow, ProgressRow, SubtopicLinkRow, SubtopicRow } from "@/types/db";
+import {
+  CLASS_QUALIFICATION,
+  QUALIFICATION_FULL,
+  QUALIFICATION_LABEL,
+  type CategoryRow,
+  type ProgressRow,
+  type SubtopicLinkRow,
+  type SubtopicRow,
+} from "@/types/db";
 import { CategoryModal } from "./CategoryModal";
 
 type Props = {
@@ -24,6 +32,17 @@ export function RoadmapView({ categories, subtopics, initialProgress, initialLin
   const [openId, setOpenId] = useState<string | null>(null);
   const closeModal = useCallback(() => setOpenId(null), []);
 
+  // Klasa wyznacza kwalifikację, a kwalifikacja — zestaw kategorii i podtematów.
+  const qualification = CLASS_QUALIFICATION[cls];
+  const shownCategories = useMemo(
+    () => categories.filter((c) => c.qualification === qualification),
+    [categories, qualification],
+  );
+  const shownSubtopics = useMemo(() => {
+    const ids = new Set(shownCategories.map((c) => c.id));
+    return subtopics.filter((s) => ids.has(s.category_id));
+  }, [subtopics, shownCategories]);
+
   const byCategory = useMemo(() => {
     const m = new Map<string, SubtopicRow[]>();
     for (const s of subtopics) {
@@ -35,22 +54,21 @@ export function RoadmapView({ categories, subtopics, initialProgress, initialLin
     return m;
   }, [subtopics]);
 
-  const totalDone = subtopics.filter((s) => done.has(progressKey(cls, s.id))).length;
-  const openIndex = categories.findIndex((c) => c.id === openId);
-  const openCategory = openIndex >= 0 ? categories[openIndex] : undefined;
+  const totalDone = shownSubtopics.filter((s) => done.has(progressKey(cls, s.id))).length;
+  const openIndex = shownCategories.findIndex((c) => c.id === openId);
+  const openCategory = openIndex >= 0 ? shownCategories[openIndex] : undefined;
 
   return (
     <div className="space-y-8">
       <section className="animate-fade-up space-y-6">
         <div className="flex flex-wrap items-end justify-between gap-5">
           <div className="max-w-2xl">
-            <p className="eyebrow">{"// kwalifikacja INF.03"}</p>
+            <p className="eyebrow">{`// kwalifikacja ${QUALIFICATION_LABEL[qualification]}`}</p>
             <h1 className="page-title mt-2">
               Mapa <span className="text-gradient">nauki</span>
             </h1>
             <p className="mt-3 text-[15px] leading-relaxed text-muted">
-              Tworzenie i administrowanie stronami i aplikacjami internetowymi oraz bazami danych. Kliknij kafelek, aby
-              zobaczyć podtematy, teorię i zadania.
+              {QUALIFICATION_FULL[qualification]}. Kliknij kafelek, aby zobaczyć podtematy i materiały.
             </p>
           </div>
           <ClassTabs value={cls} onChange={setCls} />
@@ -63,15 +81,17 @@ export function RoadmapView({ categories, subtopics, initialProgress, initialLin
             </h2>
             <LiveBadge status={status} />
           </div>
-          <ProgressBar value={totalDone} max={subtopics.length} label="ukończone podtematy" />
+          <ProgressBar value={totalDone} max={shownSubtopics.length} label="ukończone podtematy" />
         </div>
       </section>
 
-      {categories.length === 0 ? (
-        <p className="card p-6 text-muted">Brak kategorii. Zainicjuj bazę plikiem supabase/seed.sql.</p>
+      {shownCategories.length === 0 ? (
+        <p className="card p-6 text-muted">
+          Brak kategorii dla tej kwalifikacji. Zainicjuj bazę plikami z katalogu supabase/.
+        </p>
       ) : (
         <ol className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {categories.map((c, i) => {
+          {shownCategories.map((c, i) => {
             const subs = byCategory.get(c.id) ?? [];
             const n = subs.filter((s) => done.has(progressKey(cls, s.id))).length;
             const complete = subs.length > 0 && n === subs.length;
