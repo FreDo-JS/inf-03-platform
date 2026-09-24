@@ -158,8 +158,24 @@ export function Quiz({ testId, title, timeLimitSec, questionCount }: Props) {
       setNameError(r.error);
       return;
     }
-    setStarting(true);
+    // Pełny ekran PRZED zużyciem sesji i w tym samym kliknięciu — przeglądarka
+    // przyjmuje to żądanie tylko tuż po geście użytkownika. Gdyby prosić o niego
+    // po zapytaniu do serwera, mogłoby zostać odrzucone, a sesja byłaby już
+    // rozpoczęta: kolejna próba dostawałaby „sesja już rozpoczęta" i odsyłała
+    // ucznia z powrotem do PIN-u.
     setNameError(null);
+    if (document.fullscreenElement === null) {
+      try {
+        await document.documentElement.requestFullscreen();
+      } catch {
+        setNameError(
+          "Test musi działać na pełnym ekranie. Zezwól przeglądarce na pełny ekran i kliknij „Rozpocznij test” jeszcze raz.",
+        );
+        return;
+      }
+    }
+
+    setStarting(true);
     const { data, error } = await getBrowserSupabase().rpc("begin_session", {
       p_session_id: test.sessionId,
       p_student_name: r.value,
@@ -189,32 +205,42 @@ export function Quiz({ testId, title, timeLimitSec, questionCount }: Props) {
     });
     setRightColumns(columns);
 
-    // Część teoretyczna też idzie na pełny ekran — inaczej obok testu można
-    // trzymać otwarte okno z czatem albo wyszukiwarką.
-    try {
-      await document.documentElement.requestFullscreen();
-    } catch {
-      setNameError("Test wymaga trybu pełnoekranowego. Zezwól przeglądarce na pełny ekran i spróbuj ponownie.");
-      return;
-    }
-
+    // Od tego miejsca nic nie może przerwać startu — sesja jest już zużyta.
     setStudentName(name);
     await syncClock(test.sessionId);
     setStep(0);
     setPhase("running");
   };
 
-  /** Termin końca bierzemy z serwera — zmiana zegara w systemie nic nie daje. */
-  const syncClock = useCallback(async (sessionId: string) => {
-    const { data, error } = await getBrowserSupabase().rpc("quiz_time", { p_session_id: sessionId });
-    if (error) return;
-    const parsed = parseServerTime(data);
-    if (!parsed) return;
-    clockOffsetRef.current = parsed.serverNow - Date.now();
-    if (parsed.endsAt !== null) endsAtRef.current = parsed.endsAt;
-    const left = endsAtRef.current === null ? null : Math.max(0, Math.round((endsAtRef.current - (Date.now() + clockOffsetRef.current)) / 1000));
-    if (left !== null) setRemaining(left);
-  }, []);
+  /**
+   * Termin końca bierzemy z serwera — zmiana zegara w systemie nic nie daje.
+   * Gdy serwer nie odpowie (np. nie wgrano jeszcze migracji 009), odliczamy
+   * lokalnie od limitu testu, żeby zegar nie stanął. Prawdziwego terminu i tak
+   * pilnuje baza przy zapisie wyniku.
+   */
+  const syncClock = useCallback(
+    async (sessionId: string) => {
+      const { data, error } = await getBrowserSupabase().rpc("quiz_time", { p_session_id: sessionId });
+      const parsed = error ? null : parseServerTime(data);
+
+      if (parsed === null || parsed.endsAt === null) {
+        if (endsAtRef.current === null) {
+          console.warn("Brak czasu z serwera — odliczanie lokalne do czasu najbliższej synchronizacji.");
+          clockOffsetRef.current = 0;
+          endsAtRef.current = Date.now() + limitSec * 1000;
+        }
+      } else {
+        clockOffsetRef.current = parsed.serverNow - Date.now();
+        endsAtRef.current = parsed.endsAt;
+      }
+
+      const endsAt = endsAtRef.current;
+      if (endsAt !== null) {
+        setRemaining(Math.max(0, Math.round((endsAt - (Date.now() + clockOffsetRef.current)) / 1000)));
+      }
+    },
+    [limitSec],
+  );
 
   // ------------------------------------------------------------ 3. wysłanie
   const submit = useCallback(async (reason: EndedReason = "completed") => {
