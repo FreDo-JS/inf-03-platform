@@ -86,8 +86,10 @@ to ocenić w przeglądarce; to byłaby ściema, nie funkcja.
 ## Układ i wygląd
 
 Układ jest jak w CRM: stała kolumna po lewej (`components/shell/AppShell.tsx` +
-`Sidebar.tsx`), treść po prawej. W pasku bocznym siedzi nawigacja, **wybór klasy**
-(dotyczy mapy i postępu w panelu) oraz **sekcje panelu nauczyciela**. Sekcja panelu
+`Sidebar.tsx`), treść po prawej. W pasku bocznym siedzi nawigacja, **wybór klasy dla ucznia** (tylko na mapie),
+**sekcje panelu nauczyciela** i na dole **wylogowanie** (tylko w panelu). W panelu klasę
+wybiera się nad paskiem postępu, czyli przy danych, których dotyczy — wspólny komponent
+`components/ClassPicker.tsx` w dwóch układach. Sekcja panelu
 jest w adresie (`/admin?sekcja=links`), więc działa cofanie i da się podesłać link.
 
 Klasę wybiera pasek boczny, a używa jej treść po prawej — to osobne komponenty, więc

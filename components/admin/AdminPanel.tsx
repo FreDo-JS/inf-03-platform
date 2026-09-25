@@ -1,6 +1,5 @@
 "use client";
 
-import { LogOut } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { ADMIN_SECTIONS, isAdminSection, type AdminSection } from "@/components/shell/Sidebar";
@@ -94,20 +93,12 @@ function DisplayNameField({ initial, onSaved }: { initial: string; onSaved: () =
 export function AdminPanel({ email, categories, subtopics, initialProgress, teachers, myId, authorColumn }: Props) {
   const router = useRouter();
   const params = useSearchParams();
-  const [loggingOut, setLoggingOut] = useState(false);
 
   // Sekcję wybiera pasek boczny przez adres — dzięki temu działa cofanie
   // i da się podesłać komuś link prosto do wyników czy prac.
   const sekcja = params.get("sekcja");
   const tab: AdminSection = isAdminSection(sekcja) ? sekcja : "progress";
   const current = ADMIN_SECTIONS.find((sct) => sct.id === tab) ?? ADMIN_SECTIONS[0];
-
-  const logout = async () => {
-    setLoggingOut(true);
-    await getBrowserSupabase().auth.signOut();
-    router.replace("/admin/login");
-    router.refresh();
-  };
 
   return (
     <div className="space-y-5">
@@ -117,16 +108,10 @@ export function AdminPanel({ email, categories, subtopics, initialProgress, teac
           <h1 className="page-title mt-1">{current.label}</h1>
           <p className="mt-1 truncate text-sm text-muted">{email}</p>
         </div>
-        <div className="flex flex-wrap items-end gap-3">
-          <DisplayNameField
-            initial={teachers.find((t) => t.id === myId)?.display_name ?? ""}
-            onSaved={() => router.refresh()}
-          />
-          <button type="button" className="btn-ghost btn-sm" onClick={() => void logout()} disabled={loggingOut}>
-            <LogOut size={14} aria-hidden />
-            {loggingOut ? "Wylogowywanie…" : "Wyloguj"}
-          </button>
-        </div>
+        <DisplayNameField
+          initial={teachers.find((t) => t.id === myId)?.display_name ?? ""}
+          onSaved={() => router.refresh()}
+        />
       </div>
 
       <div key={tab}>

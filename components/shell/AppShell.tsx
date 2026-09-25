@@ -66,7 +66,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="absolute inset-y-0 right-0 w-64 border-l border-line bg-panel shadow-card">
             <button
               type="button"
-              className="btn-ghost btn-sm absolute left-2 top-3"
+              className="btn-ghost btn-sm absolute right-2 top-3"
               onClick={() => setOpen(false)}
               aria-label="Zamknij nawigację"
             >

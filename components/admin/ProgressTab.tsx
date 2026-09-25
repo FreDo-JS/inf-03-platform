@@ -8,6 +8,7 @@ import { progressKey, useRealtimeProgress } from "@/lib/hooks/useRealtimeProgres
 import { useSelectedClass } from "@/lib/hooks/useSelectedClass";
 import { getBrowserSupabase } from "@/lib/supabase/client";
 import { isClassName, isSubtopicId } from "@/lib/validation";
+import { ClassPicker } from "@/components/ClassPicker";
 import { TeacherMark, teacherNames } from "@/components/TeacherMark";
 import {
   CLASS_QUALIFICATION,
@@ -130,10 +131,11 @@ export function ProgressTab({
   return (
     <div className="space-y-4">
       <div className="card p-4 sm:p-5">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="section-title">Postęp klasy {cls}</h2>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <ClassPicker layout="row" />
           <LiveBadge status={status} />
         </div>
+        <h2 className="section-title mb-2">Postęp klasy {cls}</h2>
         <ProgressBar value={totalDone} max={shownSubtopics.length} label="ukończone podtematy" />
       </div>
       {!authorColumn && (

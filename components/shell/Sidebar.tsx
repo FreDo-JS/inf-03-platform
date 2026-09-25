@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useState } from "react";
 import {
   BarChart3,
   ClipboardList,
@@ -11,6 +12,7 @@ import {
   FolderOpen,
   Link2,
   ListChecks,
+  LogOut,
   Map,
   MonitorPlay,
   Settings,
@@ -18,8 +20,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { Brand } from "@/components/shell/Brand";
-import { useSelectedClass } from "@/lib/hooks/useSelectedClass";
-import { CLASS_NAMES, CLASS_QUALIFICATION, QUALIFICATIONS, QUALIFICATION_LABEL } from "@/types/db";
+import { ClassPicker } from "@/components/ClassPicker";
+import { getBrowserSupabase } from "@/lib/supabase/client";
 
 type NavItem = { href: string; label: string; icon: LucideIcon };
 
@@ -57,13 +59,22 @@ export function isAdminSection(v: string | null): v is AdminSection {
 export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
   const params = useSearchParams();
-  const [cls, setCls] = useSelectedClass();
+  const router = useRouter();
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  const logout = async () => {
+    setLoggingOut(true);
+    await getBrowserSupabase().auth.signOut();
+    router.replace("/admin/login");
+    router.refresh();
+  };
 
   const onAdmin = pathname.startsWith("/admin") && pathname !== "/admin/login";
   const section = params.get("sekcja");
   const activeSection: AdminSection = isAdminSection(section) ? section : "progress";
-  // Klasa steruje mapą nauki i postępem w panelu — gdzie indziej nie ma po niej śladu.
-  const showClasses = pathname.startsWith("/roadmap") || (onAdmin && activeSection === "progress");
+  // Uczeń wybiera klasę tutaj; w panelu nauczyciela wybór stoi nad paskiem postępu,
+  // czyli przy danych, których dotyczy.
+  const showClasses = pathname.startsWith("/roadmap");
 
   return (
     <div className="flex h-full flex-col gap-1 overflow-y-auto px-3 py-4">
@@ -113,35 +124,22 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       )}
 
       {showClasses && (
-        <div role="group" aria-label="Wybór klasy" className="flex flex-col gap-0.5">
+        <div>
           <p className="nav-heading">Klasa</p>
-          {QUALIFICATIONS.map((q) => {
-            const classes = CLASS_NAMES.filter((c) => CLASS_QUALIFICATION[c] === q);
-            if (classes.length === 0) return null;
-            return (
-              <div key={q} className="mb-1">
-                <p className="px-3 py-1 text-[11px] text-muted/60">{QUALIFICATION_LABEL[q]}</p>
-                <div className="flex flex-wrap gap-1 px-2">
-                  {classes.map((c) => (
-                    <button
-                      key={c}
-                      type="button"
-                      onClick={() => setCls(c)}
-                      aria-pressed={cls === c}
-                      className={`rounded-md border px-3 py-1.5 font-mono text-xs font-semibold transition-colors ${
-                        cls === c
-                          ? "border-accent/50 bg-accent/10 text-accent"
-                          : "border-line text-muted hover:border-white/20 hover:text-fg"
-                      }`}
-                    >
-                      {c}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
+          <ClassPicker />
         </div>
+      )}
+
+      {onAdmin && (
+        <button
+          type="button"
+          onClick={() => void logout()}
+          disabled={loggingOut}
+          className="nav-link mt-auto disabled:opacity-50"
+        >
+          <LogOut size={16} strokeWidth={2} aria-hidden />
+          {loggingOut ? "Wylogowywanie…" : "Wyloguj"}
+        </button>
       )}
     </div>
   );
