@@ -35,7 +35,7 @@ await db.exec(`
 for (const f of ["schema.sql", "002_test_pin.sql", "seed.sql", "003_subtopic_links.sql",
                  "004_matching_questions.sql", "005_tab_switch.sql", "006_practical.sql",
                  "007_practical_seed.sql", "008_security_hardening.sql", "009_server_clock.sql",
-                 "010_inf04.sql", "011_inf04_seed.sql", "012_progress_author.sql"]) {
+                 "010_inf04.sql", "011_inf04_seed.sql", "012_progress_author.sql", "013_progress_author_fix.sql"]) {
   await db.exec(f === "schema.sql" ? read(f).replace("create extension if not exists pgcrypto;", "") : read(f));
 }
 // 008 dopisuje wszystkie istniejące konta do admins — obcy nim nie jest
@@ -131,5 +131,26 @@ await ok("druga migracja nie gubi autorów",
 await ok("druga migracja nie gubi podpisów",
   `select count(*)::int n from teachers`, (r) => r[0].n === 2);
 
+console.log("\n== UZUPEŁNIENIE STARYCH WPISÓW (SQL Editor) ==");
+// 012 stemplował marked_by zawsze, więc ręczna poprawka z SQL Editora (gdzie
+// auth.uid() jest puste) kończyła się wyzerowaniem autora. 013 to naprawia.
+await db.exec("reset role; select set_config('request.jwt.claim.sub','',false);");
+await ok("wpis bez autora, jak sprzed migracji",
+  `insert into progress(class_name,subtopic_id,marked_by) values ('4e','css-selektory',null) returning 1 x`,
+  (r) => r.length === 1);
+await ok("właściciel bazy może uzupełnić autora",
+  `update progress set marked_by='${ANIA}' where marked_by is null returning marked_by::text a`,
+  (r) => r.length > 0 && r.every((x) => x.a === ANIA));
+await ok("  …i nie został już żaden wpis bez autora",
+  `select count(*)::int n from progress where marked_by is null`, (r) => r[0].n === 0);
+
+console.log("\n== PODSZYWANIE SIĘ NADAL NIEMOŻLIWE ==");
+await as("authenticated", BOREK);
+await ok("Borek dalej nie podpisze się Anią (jest zalogowany)",
+  `insert into progress(class_name,subtopic_id,marked_by) values ('4d','css-uklad','${ANIA}')
+   returning marked_by::text a`, (r) => r[0].a === BOREK);
+await ok("Borek dalej nie przerobi cudzego wpisu",
+  `update progress set marked_by='${ANIA}' where class_name='4d' and subtopic_id='css-uklad'
+   returning marked_by::text a`, (r) => r[0].a === BOREK);
 console.log(`\n${pass} ok, ${fail} fail`);
 process.exit(fail ? 1 : 0);

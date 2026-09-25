@@ -37,9 +37,15 @@ security invoker
 set search_path = public
 as $$
 begin
-  -- Nadpisujemy bezwarunkowo: cokolwiek klient przyśle w marked_by, liczy się
-  -- tożsamość z tokenu. To jedyne miejsce, które ustawia tę kolumnę.
-  new.marked_by := auth.uid();
+  -- Zalogowany nauczyciel: liczy się tożsamość z tokenu, cokolwiek klient
+  -- przyśle w marked_by. Bez tokenu (SQL Editor, migracja) zostawiamy wartość
+  -- podaną w zapytaniu — tamtędy pisze tylko właściciel bazy, a przez API
+  -- bez tokenu nic nie przejdzie, bo polityka RLS wymaga is_admin().
+  -- Ta sama treść jest w 013_progress_author_fix.sql: ponowne uruchomienie
+  -- 012 nie może cofnąć tamtej poprawki.
+  if auth.uid() is not null then
+    new.marked_by := auth.uid();
+  end if;
   new.updated_at := now();
   return new;
 end;

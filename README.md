@@ -29,6 +29,7 @@ Stack: Next.js 15 (App Router) · TypeScript (strict) · Tailwind CSS · Supabas
    - `supabase/010_inf04.sql` — druga kwalifikacja: tabela `classes`, kolumna `qualification`
    - `supabase/011_inf04_seed.sql` — mapa nauki INF.04 (12 kategorii, ponad 50 podtematów, materiały)
    - `supabase/012_progress_author.sql` — podpis nauczyciela przy oznaczonym podtemacie
+   - `supabase/013_progress_author_fix.sql` — poprawka: ręczne uzupełnienie autorów z SQL Editora
 
    Masz już bazę z poprzedniej wersji? Uruchom brakujące migracje (`002…`, `003…`) — nic nie nadpisują,
    a ponowne uruchomienie niczego nie duplikuje.
@@ -209,8 +210,11 @@ widnieje podpis nauczyciela, który go odhaczył.
   w kolumnie `marked_by`, baza to nadpisze — nie da się podpisać cudzym nazwiskiem.
 - Pokazujemy **nazwę własną**, którą nauczyciel ustawia w panelu (pole „Twój podpis przy
   tematach”, maks. 40 znaków). **E-mail ani identyfikator konta nigdy nie trafiają na stronę.**
-- Puste pole = brak podpisu. Wpisy sprzed tej migracji zostają bez autora — nie zgadujemy,
-  kto je zrobił.
+- **Każdy odhaczony podtemat ma znacznik.** Z nazwiskiem, gdy autor jest znany i ustawił
+  podpis; w pozostałych przypadkach neutralne „✓ oznaczone”. Wpisy sprzed migracji nie mają
+  autora i nie zgadujemy, kto je zrobił — jeśli wiesz, że wszystkie są Twoje, na końcu
+  `013_progress_author_fix.sql` jest gotowe zapytanie, które je uzupełni.
+- W panelu przy własnych wpisach bez ustawionego podpisu widnieje „Ty”.
 - Podpis widzą też uczniowie, bo mapa jest publiczna. Nie chcesz tego? Zostaw pole puste,
   wtedy nie pokaże się nic.
 

@@ -148,6 +148,7 @@ export function AdminPanel({ email, categories, subtopics, initialProgress, teac
             subtopics={subtopics}
             initialProgress={initialProgress}
             teachers={teachers}
+            myId={myId}
           />
         )}
         {tab === "links" && <LinksTab categories={categories} subtopics={subtopics} />}

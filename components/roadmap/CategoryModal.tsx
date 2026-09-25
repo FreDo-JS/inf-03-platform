@@ -120,7 +120,7 @@ export function CategoryModal({ index, category, subtopics, isDone, markedBy, li
                     <p className={`font-medium leading-snug ${done ? "text-fg" : "text-fg/85"}`}>{s.title}</p>
                     <SubtopicLinks links={linksBySubtopic.get(s.id) ?? []} />
                   </div>
-                  <TeacherMark name={markedBy(s.id)} size="sm" />
+                  <TeacherMark done={done} name={markedBy(s.id)} size="sm" />
                 </div>
               </li>
             );

@@ -54,6 +54,7 @@ CHECK-i i funkcje. **Każda zmiana w `supabase/*.sql` musi mieć pokrycie w `tes
 | `010_inf04.sql` | druga kwalifikacja: tabela `classes` (FK zamiast list w CHECK-ach), `qualification` w `categories` i `tests`, `create_test` z szóstym argumentem |
 | `011_inf04_seed.sql` | mapa INF.04: 12 kategorii, ponad 50 podtematów, materiały do C# i Reacta |
 | `012_progress_author.sql` | `progress.marked_by` stemplowane triggerem, `admins.display_name`, widok `teachers`, `set_my_display_name()`; naprawia rekurencyjną politykę odczytu `admins` z 008 |
+| `013_progress_author_fix.sql` | trigger stempluje tylko przy zalogowanym użytkowniku, żeby dało się uzupełnić starych autorów z SQL Editora (ta sama treść funkcji jest w 012 — ponowne uruchomienie 012 nie może cofnąć poprawki) |
 
 ### Nienaruszalne zasady bezpieczeństwa
 

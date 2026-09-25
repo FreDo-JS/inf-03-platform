@@ -22,14 +22,23 @@ import {
 type Props = {
   categories: CategoryRow[];
   teachers?: TeacherRow[];
+  /** identyfikator zalogowanego nauczyciela — do podpisu „Ty” */
+  myId?: string;
   subtopics: SubtopicRow[];
   initialProgress: (Pick<ProgressRow, "class_name" | "subtopic_id"> & { marked_by: string | null })[];
 };
 
-export function ProgressTab({ categories, subtopics, initialProgress, teachers = [] }: Props) {
+export function ProgressTab({ categories, subtopics, initialProgress, teachers = [], myId = "" }: Props) {
   const [cls, setCls] = useSelectedClass();
   const { done, setDone, authors, status } = useRealtimeProgress(initialProgress);
   const names = useMemo(() => teacherNames(teachers), [teachers]);
+
+  /** Podpis przy wpisie: nazwa autora, a przy własnych wpisach bez nazwy — „Ty”. */
+  const signature = (key: string): string | null => {
+    const who = authors.get(key);
+    if (who === undefined) return null;
+    return names.get(who) ?? (who === myId ? "Ty" : null);
+  };
   const [pending, setPending] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
 
@@ -140,7 +149,7 @@ export function ProgressTab({ categories, subtopics, initialProgress, teachers =
                         <span className={`min-w-0 flex-1 text-[15px] leading-snug ${checked ? "text-fg" : "text-fg/70"}`}>
                           {s.title}
                         </span>
-                        {checked && <TeacherMark name={names.get(authors.get(key) ?? "") ?? null} size="sm" />}
+                        <TeacherMark done={checked} name={signature(key)} size="sm" />
                       </label>
                     </li>
                   );
