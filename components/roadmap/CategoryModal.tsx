@@ -32,14 +32,16 @@ function SubtopicLinks({ links }: { links: SubtopicLinkRow[] }) {
   return (
     <ul className="mt-2.5 flex flex-wrap gap-2">
       {safe.map((l) => (
-        <li key={l.id}>
+        // min-w-0 na każdym poziomie: bez tego długa etykieta rozpycha element
+        // i na telefonie wychodzi poza okno zamiast się przyciąć.
+        <li key={l.id} className="min-w-0 max-w-full">
           <a
             href={l.href}
             target="_blank"
             rel="noopener noreferrer nofollow"
             className="chip max-w-full transition hover:border-accent/50 hover:text-accent"
           >
-            <span className="truncate">{l.label}</span>
+            <span className="min-w-0 truncate">{l.label}</span>
             <ExternalLink size={12} aria-hidden />
           </a>
         </li>

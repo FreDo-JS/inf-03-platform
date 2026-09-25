@@ -45,12 +45,13 @@ export function PinPresenter({ title, pin, path = "/testy", onClose }: Props) {
       <h2 className="mt-3 max-w-4xl text-center text-3xl font-bold tracking-tight sm:text-5xl">{title}</h2>
       <p className="mt-4 break-all text-center font-mono text-lg text-muted sm:text-2xl">{url}</p>
 
-      <p className="mt-12 font-mono text-sm uppercase tracking-[0.3em] text-muted">PIN</p>
-      <div className="mt-4 flex gap-2 sm:gap-4">
+      <p className="mt-8 font-mono text-sm uppercase tracking-[0.3em] text-muted sm:mt-12">PIN</p>
+      <div className="mt-4 flex w-full max-w-4xl justify-center gap-1.5 sm:gap-4">
         {pin.split("").map((d, i) => (
           <span
             key={i}
-            className="flex h-20 w-14 items-center justify-center rounded-xl border border-accent/40 bg-accent/[0.06] font-mono text-5xl font-bold text-accent sm:h-32 sm:w-24 sm:text-8xl"
+            // na telefonie cyfry muszą się zmieścić w szerokości ekranu
+            className="flex h-16 min-w-0 flex-1 items-center justify-center rounded-lg border border-accent/40 bg-accent/[0.06] font-mono text-4xl font-bold text-accent sm:h-32 sm:max-w-24 sm:rounded-xl sm:text-8xl"
           >
             {d}
           </span>

@@ -41,7 +41,8 @@ export function AppShell({ children }: { children: ReactNode }) {
       </aside>
 
       {/* pasek górny — tylko na wąskich ekranach */}
-      <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-line bg-panel px-4 py-2.5 lg:hidden">
+      <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-line bg-panel px-4 py-2.5 lg:hidden">
+        <Brand size={24} />
         <button
           type="button"
           className="btn-ghost btn-sm"
@@ -51,7 +52,6 @@ export function AppShell({ children }: { children: ReactNode }) {
         >
           <Menu size={16} aria-hidden />
         </button>
-        <Brand size={24} />
       </header>
 
       {open && (
@@ -63,10 +63,10 @@ export function AppShell({ children }: { children: ReactNode }) {
             aria-label="Zamknij nawigację"
             tabIndex={-1}
           />
-          <div className="absolute inset-y-0 left-0 w-64 border-r border-line bg-panel shadow-card">
+          <div className="absolute inset-y-0 right-0 w-64 border-l border-line bg-panel shadow-card">
             <button
               type="button"
-              className="btn-ghost btn-sm absolute right-2 top-3"
+              className="btn-ghost btn-sm absolute left-2 top-3"
               onClick={() => setOpen(false)}
               aria-label="Zamknij nawigację"
             >

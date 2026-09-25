@@ -233,7 +233,7 @@ export function PracticalWorksTab() {
   return (
     <div className="space-y-4">
       <div className="card flex flex-wrap items-end gap-3 p-4">
-        <div className="min-w-[16rem] flex-1">
+        <div className="w-full min-w-0 sm:min-w-[16rem] sm:flex-1">
           <label className="label" htmlFor="works-session">
             Sesja
           </label>
@@ -270,8 +270,72 @@ export function PracticalWorksTab() {
       {attempts.length === 0 ? (
         <p className="card p-8 text-center text-muted">W tej sesji nie ma jeszcze prac.</p>
       ) : (
-        <div className="card overflow-x-auto">
-          <table className="w-full min-w-[820px] text-left text-sm">
+        <>
+          {/* Telefon: praca jako karta — ośmiokolumnowa tabela nie mieści się
+              na ekranie, a nauczyciel i tak potrzebuje tu jednego przycisku. */}
+          <ul className="space-y-2 md:hidden">
+            {attempts.map((a) => {
+              const autoPoints = (task?.auto_tests ?? []).reduce((sum, t) => {
+                const override = a.overrides.find((o) => o.id === t.id);
+                const result = a.auto_results.find((r) => r.id === t.id);
+                return sum + (override?.points ?? result?.points ?? 0);
+              }, 0);
+              const statusLabel =
+                a.status === "in_progress"
+                  ? "pracuje"
+                  : a.published_at
+                    ? "opublikowane"
+                    : a.auto_checked_at
+                      ? "sprawdzone"
+                      : "oddane";
+              return (
+                <li key={a.id} className="card p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="min-w-0 flex-1 break-words font-medium">{a.student_name}</p>
+                    {a.final_percent !== null && (
+                      <span
+                        className={`shrink-0 font-mono font-semibold ${
+                          session && a.final_percent >= session.pass_threshold ? "text-accent" : "text-danger"
+                        }`}
+                      >
+                        {a.final_percent}%
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                    <span className="chip">{statusLabel}</span>
+                    {a.auto_checked_at && (
+                      <span className="chip">
+                        auto {autoPoints}/{maxPoints.auto}
+                      </span>
+                    )}
+                    {a.tab_switch_count > 0 && (
+                      <span className="chip border-danger/40 text-danger">karta: {a.tab_switch_count}</span>
+                    )}
+                    {a.large_paste_count > 0 && (
+                      <span className="chip border-warn/40 text-warn">wklejenia: {a.large_paste_count}</span>
+                    )}
+                    {a.ended_reason === "tab_switch" && (
+                      <span className="chip border-danger/60 text-danger">zmiana karty</span>
+                    )}
+                    {a.ended_reason === "time_up" && <span className="chip border-warn/50 text-warn">koniec czasu</span>}
+                    {a.ended_reason === "teacher_ended" && <span className="chip">zakończone przez nauczyciela</span>}
+                  </div>
+                  <button
+                    type="button"
+                    className="btn-ghost btn-sm mt-3 w-full"
+                    onClick={() => setOpenId(a.id)}
+                    disabled={a.status === "in_progress"}
+                  >
+                    Otwórz pracę
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+
+          <div className="card hidden overflow-x-auto md:block">
+            <table className="w-full text-left text-sm">
             <thead className="border-b border-white/[0.06] bg-white/[0.02] font-mono text-[11px] uppercase tracking-wider text-muted">
               <tr>
                 <th className="px-4 py-3">Imię</th>
@@ -348,8 +412,9 @@ export function PracticalWorksTab() {
                 );
               })}
             </tbody>
-          </table>
-        </div>
+            </table>
+          </div>
+        </>
       )}
     </div>
   );

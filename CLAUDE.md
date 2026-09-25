@@ -99,6 +99,12 @@ komponent dla paska bocznego i górnego). Favicon to `app/icon.png` + `app/apple
 Next podpina je automatycznie, nie ma osobnych `<link>`. Wszystkie trzy pliki powstały
 z jednego PNG z przezroczystym tłem, przycięte do zawartości i wpisane w kwadrat.
 
+Telefon: pasek boczny chowa się za przyciskiem **po prawej** i wysuwa jako panel z tej
+samej strony. Szerokie tabele panelu (wyniki, prace, monitoring sesji) mają dwie postacie:
+listę kart poniżej `md` i tabelę od `md` w górę — zamiast jednej tabeli przewijanej w bok.
+Dodając kolumnę, dopisz ją w obu. Przy długich etykietach pamiętaj o `min-w-0` na każdym
+poziomie flexa, inaczej tekst rozpycha kontener zamiast się przyciąć.
+
 Język wizualny: płaskie powierzchnie, **bez gradientów i poświat**, ikony z
 `lucide-react` zamiast emotek (rozmiar 12–16 px, `aria-hidden`, tekst obok niesie
 znaczenie). Jeden akcent `#2de2c1`, drugi `#38bdf8` tylko do odróżnienia INF.04.
