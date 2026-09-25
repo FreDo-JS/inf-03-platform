@@ -28,7 +28,7 @@ export default async function RoadmapPage() {
     <RoadmapView
       categories={cats}
       subtopics={subs.data}
-      initialProgress={prog}
+      initialProgress={prog.rows}
       initialLinks={links.data}
       teachers={teachers}
     />

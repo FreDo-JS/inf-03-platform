@@ -104,5 +104,5 @@ export function useRealtimeProgress(initial: readonly ProgressInput[]) {
     };
   }, [channelId]);
 
-  return { done, setDone, authors, status };
+  return { done, setDone, authors, setAuthors, status };
 }

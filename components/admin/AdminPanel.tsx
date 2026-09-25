@@ -22,6 +22,8 @@ type Props = {
   subtopics: SubtopicRow[];
   initialProgress: (Pick<ProgressRow, "class_name" | "subtopic_id"> & { marked_by: string | null })[];
   teachers: TeacherRow[];
+  /** false, gdy baza nie zna jeszcze kolumny progress.marked_by */
+  authorColumn: boolean;
   /** identyfikator zalogowanego nauczyciela — do podpowiedzi „to Ty” */
   myId: string;
 };
@@ -32,7 +34,7 @@ type Props = {
  * set_my_display_name — 008 celowo odebrało kontom prawo zapisu do tabeli
  * admins, żeby nikt nie nadał sobie uprawnień przez API.
  */
-function DisplayNameField({ initial }: { initial: string }) {
+function DisplayNameField({ initial, onSaved }: { initial: string; onSaved: () => void }) {
   const [name, setName] = useState(initial);
   const [saving, setSaving] = useState(false);
   const [state, setState] = useState<"idle" | "saved" | "error">("idle");
@@ -51,6 +53,9 @@ function DisplayNameField({ initial }: { initial: string }) {
     if (typeof data === "string") setName(data);
     setState("saved");
     setMessage(null);
+    // Podpisy przy tematach przychodzą z serwera (widok teachers) — bez tego
+    // zmiana nazwy byłaby widoczna dopiero po odświeżeniu strony.
+    onSaved();
   };
 
   return (
@@ -86,7 +91,7 @@ function DisplayNameField({ initial }: { initial: string }) {
     </div>
   );
 }
-export function AdminPanel({ email, categories, subtopics, initialProgress, teachers, myId }: Props) {
+export function AdminPanel({ email, categories, subtopics, initialProgress, teachers, myId, authorColumn }: Props) {
   const router = useRouter();
   const params = useSearchParams();
   const [loggingOut, setLoggingOut] = useState(false);
@@ -113,7 +118,10 @@ export function AdminPanel({ email, categories, subtopics, initialProgress, teac
           <p className="mt-1 truncate text-sm text-muted">{email}</p>
         </div>
         <div className="flex flex-wrap items-end gap-3">
-          <DisplayNameField initial={teachers.find((t) => t.id === myId)?.display_name ?? ""} />
+          <DisplayNameField
+            initial={teachers.find((t) => t.id === myId)?.display_name ?? ""}
+            onSaved={() => router.refresh()}
+          />
           <button type="button" className="btn-ghost btn-sm" onClick={() => void logout()} disabled={loggingOut}>
             <LogOut size={14} aria-hidden />
             {loggingOut ? "Wylogowywanie…" : "Wyloguj"}
@@ -129,6 +137,7 @@ export function AdminPanel({ email, categories, subtopics, initialProgress, teac
             initialProgress={initialProgress}
             teachers={teachers}
             myId={myId}
+            authorColumn={authorColumn}
           />
         )}
         {tab === "links" && <LinksTab categories={categories} subtopics={subtopics} />}

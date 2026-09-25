@@ -135,6 +135,12 @@ z `sandbox="allow-scripts allow-forms"` (bez `allow-same-origin`). Most na `post
 waliduje `source` i `frameId`. Wbudowana przeglądarka **nie renderuje** sandboxowanego
 iframe'a z `src` — stąd ta konstrukcja, nie upraszczaj jej „z powrotem".
 
+**Podpis autora nie może zależeć od Realtime.** Po kliknięciu w panelu wpisujemy autora
+od razu (znamy `myId`, a baza i tak stempluje wpis tożsamością z tokenu) i cofamy go,
+gdy zapis padnie. Wcześniej podpis czekał na powiadomienie z Realtime, więc przy
+wyłączonej replikacji pojawiał się dopiero po odświeżeniu strony. Panel mówi też wprost,
+gdy brakuje migracji 012 albo gdy nauczyciel nie ustawił sobie podpisu.
+
 **Realtime**: każdy hook musi mieć unikalną nazwę kanału (`useId()`), inaczej leci
 „cannot add postgres_changes callbacks after subscribe()".
 

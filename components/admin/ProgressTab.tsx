@@ -21,15 +21,24 @@ import {
 type Props = {
   categories: CategoryRow[];
   teachers?: TeacherRow[];
+  /** false, gdy baza nie zna jeszcze kolumny progress.marked_by (migracja 012) */
+  authorColumn?: boolean;
   /** identyfikator zalogowanego nauczyciela — do podpisu „Ty” */
   myId?: string;
   subtopics: SubtopicRow[];
   initialProgress: (Pick<ProgressRow, "class_name" | "subtopic_id"> & { marked_by: string | null })[];
 };
 
-export function ProgressTab({ categories, subtopics, initialProgress, teachers = [], myId = "" }: Props) {
+export function ProgressTab({
+  categories,
+  subtopics,
+  initialProgress,
+  teachers = [],
+  myId = "",
+  authorColumn = true,
+}: Props) {
   const [cls] = useSelectedClass();
-  const { done, setDone, authors, status } = useRealtimeProgress(initialProgress);
+  const { done, setDone, authors, setAuthors, status } = useRealtimeProgress(initialProgress);
   const names = useMemo(() => teacherNames(teachers), [teachers]);
 
   /** Podpis przy wpisie: nazwa autora, a przy własnych wpisach bez nazwy — „Ty”. */
@@ -62,11 +71,21 @@ export function ProgressTab({ categories, subtopics, initialProgress, teachers =
 
     setError(null);
     setPending((p) => new Set(p).add(key));
-    // optymistyczna aktualizacja
+    // Optymistyczna aktualizacja. Autora dopisujemy od razu: baza i tak stempluje
+    // wpis tożsamością z tokenu, więc wiemy, co tam wyląduje. Bez tego podpis
+    // pojawiałby się dopiero po powiadomieniu z Realtime, a gdyby ono nie
+    // działało — dopiero po odświeżeniu strony.
+    const previousAuthor = authors.get(key);
     setDone((prev) => {
       const next = new Set(prev);
       if (wasDone) next.delete(key);
       else next.add(key);
+      return next;
+    });
+    setAuthors((prev) => {
+      const next = new Map(prev);
+      if (wasDone) next.delete(key);
+      else if (myId !== "") next.set(key, myId);
       return next;
     });
 
@@ -83,6 +102,12 @@ export function ProgressTab({ categories, subtopics, initialProgress, teachers =
         const next = new Set(prev);
         if (wasDone) next.add(key);
         else next.delete(key);
+        return next;
+      });
+      setAuthors((prev) => {
+        const next = new Map(prev);
+        if (previousAuthor === undefined) next.delete(key);
+        else next.set(key, previousAuthor);
         return next;
       });
       setError(friendlyError(dbError, "Nie udało się zapisać zmiany."));
@@ -111,6 +136,18 @@ export function ProgressTab({ categories, subtopics, initialProgress, teachers =
         </div>
         <ProgressBar value={totalDone} max={shownSubtopics.length} label="ukończone podtematy" />
       </div>
+      {!authorColumn && (
+        <p className="alert-error">
+          Baza nie ma jeszcze kolumny z autorem oznaczeń — przy tematach nie pojawi się, kto je odhaczył. Uruchom w
+          Supabase migracje <span className="font-mono">012_progress_author.sql</span> i{" "}
+          <span className="font-mono">013_progress_author_fix.sql</span>.
+        </p>
+      )}
+      {authorColumn && myId !== "" && !names.has(myId) && (
+        <p className="alert-ok">
+          Ustaw swój podpis w polu u góry — bez niego przy odhaczonych tematach widnieje samo „oznaczone”.
+        </p>
+      )}
       {error && (
         <p className="alert-error" role="alert">
           {error}

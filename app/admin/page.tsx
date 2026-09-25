@@ -29,7 +29,8 @@ export default async function AdminPage() {
       email={user.email ?? ""}
       categories={cats}
       subtopics={subs.data}
-      initialProgress={prog}
+      initialProgress={prog.rows}
+      authorColumn={prog.authorColumn}
       teachers={teachers}
       myId={user.id}
     />

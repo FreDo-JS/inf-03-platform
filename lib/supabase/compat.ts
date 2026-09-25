@@ -48,15 +48,18 @@ export async function loadCategories(supabase: Server): Promise<CategoryRow[] | 
 
 export type ProgressEntry = Pick<ProgressRow, "class_name" | "subtopic_id"> & { marked_by: string | null };
 
-export async function loadProgress(supabase: Server): Promise<ProgressEntry[] | null> {
+/** authorColumn = false oznacza bazę bez migracji 012 — panel to pokaże nauczycielowi. */
+export type ProgressLoad = { rows: ProgressEntry[]; authorColumn: boolean };
+
+export async function loadProgress(supabase: Server): Promise<ProgressLoad | null> {
   const full = await supabase.from("progress").select("class_name, subtopic_id, marked_by");
-  if (!full.error) return full.data;
+  if (!full.error) return { rows: full.data, authorColumn: true };
   if (!isMissingInDb(full.error)) return null;
 
   warnMissing("012_progress_author.sql", "kolumny progress.marked_by");
   const legacy = await supabase.from("progress").select("class_name, subtopic_id");
   if (legacy.error) return null;
-  return legacy.data.map((p) => ({ ...p, marked_by: null }));
+  return { rows: legacy.data.map((p) => ({ ...p, marked_by: null })), authorColumn: false };
 }
 
 /** Nazwy nauczycieli są ozdobnikiem — ich brak nigdy nie blokuje strony. */
