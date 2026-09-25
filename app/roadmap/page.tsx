@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { RoadmapView } from "@/components/roadmap/RoadmapView";
 import { LINK_COLUMNS } from "@/lib/links";
+import { loadCategories, loadProgress, loadTeachers } from "@/lib/supabase/compat";
 import { getServerSupabase } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "Mapa nauki" };
@@ -9,27 +10,27 @@ export const dynamic = "force-dynamic";
 export default async function RoadmapPage() {
   const supabase = await getServerSupabase();
   const [cats, subs, prog, links, teachers] = await Promise.all([
-    supabase.from("categories").select("id, position, title, description, qualification").order("position"),
+    loadCategories(supabase),
     supabase.from("subtopics").select("id, category_id, position, title, theory_url, tasks_url").order("position"),
-    supabase.from("progress").select("class_name, subtopic_id, marked_by"),
+    loadProgress(supabase),
     supabase.from("subtopic_links").select(LINK_COLUMNS),
-    supabase.from("teachers").select("id, display_name"),
+    loadTeachers(supabase),
   ]);
 
-  // Brak nazw nauczycieli nie jest powodem, żeby nie pokazać mapy — podpisy
-  // po prostu się nie pojawią.
-  if (cats.error || subs.error || prog.error || links.error) {
+  // Brakująca migracja nie jest awarią — loadCategories i loadProgress same
+  // wracają do starszego zestawu kolumn. null oznacza prawdziwy błąd bazy.
+  if (cats === null || prog === null || subs.error || links.error) {
     // error.tsx pokaże ogólny komunikat bez szczegółów
     throw new Error("roadmap_load_failed");
   }
 
   return (
     <RoadmapView
-      categories={cats.data}
+      categories={cats}
       subtopics={subs.data}
-      initialProgress={prog.data}
+      initialProgress={prog}
       initialLinks={links.data}
-      teachers={teachers.error ? [] : teachers.data}
+      teachers={teachers}
     />
   );
 }

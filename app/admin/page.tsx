@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { AdminPanel } from "@/components/admin/AdminPanel";
+import { loadCategories, loadProgress, loadTeachers } from "@/lib/supabase/compat";
 import { getServerSupabase } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "Admin" };
@@ -16,20 +17,20 @@ export default async function AdminPage() {
   if (!user) redirect("/admin/login");
 
   const [cats, subs, prog, teachers] = await Promise.all([
-    supabase.from("categories").select("id, position, title, description, qualification").order("position"),
+    loadCategories(supabase),
     supabase.from("subtopics").select("id, category_id, position, title, theory_url, tasks_url").order("position"),
-    supabase.from("progress").select("class_name, subtopic_id, marked_by"),
-    supabase.from("teachers").select("id, display_name"),
+    loadProgress(supabase),
+    loadTeachers(supabase),
   ]);
-  if (cats.error || subs.error || prog.error) throw new Error("admin_load_failed");
+  if (cats === null || prog === null || subs.error) throw new Error("admin_load_failed");
 
   return (
     <AdminPanel
       email={user.email ?? ""}
-      categories={cats.data}
+      categories={cats}
       subtopics={subs.data}
-      initialProgress={prog.data}
-      teachers={teachers.error ? [] : teachers.data}
+      initialProgress={prog}
+      teachers={teachers}
       myId={user.id}
     />
   );

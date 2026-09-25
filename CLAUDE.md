@@ -84,6 +84,13 @@ to ocenić w przeglądarce; to byłaby ściema, nie funkcja.
 
 ## Rzeczy, które łatwo zepsuć
 
+**Kod i migracje wdrażają się osobno.** Aplikacja idzie na Vercela od razu, a pliki SQL
+ktoś musi wkleić w Supabase — między jednym a drugim strona pyta o kolumny, których
+jeszcze nie ma. Zapytania o **nowe** kolumny idą przez `lib/supabase/compat.ts`: próbują
+nowszy zestaw, a przy błędzie 42703/42P01 wracają do starego i wypisują w terminalu,
+której migracji brakuje. Dodając kolumnę używaną przez Server Component, dopisz tam
+fallback — inaczej brak migracji wywraca całą stronę (`roadmap_load_failed`).
+
 **PGlite ≠ Postgres.** Testy SQL chodzą na PGlite i ono przyjmuje rzeczy, które
 Supabase odrzuca — np. kolumnę **generowaną na liście kolumn publikacji**
 (`question_count` w 008 wywracało migrację na produkcji: „cannot use generated
