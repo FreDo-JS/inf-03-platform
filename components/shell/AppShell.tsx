@@ -3,6 +3,7 @@
 import { Menu, X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { Suspense, useEffect, useState, type ReactNode } from "react";
+import { Brand } from "@/components/shell/Brand";
 import { Sidebar } from "@/components/shell/Sidebar";
 
 /**
@@ -50,11 +51,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         >
           <Menu size={16} aria-hidden />
         </button>
-        <span className="font-mono text-sm font-semibold tracking-tight">
-          INF<span className="text-accent">.03</span>
-          <span className="mx-0.5 text-muted">/</span>
-          <span className="text-accent2">.04</span>
-        </span>
+        <Brand size={24} />
       </header>
 
       {open && (

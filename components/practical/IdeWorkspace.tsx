@@ -139,8 +139,8 @@ export function IdeWorkspace({
     <div className="fixed inset-0 z-40 flex flex-col bg-bg">
       {/* pasek górny */}
       <header className="flex shrink-0 flex-wrap items-center gap-3 border-b border-white/[0.07] bg-panel/80 px-3 py-2 backdrop-blur">
-        <span className="font-mono text-sm font-bold">
-          INF<span className="text-accent">.03</span> · praktyka
+        <span className="text-sm font-semibold">
+          Tebby <span className="text-muted">· praktyka</span>
         </span>
         <span className="flex items-center gap-1.5 truncate text-sm text-muted">
           <User size={14} aria-hidden /> {state.studentName}

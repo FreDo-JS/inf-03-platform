@@ -533,7 +533,7 @@ export function PracticalStudent() {
       <div className="card p-6 sm:p-8">
         <div className="text-center">
           <p className="eyebrow">{"// część praktyczna"}</p>
-          <h1 className="mt-2 text-2xl font-bold tracking-tight">Praktyka INF.03</h1>
+          <h1 className="mt-2 text-2xl font-bold tracking-tight">Egzamin praktyczny</h1>
           <p className="mt-2 text-sm text-muted">Wpisz PIN sesji od nauczyciela i swoje imię.</p>
         </div>
 

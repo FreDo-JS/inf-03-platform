@@ -94,6 +94,11 @@ Klasę wybiera pasek boczny, a używa jej treść po prawej — to osobne kompon
 `useSelectedClass` synchronizuje je zdarzeniem okna (`inf03:class-change`) i `storage`.
 Nie zastępuj tego lokalnym stanem, bo pasek i treść się rozjadą.
 
+Marka: logo `public/tebby.png` i nazwa **Tebby** w `components/shell/Brand.tsx` (jeden
+komponent dla paska bocznego i górnego). Favicon to `app/icon.png` + `app/apple-icon.png` —
+Next podpina je automatycznie, nie ma osobnych `<link>`. Wszystkie trzy pliki powstały
+z jednego PNG z przezroczystym tłem, przycięte do zawartości i wpisane w kwadrat.
+
 Język wizualny: płaskie powierzchnie, **bez gradientów i poświat**, ikony z
 `lucide-react` zamiast emotek (rozmiar 12–16 px, `aria-hidden`, tekst obok niesie
 znaczenie). Jeden akcent `#2de2c1`, drugi `#38bdf8` tylko do odróżnienia INF.04.

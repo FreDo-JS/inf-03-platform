@@ -17,6 +17,7 @@ import {
   Trophy,
   type LucideIcon,
 } from "lucide-react";
+import { Brand } from "@/components/shell/Brand";
 import { useSelectedClass } from "@/lib/hooks/useSelectedClass";
 import { CLASS_NAMES, CLASS_QUALIFICATION, QUALIFICATIONS, QUALIFICATION_LABEL } from "@/types/db";
 
@@ -71,14 +72,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         onClick={onNavigate}
         className="mb-3 flex items-center gap-2.5 px-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
       >
-        <span className="flex h-7 w-7 items-center justify-center rounded-md border border-accent/40 bg-accent/10 font-mono text-xs font-bold text-accent">
-          03
-        </span>
-        <span className="font-mono text-sm font-semibold tracking-tight">
-          INF<span className="text-accent">.03</span>
-          <span className="mx-0.5 text-muted">/</span>
-          <span className="text-accent2">.04</span>
-        </span>
+        <Brand size={30} />
       </Link>
 
       <nav aria-label="Główna nawigacja" className="flex flex-col gap-0.5">
