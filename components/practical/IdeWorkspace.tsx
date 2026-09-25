@@ -6,6 +6,7 @@ import { PreviewPane } from "@/components/practical/PreviewPane";
 import { TaskSheet } from "@/components/practical/TaskSheet";
 import { formatClock } from "@/lib/tests";
 import type { AttemptState, ProjectFile } from "@/types/practical";
+import { User } from "lucide-react";
 
 export type SaveStatus = "idle" | "saving" | "saved" | "error";
 
@@ -141,7 +142,9 @@ export function IdeWorkspace({
         <span className="font-mono text-sm font-bold">
           INF<span className="text-accent">.03</span> · praktyka
         </span>
-        <span className="truncate text-sm text-muted">👤 {state.studentName}</span>
+        <span className="flex items-center gap-1.5 truncate text-sm text-muted">
+          <User size={14} aria-hidden /> {state.studentName}
+        </span>
         <span
           className={`chip ${saveStatus === "error" ? "border-danger/60 text-danger" : saveStatus === "saving" ? "border-warn/50 text-warn" : "border-accent/40 text-accent"}`}
           title={lastSavedAt ? `Ostatni zapis: ${new Date(lastSavedAt).toLocaleTimeString("pl-PL")}` : undefined}

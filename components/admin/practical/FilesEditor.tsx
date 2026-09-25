@@ -4,6 +4,7 @@ import { useState } from "react";
 import { CodeEditor, languageForFile } from "@/components/practical/CodeEditor";
 import { isProjectFileName } from "@/lib/practical/validation";
 import type { ProjectFile } from "@/types/practical";
+import { X } from "lucide-react";
 
 type Props = {
   files: ProjectFile[];
@@ -97,7 +98,7 @@ export function FilesEditor({ files, onChange, label, hint, height = 260 }: Prop
                   className="rounded-r-lg px-1.5 py-1.5 text-xs text-muted hover:text-danger"
                   aria-label={`Usuń ${f.name}`}
                 >
-                  ✕
+                  <X size={14} aria-hidden />
                 </button>
               </span>
             ))}

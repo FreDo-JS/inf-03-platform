@@ -7,6 +7,7 @@ import { getBrowserSupabase } from "@/lib/supabase/client";
 import { TEST_SUMMARY_COLUMNS, pluralPytania, toSummaries, type TestSummary } from "@/lib/tests";
 import { isUuid, validatePin } from "@/lib/validation";
 import { PinPresenter } from "./PinPresenter";
+import { Calendar, Check, ExternalLink, MonitorPlay, RefreshCw, Timer } from "lucide-react";
 
 type TestWithPin = TestSummary & { pin: string | null };
 
@@ -112,8 +113,12 @@ export function TestsTab() {
                       <span className="chip">
                         {t.questionCount} {pluralPytania(t.questionCount)}
                       </span>
-                      <span className="chip">⏱ {Math.round(t.timeLimitSec / 60)} min</span>
-                      <span className="chip">📅 {new Date(t.createdAt).toLocaleDateString("pl-PL")}</span>
+                      <span className="chip">
+                  <Timer size={12} aria-hidden /> {Math.round(t.timeLimitSec / 60)} min
+                </span>
+                      <span className="chip">
+                  <Calendar size={12} aria-hidden /> {new Date(t.createdAt).toLocaleDateString("pl-PL")}
+                </span>
                     </div>
                   </div>
 
@@ -134,7 +139,7 @@ export function TestsTab() {
                         {show ? "ukryj" : "pokaż"}
                       </button>
                       <button type="button" className="btn-ghost btn-sm" onClick={() => void copyPin(t)} disabled={!t.pin}>
-                        {copied === t.id ? "✓" : "kopiuj"}
+                        {copied === t.id ? <Check size={14} aria-hidden /> : "kopiuj"}
                       </button>
                     </div>
                   </div>
@@ -142,13 +147,19 @@ export function TestsTab() {
 
                 <div className="mt-4 flex flex-wrap gap-2 border-t border-white/[0.06] pt-4">
                   <button type="button" className="btn-primary btn-sm" onClick={() => setPresenting(t)} disabled={!t.pin}>
-                    📺 Pokaż PIN klasie
+                    <MonitorPlay size={14} aria-hidden /> Pokaż PIN klasie
                   </button>
                   <button type="button" className="btn-ghost btn-sm" onClick={() => void rotatePin(t)} disabled={busyId !== null}>
-                    {busy ? "…" : "🔄 Nowy PIN"}
+                    {busy ? (
+                    "…"
+                  ) : (
+                    <>
+                      <RefreshCw size={14} aria-hidden /> Nowy PIN
+                    </>
+                  )}
                   </button>
                   <Link href={`/testy/${t.id}`} className="btn-ghost btn-sm" target="_blank">
-                    Podgląd ↗
+                    Podgląd <ExternalLink size={13} aria-hidden />
                   </Link>
                   <button
                     type="button"

@@ -22,9 +22,8 @@ const config: Config = {
         sans: ["var(--font-sans)", "system-ui", "sans-serif"],
       },
       boxShadow: {
-        card: "0 1px 0 0 rgba(255,255,255,0.04) inset, 0 20px 40px -24px rgba(0,0,0,0.8)",
-        glow: "0 8px 30px -8px rgba(45,226,193,0.45)",
-        "glow-lg": "0 0 0 1px rgba(45,226,193,0.35), 0 20px 60px -20px rgba(45,226,193,0.5)",
+        // jeden dyskretny cień do elementów unoszonych nad treścią (modale, panele)
+        card: "0 16px 40px -24px rgba(0,0,0,0.9)",
       },
       keyframes: {
         "fade-up": {

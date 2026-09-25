@@ -13,27 +13,9 @@ html {
 
 body {
   color: #e8f0f5;
-  font-size: 16px;
+  font-size: 15px;
   line-height: 1.6;
-  background:
-    radial-gradient(60rem 40rem at 10% -10%, rgba(45, 226, 193, 0.1), transparent 60%),
-    radial-gradient(50rem 35rem at 100% 0%, rgba(56, 189, 248, 0.08), transparent 60%),
-    #070c11;
-  background-attachment: fixed;
-}
-
-/* delikatna siatka "edytora" w tle, wygaszana ku dołowi */
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  background-image:
-    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
-  background-size: 40px 40px;
-  mask-image: linear-gradient(to bottom, black, transparent 70%);
+  background: #070c11;
 }
 
 ::selection {
@@ -50,61 +32,79 @@ body::before {
 }
 
 @layer components {
+  /* Powierzchnie: jedna warstwa panelu na tle, różnicowana obramowaniem.
+     Bez blura i cieni „unoszących” — to interfejs do pracy, nie landing page. */
   .card {
-    @apply rounded-2xl border border-white/[0.07] bg-panel/75 shadow-card backdrop-blur-xl;
+    @apply rounded-xl border border-line bg-panel;
   }
   .card-interactive {
-    @apply card transition duration-200 hover:-translate-y-0.5 hover:border-accent/40 hover:bg-panel2/80
-      focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/70;
+    @apply card cursor-pointer transition-colors duration-150 hover:border-accent/40 hover:bg-panel2
+      focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60;
+  }
+  .surface {
+    @apply rounded-lg border border-line bg-panel;
   }
 
   .btn {
-    @apply inline-flex select-none items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold
-      transition duration-150 active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/70
+    @apply inline-flex select-none items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-medium
+      transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60
       focus-visible:ring-offset-2 focus-visible:ring-offset-bg disabled:pointer-events-none disabled:opacity-45;
   }
   .btn-primary {
-    @apply btn bg-gradient-to-r from-accent to-accent2 text-bg shadow-glow hover:brightness-110;
+    @apply btn bg-accent font-semibold text-bg hover:bg-accent/90;
   }
   .btn-ghost {
-    @apply btn border border-line bg-white/[0.03] text-fg hover:border-accent/40 hover:bg-white/[0.06];
+    @apply btn border border-line bg-transparent text-fg hover:border-white/20 hover:bg-white/[0.04];
   }
   .btn-danger {
-    @apply btn border border-danger/40 bg-danger/[0.06] text-danger hover:bg-danger/15;
+    @apply btn border border-danger/40 bg-transparent text-danger hover:bg-danger/10;
   }
   .btn-sm {
-    @apply px-3 py-1.5 text-xs;
+    @apply px-2.5 py-1.5 text-xs;
   }
 
   .input {
-    @apply w-full rounded-xl border border-line bg-bg/70 px-3.5 py-2.5 text-[15px] text-fg transition
-      placeholder:text-muted/60 hover:border-white/15 focus:border-accent/70 focus:outline-none focus:ring-4
-      focus:ring-accent/15 disabled:opacity-60 aria-[invalid=true]:border-danger/70;
+    @apply w-full rounded-lg border border-line bg-bg px-3 py-2 text-sm text-fg transition-colors
+      placeholder:text-muted/60 hover:border-white/15 focus:border-accent/70 focus:outline-none
+      focus:ring-1 focus:ring-accent/40 disabled:opacity-60 aria-[invalid=true]:border-danger/70;
   }
   .label {
-    @apply mb-1.5 block font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-muted;
+    @apply mb-1.5 block text-xs font-medium text-muted;
   }
   .eyebrow {
-    @apply font-mono text-xs font-medium tracking-wide text-accent;
+    @apply text-xs font-medium uppercase tracking-wider text-muted;
   }
   .page-title {
-    @apply font-mono text-3xl font-bold tracking-tight text-fg sm:text-4xl;
+    @apply text-2xl font-semibold tracking-tight text-fg;
   }
-  .text-gradient {
-    @apply bg-gradient-to-r from-accent to-accent2 bg-clip-text text-transparent;
+  .section-title {
+    @apply text-sm font-semibold text-fg;
   }
+
+  /* Nawigacja boczna */
+  .nav-link {
+    @apply flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-muted transition-colors
+      hover:bg-white/[0.04] hover:text-fg focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60;
+  }
+  .nav-link-active {
+    @apply bg-accent/10 text-accent hover:bg-accent/10 hover:text-accent;
+  }
+  .nav-heading {
+    @apply px-3 pb-1.5 pt-5 text-[11px] font-semibold uppercase tracking-wider text-muted/70;
+  }
+
   .chip {
-    @apply inline-flex items-center gap-1.5 rounded-full border border-line bg-white/[0.03] px-2.5 py-1 font-mono
-      text-xs text-muted;
+    @apply inline-flex items-center gap-1.5 rounded-md border border-line bg-white/[0.02] px-2 py-0.5 text-xs
+      text-muted;
   }
   .field-error {
     @apply mt-1.5 text-sm text-danger;
   }
   .alert-error {
-    @apply rounded-xl border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger;
+    @apply rounded-lg border border-danger/40 bg-danger/[0.08] px-3.5 py-2.5 text-sm text-danger;
   }
   .alert-ok {
-    @apply rounded-xl border border-accent/40 bg-accent/10 px-4 py-3 text-sm text-accent;
+    @apply rounded-lg border border-accent/40 bg-accent/[0.08] px-3.5 py-2.5 text-sm text-accent;
   }
 }
 
@@ -164,4 +164,6 @@ body::before {
 
 /* Podczas pracy w IDE chowamy nawigację serwisu: przykrywa ją panel egzaminu,
    ale bez tego dałoby się do niej dojść Tabem i wyjść z egzaminu na inną stronę. */
-body.ide-open > header { display: none; }
+body.ide-open aside,
+body.ide-open > div > header { display: none; }
+body.ide-open > div > div { padding-left: 0; }

@@ -123,7 +123,7 @@ export function MatchingQuestionView({ question, right, value, onChange, disable
                 aria-pressed={isPicked}
                 className={`w-full cursor-grab rounded-xl border-2 p-3 text-left text-[15px] transition active:cursor-grabbing ${
                   isPicked
-                    ? "border-accent bg-accent/15 text-fg shadow-glow"
+                    ? "border-accent bg-accent/15 text-fg"
                     : isUsed
                       ? "border-line bg-white/[0.02] text-muted/50 line-through"
                       : "border-line bg-bg/50 hover:border-accent/50 hover:bg-white/[0.03]"

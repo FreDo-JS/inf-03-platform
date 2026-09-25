@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { PROCTOR_LABEL, type ProctorKind } from "@/lib/hooks/useProctorGuard";
+import { TriangleAlert } from "lucide-react";
 
 /**
  * Ostrzeżenie po pierwszym opuszczeniu egzaminu (zmiana karty, przejście do
@@ -32,7 +33,7 @@ export function ProctorWarning({
       className="fixed inset-0 z-[60] flex items-center justify-center bg-black/85 p-4 backdrop-blur-sm"
     >
       <div className="card w-full max-w-md animate-fade-up border-warn/50 p-6 text-center sm:p-8">
-        <p className="text-5xl">⚠️</p>
+        <TriangleAlert size={40} className="mx-auto text-warn" aria-hidden />
         <h2 id="proctor-warning-title" className="mt-4 text-xl font-bold">
           Wykryto {PROCTOR_LABEL[kind]}
         </h2>

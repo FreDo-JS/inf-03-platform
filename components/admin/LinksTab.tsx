@@ -6,6 +6,7 @@ import { useRealtimeLinks } from "@/lib/hooks/useRealtimeLinks";
 import { getBrowserSupabase } from "@/lib/supabase/client";
 import { LIMITS, isSubtopicId, safeLinkUrl, validateLinkLabel, validateLinkUrl, validateSortOrder } from "@/lib/validation";
 import { QUALIFICATIONS, QUALIFICATION_LABEL, type CategoryRow, type Qualification, type SubtopicLinkRow, type SubtopicRow } from "@/types/db";
+import { ArrowDown, ArrowUp } from "lucide-react";
 
 type Props = {
   categories: CategoryRow[];
@@ -307,7 +308,7 @@ export function LinksTab({ categories, subtopics }: Props) {
                         disabled={busy || i === 0}
                         aria-label="Przesuń w górę"
                       >
-                        ↑
+                        <ArrowUp size={14} aria-hidden />
                       </button>
                       <button
                         type="button"
@@ -316,7 +317,7 @@ export function LinksTab({ categories, subtopics }: Props) {
                         disabled={busy || i === links.length - 1}
                         aria-label="Przesuń w dół"
                       >
-                        ↓
+                        <ArrowDown size={14} aria-hidden />
                       </button>
                       <button type="button" className="btn-ghost btn-sm" onClick={() => startEdit(l)} disabled={busy}>
                         Edytuj

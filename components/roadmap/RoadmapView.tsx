@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import { ClassTabs } from "@/components/ClassTabs";
 import { teacherNames } from "@/components/TeacherMark";
+import { ChevronRight } from "lucide-react";
 import { LiveBadge } from "@/components/LiveBadge";
 import { ProgressBar } from "@/components/ProgressBar";
 import { useRealtimeLinks } from "@/lib/hooks/useRealtimeLinks";
@@ -29,7 +29,7 @@ type Props = {
 };
 
 export function RoadmapView({ categories, subtopics, initialProgress, initialLinks, teachers }: Props) {
-  const [cls, setCls] = useSelectedClass();
+  const [cls] = useSelectedClass();
   const { done, authors, status } = useRealtimeProgress(initialProgress);
   const names = useMemo(() => teacherNames(teachers), [teachers]);
   const { bySubtopic } = useRealtimeLinks(initialLinks);
@@ -64,25 +64,21 @@ export function RoadmapView({ categories, subtopics, initialProgress, initialLin
 
   return (
     <div className="space-y-8">
-      <section className="animate-fade-up space-y-6">
-        <div className="flex flex-wrap items-end justify-between gap-5">
-          <div className="max-w-2xl">
-            <p className="eyebrow">{`// kwalifikacja ${QUALIFICATION_LABEL[qualification]}`}</p>
-            <h1 className="page-title mt-2">
-              Mapa <span className="text-gradient">nauki</span>
-            </h1>
-            <p className="mt-3 text-[15px] leading-relaxed text-muted">
-              {QUALIFICATION_FULL[qualification]}. Kliknij kafelek, aby zobaczyć podtematy i materiały.
-            </p>
-          </div>
-          <ClassTabs value={cls} onChange={setCls} />
+      <section className="space-y-5">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+          <h1 className="page-title">Mapa nauki</h1>
+          <p className="text-sm text-muted">
+            klasa <span className="font-mono text-fg">{cls}</span> ·{" "}
+            <span className="font-mono">{QUALIFICATION_LABEL[qualification]}</span>
+          </p>
         </div>
+        <p className="max-w-3xl text-sm leading-relaxed text-muted">
+          {QUALIFICATION_FULL[qualification]}. Wybierz kategorię, aby zobaczyć podtematy i materiały.
+        </p>
 
-        <div className="card p-5 sm:p-6">
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-            <h2 className="font-mono text-sm font-semibold">
-              Postęp klasy <span className="text-accent">{cls}</span>
-            </h2>
+        <div className="card p-4 sm:p-5">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <h2 className="section-title">Postęp klasy {cls}</h2>
             <LiveBadge status={status} />
           </div>
           <ProgressBar value={totalDone} max={shownSubtopics.length} label="ukończone podtematy" />
@@ -94,30 +90,28 @@ export function RoadmapView({ categories, subtopics, initialProgress, initialLin
           Brak kategorii dla tej kwalifikacji. Zainicjuj bazę plikami z katalogu supabase/.
         </p>
       ) : (
-        <ol className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <ol className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {shownCategories.map((c, i) => {
             const subs = byCategory.get(c.id) ?? [];
             const n = subs.filter((s) => done.has(progressKey(cls, s.id))).length;
             const complete = subs.length > 0 && n === subs.length;
             const started = n > 0;
             return (
-              <li key={c.id} className="animate-fade-up" style={{ animationDelay: `${i * 40}ms` }}>
+              <li key={c.id}>
                 <button
                   type="button"
                   onClick={() => setOpenId(c.id)}
-                  className={`card-interactive group flex h-full w-full flex-col p-5 text-left ${
-                    complete ? "border-accent/40 bg-accent/[0.04]" : ""
+                  className={`card-interactive group flex h-full w-full flex-col p-4 text-left ${
+                    complete ? "border-accent/30" : ""
                   }`}
                 >
                   <div className="flex items-center justify-between gap-3">
                     <span
-                      className={`flex h-10 w-10 items-center justify-center rounded-xl font-mono text-sm font-bold ${
-                        complete
-                          ? "bg-gradient-to-br from-accent to-accent2 text-bg"
-                          : "border border-line bg-white/[0.03] text-accent"
+                      className={`flex h-7 w-7 items-center justify-center rounded-md border font-mono text-xs font-semibold ${
+                        complete ? "border-accent/50 bg-accent/10 text-accent" : "border-line text-muted"
                       }`}
                     >
-                      {complete ? "✓" : String(i + 1).padStart(2, "0")}
+                      {String(i + 1).padStart(2, "0")}
                     </span>
                     <span
                       className={`chip ${
@@ -127,15 +121,18 @@ export function RoadmapView({ categories, subtopics, initialProgress, initialLin
                       {complete ? "ukończone" : started ? "w trakcie" : "do zrobienia"}
                     </span>
                   </div>
-                  <h2 className="mt-4 text-lg font-semibold leading-snug transition group-hover:text-accent">{c.title}</h2>
-                  <p className="mt-1.5 flex-1 text-sm leading-relaxed text-muted">{c.description}</p>
-                  <div className="mt-5 flex items-center gap-3">
+                  <h2 className="mt-3 font-semibold leading-snug transition-colors group-hover:text-accent">
+                    {c.title}
+                  </h2>
+                  <p className="mt-1 flex-1 text-sm leading-relaxed text-muted">{c.description}</p>
+                  <div className="mt-4 flex items-center gap-3">
                     <div className="flex-1">
                       <ProgressBar value={n} max={subs.length} size="sm" />
                     </div>
-                    <span className="font-mono text-xs text-muted">
+                    <span className="shrink-0 font-mono text-xs text-muted">
                       {n}/{subs.length}
                     </span>
+                    <ChevronRight size={15} className="shrink-0 text-muted transition-colors group-hover:text-accent" aria-hidden />
                   </div>
                 </button>
               </li>

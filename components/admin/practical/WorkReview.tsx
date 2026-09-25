@@ -7,6 +7,7 @@ import { getBrowserSupabase } from "@/lib/supabase/client";
 import type { RunProgress } from "@/lib/practical/runner";
 import type { Json } from "@/types/db";
 import type { ManualScore, PracticalAttemptRow, PracticalSessionRow, PracticalTaskRow, TestOverride } from "@/types/practical";
+import { ArrowLeft, Check, Link2, X } from "lucide-react";
 
 type Props = {
   attempt: PracticalAttemptRow;
@@ -123,7 +124,7 @@ export function WorkReview({ attempt, task, session, onClose, onCheck, onPublish
         </div>
         <div className="flex flex-wrap gap-2">
           <button type="button" className="btn-ghost btn-sm" onClick={onClose}>
-            ← lista prac
+            <ArrowLeft size={14} aria-hidden /> lista prac
           </button>
           {/* Uczeń nie dostaje linku do wyniku (po oddaniu ekran wraca do wyboru
               egzaminu). Nauczyciel może go skopiować i przekazać indywidualnie. */}
@@ -137,7 +138,7 @@ export function WorkReview({ attempt, task, session, onClose, onCheck, onPublish
                 .catch(() => setError("Nie udało się skopiować linku."));
             }}
           >
-            🔗 Kopiuj link do wyniku
+            <Link2 size={14} aria-hidden /> Kopiuj link do wyniku
           </button>
           <button type="button" className="btn-ghost btn-sm" onClick={onCheck} disabled={busy || task.auto_tests.length === 0}>
             {progress ? `Sprawdzanie… ${progress.done}/${progress.total}` : "▶ Sprawdź automatycznie"}
@@ -207,7 +208,7 @@ export function WorkReview({ attempt, task, session, onClose, onCheck, onPublish
                         effective?.passed ? "bg-accent/15 text-accent" : "bg-danger/15 text-danger"
                       }`}
                     >
-                      {effective?.passed ? "✓" : "✗"}
+                      {effective?.passed ? <Check size={18} aria-hidden /> : <X size={18} aria-hidden />}
                     </span>
                     <div className="min-w-0 flex-1">
                       <p className="font-medium">{t.name}</p>

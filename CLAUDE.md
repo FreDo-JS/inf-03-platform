@@ -83,6 +83,23 @@ Moduł Praktyka celowo **nie** został rozciągnięty na INF.04 — jego IDE uru
 HTML/CSS/JS w iframe, a egzamin INF.04 wymaga kompilacji C#. Nie udawaj, że da się
 to ocenić w przeglądarce; to byłaby ściema, nie funkcja.
 
+## Układ i wygląd
+
+Układ jest jak w CRM: stała kolumna po lewej (`components/shell/AppShell.tsx` +
+`Sidebar.tsx`), treść po prawej. W pasku bocznym siedzi nawigacja, **wybór klasy**
+(dotyczy mapy i postępu w panelu) oraz **sekcje panelu nauczyciela**. Sekcja panelu
+jest w adresie (`/admin?sekcja=links`), więc działa cofanie i da się podesłać link.
+
+Klasę wybiera pasek boczny, a używa jej treść po prawej — to osobne komponenty, więc
+`useSelectedClass` synchronizuje je zdarzeniem okna (`inf03:class-change`) i `storage`.
+Nie zastępuj tego lokalnym stanem, bo pasek i treść się rozjadą.
+
+Język wizualny: płaskie powierzchnie, **bez gradientów i poświat**, ikony z
+`lucide-react` zamiast emotek (rozmiar 12–16 px, `aria-hidden`, tekst obok niesie
+znaczenie). Jeden akcent `#2de2c1`, drugi `#38bdf8` tylko do odróżnienia INF.04.
+Dodając ekran, trzymaj się klas z `globals.css` (`card`, `btn-*`, `chip`, `nav-link`)
+zamiast wymyślać nowe warianty.
+
 ## Rzeczy, które łatwo zepsuć
 
 **Kod i migracje wdrażają się osobno.** Aplikacja idzie na Vercela od razu, a pliki SQL

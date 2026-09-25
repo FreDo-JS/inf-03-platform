@@ -1,7 +1,9 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { LogOut } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
+import { ADMIN_SECTIONS, isAdminSection, type AdminSection } from "@/components/shell/Sidebar";
 import { getBrowserSupabase } from "@/lib/supabase/client";
 import { friendlyError } from "@/lib/errors";
 import type { CategoryRow, ProgressRow, SubtopicRow, TeacherRow } from "@/types/db";
@@ -13,18 +15,6 @@ import { NewTestTab } from "./NewTestTab";
 import { ProgressTab } from "./ProgressTab";
 import { ResultsTab } from "./ResultsTab";
 import { TestsTab } from "./TestsTab";
-
-const TABS = [
-  { id: "progress", label: "📊 Postępy klas" },
-  { id: "links", label: "🔗 Materiały" },
-  { id: "tests", label: "📝 Testy i PIN-y" },
-  { id: "new", label: "➕ Nowy test" },
-  { id: "results", label: "🏆 Wyniki" },
-  { id: "ptasks", label: "🧩 Zadania praktyczne" },
-  { id: "psessions", label: "🎬 Sesje" },
-  { id: "pworks", label: "📂 Prace" },
-] as const;
-type TabId = (typeof TABS)[number]["id"];
 
 type Props = {
   email: string;
@@ -98,8 +88,14 @@ function DisplayNameField({ initial }: { initial: string }) {
 }
 export function AdminPanel({ email, categories, subtopics, initialProgress, teachers, myId }: Props) {
   const router = useRouter();
-  const [tab, setTab] = useState<TabId>("progress");
+  const params = useSearchParams();
   const [loggingOut, setLoggingOut] = useState(false);
+
+  // Sekcję wybiera pasek boczny przez adres — dzięki temu działa cofanie
+  // i da się podesłać komuś link prosto do wyników czy prac.
+  const sekcja = params.get("sekcja");
+  const tab: AdminSection = isAdminSection(sekcja) ? sekcja : "progress";
+  const current = ADMIN_SECTIONS.find((sct) => sct.id === tab) ?? ADMIN_SECTIONS[0];
 
   const logout = async () => {
     setLoggingOut(true);
@@ -109,39 +105,23 @@ export function AdminPanel({ email, categories, subtopics, initialProgress, teac
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="eyebrow">{"// panel administratora"}</p>
-          <h1 className="page-title mt-2">
-            Panel <span className="text-gradient">nauczyciela</span>
-          </h1>
-          <p className="mt-2 truncate text-sm text-muted">Zalogowano jako {email}</p>
+          <p className="eyebrow">Panel nauczyciela</p>
+          <h1 className="page-title mt-1">{current.label}</h1>
+          <p className="mt-1 truncate text-sm text-muted">{email}</p>
         </div>
-        <DisplayNameField initial={teachers.find((t) => t.id === myId)?.display_name ?? ""} />
-        <button type="button" className="btn-ghost" onClick={() => void logout()} disabled={loggingOut}>
-          {loggingOut ? "Wylogowywanie…" : "⏻ Wyloguj"}
-        </button>
-      </div>
-
-      <div role="tablist" aria-label="Sekcje panelu" className="flex gap-1 overflow-x-auto rounded-2xl border border-white/[0.07] bg-panel/70 p-1.5 text-sm backdrop-blur">
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            role="tab"
-            aria-selected={tab === t.id}
-            onClick={() => setTab(t.id)}
-            className={`shrink-0 rounded-xl px-4 py-2.5 font-medium transition ${
-              tab === t.id ? "bg-accent/15 text-accent" : "text-muted hover:bg-white/[0.04] hover:text-fg"
-            }`}
-          >
-            {t.label}
+        <div className="flex flex-wrap items-end gap-3">
+          <DisplayNameField initial={teachers.find((t) => t.id === myId)?.display_name ?? ""} />
+          <button type="button" className="btn-ghost btn-sm" onClick={() => void logout()} disabled={loggingOut}>
+            <LogOut size={14} aria-hidden />
+            {loggingOut ? "Wylogowywanie…" : "Wyloguj"}
           </button>
-        ))}
+        </div>
       </div>
 
-      <div role="tabpanel" key={tab} className="animate-fade-up">
+      <div key={tab}>
         {tab === "progress" && (
           <ProgressTab
             categories={categories}

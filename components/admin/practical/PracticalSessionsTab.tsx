@@ -7,6 +7,7 @@ import { fetchTasks } from "@/lib/practical/tasks";
 import { getBrowserSupabase } from "@/lib/supabase/client";
 import { CLASS_NAMES, CLASS_QUALIFICATION, QUALIFICATIONS, QUALIFICATION_LABEL } from "@/types/db";
 import type { PracticalAttemptRow, PracticalSessionRow, PracticalTaskRow, SessionStatus } from "@/types/practical";
+import { MonitorPlay, Timer } from "lucide-react";
 
 const SESSION_COLUMNS = "id, task_id, class_name, pin, status, minutes, allow_paste, pass_threshold, started_at, ends_at, created_at" as const;
 const ATTEMPT_MONITOR_COLUMNS =
@@ -223,7 +224,9 @@ export function PracticalSessionsTab() {
                       >
                         {STATUS_LABEL[s.status]}
                       </span>
-                      <span className="chip">⏱ {s.minutes} min</span>
+                      <span className="chip">
+                  <Timer size={12} aria-hidden /> {s.minutes} min
+                </span>
                       <span className="chip">próg {s.pass_threshold}%</span>
                       <span className="chip">{s.allow_paste ? "wklejanie: tak" : "wklejanie: nie"}</span>
                       <span className="chip">
@@ -243,7 +246,7 @@ export function PracticalSessionsTab() {
                     className="btn-ghost btn-sm"
                     onClick={() => setPresenting({ title: task?.title ?? "Praktyka", pin: s.pin })}
                   >
-                    📺 Pokaż PIN klasie
+                    <MonitorPlay size={14} aria-hidden /> Pokaż PIN klasie
                   </button>
                   {s.status === "lobby" && (
                     <button type="button" className="btn-primary btn-sm" onClick={() => void startSession(s)} disabled={busy}>

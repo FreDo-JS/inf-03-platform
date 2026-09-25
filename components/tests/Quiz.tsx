@@ -24,6 +24,7 @@ import { MatchingQuestionView } from "./MatchingQuestionView";
 import { PinInput } from "./PinInput";
 import { ProctorWarning } from "./ProctorWarning";
 import { SecondTabBlocked } from "./SecondTabBlocked";
+import { ArrowLeft, ArrowRight, Check, Timer, TriangleAlert, User, X } from "lucide-react";
 
 type Props = {
   testId: string;
@@ -355,7 +356,9 @@ export function Quiz({ testId, title, timeLimitSec, questionCount }: Props) {
         <span className="chip">
           {total} {pluralPytania(total)}
         </span>
-        <span className="chip">⏱ {Math.round(limitSec / 60)} min</span>
+        <span className="chip">
+            <Timer size={12} aria-hidden /> {Math.round(limitSec / 60)} min
+          </span>
       </div>
     </div>
   );
@@ -399,16 +402,22 @@ export function Quiz({ testId, title, timeLimitSec, questionCount }: Props) {
               className="btn-primary mt-2 w-full py-3"
               disabled={checkingPin || pin.length !== LIMITS.pinLength}
             >
-              {checkingPin ? "Sprawdzanie…" : "Dalej →"}
+              {checkingPin ? (
+              "Sprawdzanie…"
+            ) : (
+              <>
+                Dalej <ArrowRight size={16} aria-hidden />
+              </>
+            )}
             </button>
           </form>
           <p className="mt-5 text-center text-xs leading-relaxed text-muted">
-            🔒 PIN chroni test przed osobami spoza klasy. Nauczyciel może go zmienić przed każdą lekcją.
+            PIN chroni test przed osobami spoza klasy. Nauczyciel może go zmienić przed każdą lekcją.
           </p>
         </div>
         <div className="mt-4 text-center">
           <Link href="/testy" className="text-sm text-muted transition hover:text-accent">
-            ← wszystkie testy
+            <ArrowLeft size={14} aria-hidden /> wszystkie testy
           </Link>
         </div>
       </div>
@@ -421,7 +430,9 @@ export function Quiz({ testId, title, timeLimitSec, questionCount }: Props) {
       <div className="mx-auto max-w-md animate-fade-up">
         <div className="card p-6 sm:p-8">
           {header}
-          <div className="alert-ok mt-6 text-center">✓ PIN poprawny — możesz podejść do testu</div>
+          <div className="alert-ok mt-6 flex items-center justify-center gap-1.5">
+            <Check size={15} aria-hidden /> PIN poprawny — możesz podejść do testu
+          </div>
           <form onSubmit={start} className="mt-6 space-y-4" noValidate>
             <div>
               <label htmlFor="student-name" className="label">
@@ -468,7 +479,7 @@ export function Quiz({ testId, title, timeLimitSec, questionCount }: Props) {
     const pct = Math.round((result.score / result.total) * 100);
     const r = 52;
     const circ = 2 * Math.PI * r;
-    const verdict = pct >= 75 ? "Świetnie! 🎉" : pct >= 50 ? "Nieźle, tak trzymaj 💪" : "Warto powtórzyć materiał 📚";
+    const verdict = pct >= 75 ? "Świetny wynik" : pct >= 50 ? "Nieźle, tak trzymaj" : "Warto powtórzyć materiał";
     return (
       <div className="mx-auto max-w-2xl animate-fade-up space-y-4">
         {result.endedReason === "tab_switch" && (
@@ -535,7 +546,7 @@ export function Quiz({ testId, title, timeLimitSec, questionCount }: Props) {
                   aria-label={ok ? "poprawna" : "błędna"}
                   role="img"
                 >
-                  {ok ? "✓" : "✗"}
+                  {ok ? <Check size={14} aria-hidden /> : <X size={14} aria-hidden />}
                 </span>
                 <div className="min-w-0">
                   <p className="font-mono text-xs text-muted">pytanie {i + 1}</p>
@@ -544,7 +555,7 @@ export function Quiz({ testId, title, timeLimitSec, questionCount }: Props) {
                     <ul className="mt-1.5 space-y-0.5 text-sm text-muted">
                       {q.left.map((leftItem, li) => (
                         <li key={leftItem} className="break-words">
-                          {leftItem} → <span className="text-fg">{(Array.isArray(given) && given[li]) || "— brak —"}</span>
+                          {leftItem} <span className="text-muted">→</span> <span className="text-fg">{(Array.isArray(given) && given[li]) || "— brak —"}</span>
                         </li>
                       ))}
                     </ul>
@@ -564,7 +575,7 @@ export function Quiz({ testId, title, timeLimitSec, questionCount }: Props) {
         <p className="text-center text-xs text-muted">Poprawne odpowiedzi nie są pokazywane — test można powtórzyć.</p>
         <div className="flex justify-center">
           <Link href="/testy" className="btn-ghost">
-            ← wróć do listy testów
+            <ArrowLeft size={14} aria-hidden /> wróć do listy testów
           </Link>
         </div>
       </div>
@@ -575,7 +586,7 @@ export function Quiz({ testId, title, timeLimitSec, questionCount }: Props) {
   if (phase === "error") {
     return (
       <div className="card mx-auto max-w-md animate-fade-up p-8 text-center">
-        <p className="text-4xl">⚠️</p>
+        <TriangleAlert size={32} className="mx-auto text-warn" aria-hidden />
         <p className="mt-3 text-lg font-semibold">Coś poszło nie tak</p>
         <p className="mt-1 text-muted">{errorMsg}</p>
         <div className="mt-6 flex flex-wrap justify-center gap-3">
@@ -617,7 +628,9 @@ export function Quiz({ testId, title, timeLimitSec, questionCount }: Props) {
         <div className="flex items-center justify-between gap-3 p-4">
           <div className="min-w-0">
             <p className="truncate font-semibold">{test.title}</p>
-            <p className="truncate text-sm text-muted">👤 {studentName}</p>
+            <p className="flex items-center gap-1.5 truncate text-sm text-muted">
+            <User size={14} aria-hidden /> {studentName}
+          </p>
           </div>
           <div
             className={`shrink-0 rounded-xl border px-3.5 py-1.5 font-mono text-xl font-bold tabular-nums sm:text-2xl ${
@@ -631,7 +644,7 @@ export function Quiz({ testId, title, timeLimitSec, questionCount }: Props) {
         </div>
         <div className="h-1 bg-white/[0.05]">
           <div
-            className={`h-full transition-[width] duration-300 ${lowTime ? "bg-danger" : "bg-gradient-to-r from-accent to-accent2"}`}
+            className={`h-full transition-[width] duration-300 ${lowTime ? "bg-danger" : "bg-accent"}`}
             style={{ width: `${timePct}%` }}
           />
         </div>
@@ -677,7 +690,7 @@ export function Quiz({ testId, title, timeLimitSec, questionCount }: Props) {
                       {String.fromCharCode(65 + i)}
                     </span>
                     <span className="break-words text-[15px] font-medium">{opt}</span>
-                    {selected && <span className="ml-auto text-lg">✓</span>}
+                    {selected && <Check size={16} className="ml-auto shrink-0 text-accent" aria-hidden />}
                   </button>
                 );
               })}
@@ -737,11 +750,17 @@ export function Quiz({ testId, title, timeLimitSec, questionCount }: Props) {
         </span>
         {isLast ? (
           <button type="button" className="btn-primary px-6" disabled={busy} onClick={() => void submit("completed")}>
-            {busy ? "Zapisywanie…" : "Zakończ test ✓"}
+            {busy ? (
+                "Zapisywanie…"
+              ) : (
+                <>
+                  Zakończ test <Check size={16} aria-hidden />
+                </>
+              )}
           </button>
         ) : (
           <button type="button" className="btn-primary px-6" disabled={busy} onClick={() => setStep((s) => s + 1)}>
-            Dalej →
+            Dalej <ArrowRight size={16} aria-hidden />
           </button>
         )}
       </div>

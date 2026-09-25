@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ClassTabs } from "@/components/ClassTabs";
 import { LiveBadge } from "@/components/LiveBadge";
 import { ProgressBar } from "@/components/ProgressBar";
 import { friendlyError } from "@/lib/errors";
@@ -29,7 +28,7 @@ type Props = {
 };
 
 export function ProgressTab({ categories, subtopics, initialProgress, teachers = [], myId = "" }: Props) {
-  const [cls, setCls] = useSelectedClass();
+  const [cls] = useSelectedClass();
   const { done, setDone, authors, status } = useRealtimeProgress(initialProgress);
   const names = useMemo(() => teacherNames(teachers), [teachers]);
 
@@ -95,16 +94,22 @@ export function ProgressTab({ categories, subtopics, initialProgress, teachers =
     });
   };
 
-  const totalDone = subtopics.filter((s) => done.has(progressKey(cls, s.id))).length;
+  // Liczymy w obrębie kwalifikacji wybranej klasy — inaczej 4a miałaby w mianowniku
+  // także podtematy INF.03, których się nie uczy.
+  const shownSubtopics = useMemo(() => {
+    const ids = new Set(shownCategories.map((c) => c.id));
+    return subtopics.filter((s) => ids.has(s.category_id));
+  }, [subtopics, shownCategories]);
+  const totalDone = shownSubtopics.filter((s) => done.has(progressKey(cls, s.id))).length;
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <ClassTabs value={cls} onChange={setCls} />
-        <LiveBadge status={status} />
-      </div>
-      <div className="card p-5">
-        <ProgressBar value={totalDone} max={subtopics.length} label={`klasa ${cls}`} />
+      <div className="card p-4 sm:p-5">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="section-title">Postęp klasy {cls}</h2>
+          <LiveBadge status={status} />
+        </div>
+        <ProgressBar value={totalDone} max={shownSubtopics.length} label="ukończone podtematy" />
       </div>
       {error && (
         <p className="alert-error" role="alert">
@@ -112,18 +117,18 @@ export function ProgressTab({ categories, subtopics, initialProgress, teachers =
         </p>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-3 lg:grid-cols-2 2xl:grid-cols-3">
         {shownCategories.map((cat, i) => {
           const subs = byCategory.get(cat.id) ?? [];
           const n = subs.filter((s) => done.has(progressKey(cls, s.id))).length;
           return (
-            <section key={cat.id} className="card p-5">
-              <h2 className="flex items-baseline justify-between gap-2 font-semibold">
+            <section key={cat.id} className="card p-4">
+              <h2 className="flex items-baseline justify-between gap-2 text-[15px] font-semibold">
                 <span>
-                  <span className="mr-1.5 font-mono text-sm text-accent">{String(i + 1).padStart(2, "0")}</span>
+                  <span className="mr-1.5 font-mono text-xs text-muted">{String(i + 1).padStart(2, "0")}</span>
                   {cat.title}
                 </span>
-                <span className="chip">
+                <span className="chip shrink-0">
                   {n}/{subs.length}
                 </span>
               </h2>

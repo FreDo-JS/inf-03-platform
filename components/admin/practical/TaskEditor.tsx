@@ -9,6 +9,7 @@ import { saveTask } from "@/lib/practical/tasks";
 import { PRACTICAL_LIMITS, newLocalId, validateAutoTest, validateCriterion, validateFiles } from "@/lib/practical/validation";
 import { previewablePages } from "@/lib/practical/preview";
 import type { AutoResult, ManualCriterion, PracticalTaskRow, ProjectFile } from "@/types/practical";
+import { ArrowLeft, Check, Eye, X } from "lucide-react";
 
 type Props = {
   task: PracticalTaskRow | null;
@@ -148,7 +149,7 @@ export function TaskEditor({ task, onSaved, onCancel, onOpenAsStudent }: Props) 
         </div>
         <div className="flex flex-wrap gap-2">
           <button type="button" className="btn-ghost btn-sm" onClick={onCancel}>
-            ← wróć do listy
+            <ArrowLeft size={14} aria-hidden /> wróć do listy
           </button>
           <button
             type="button"
@@ -156,7 +157,7 @@ export function TaskEditor({ task, onSaved, onCancel, onOpenAsStudent }: Props) 
             onClick={() => onOpenAsStudent(draft)}
             disabled={draft.files.length === 0}
           >
-            👁 Otwórz jako uczeń
+            <Eye size={14} aria-hidden /> Otwórz jako uczeń
           </button>
           <button type="button" className="btn-ghost btn-sm" onClick={() => void save(false)} disabled={saving}>
             {saving ? "Zapisywanie…" : "Zapisz szkic"}
@@ -301,7 +302,9 @@ export function TaskEditor({ task, onSaved, onCancel, onOpenAsStudent }: Props) 
               const test = draft.auto_tests.find((t) => t.id === r.id);
               return (
                 <li key={r.id} className="flex items-start gap-2 text-sm">
-                  <span className={r.passed ? "text-accent" : "text-danger"}>{r.passed ? "✓" : "✗"}</span>
+                  <span className={r.passed ? "text-accent" : "text-danger"}>
+                        {r.passed ? <Check size={14} aria-hidden /> : <X size={14} aria-hidden />}
+                      </span>
                   <span className="flex-1">
                     <span className="font-medium">{test?.name || r.id}</span>{" "}
                     <span className="text-muted">— {r.message}</span>
@@ -359,7 +362,7 @@ export function TaskEditor({ task, onSaved, onCancel, onOpenAsStudent }: Props) 
                   onClick={() => setDraft((d) => ({ ...d, manual_criteria: d.manual_criteria.filter((x) => x.id !== c.id) }))}
                   aria-label="Usuń kryterium"
                 >
-                  ✕
+                  <X size={14} aria-hidden />
                 </button>
               </li>
             ))}

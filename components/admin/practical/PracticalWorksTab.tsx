@@ -9,6 +9,7 @@ import { fetchTasks } from "@/lib/practical/tasks";
 import { getBrowserSupabase } from "@/lib/supabase/client";
 import type { Json } from "@/types/db";
 import type { PracticalAttemptRow, PracticalSessionRow, PracticalTaskRow } from "@/types/practical";
+import { Download } from "lucide-react";
 
 const ATTEMPT_COLUMNS =
   "id, session_id, student_name, result_token, files, last_saved_at, status, submitted_at, ended_reason, tab_switch_count, large_paste_count, auto_results, auto_checked_at, overrides, manual_scores, teacher_comment, final_percent, published_at, created_at" as const;
@@ -255,7 +256,7 @@ export function PracticalWorksTab() {
           Opublikuj wszystkie ocenione
         </button>
         <button type="button" className="btn-ghost btn-sm" onClick={exportCsv} disabled={!task || attempts.length === 0}>
-          ⬇ Eksport CSV
+          <Download size={14} aria-hidden /> Eksport CSV
         </button>
       </div>
 

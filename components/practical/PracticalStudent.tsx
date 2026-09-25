@@ -14,6 +14,7 @@ import { formatClock } from "@/lib/tests";
 import { getBrowserSupabase } from "@/lib/supabase/client";
 import { LIMITS, parseServerTime, validatePin } from "@/lib/validation";
 import type { AttemptState, PracticalEndedReason, ProjectFile } from "@/types/practical";
+import { ArrowRight, CircleCheckBig, Lock, Timer, User } from "lucide-react";
 
 const TOKEN_KEY = "inf03.practical.token";
 const AUTOSAVE_DEBOUNCE_MS = 3000;
@@ -458,7 +459,7 @@ export function PracticalStudent() {
     return (
       <div className="mx-auto max-w-lg animate-fade-up">
         <div className="card p-6 text-center sm:p-8">
-          <p className="text-5xl">✅</p>
+          <CircleCheckBig size={40} className="mx-auto text-accent" aria-hidden />
           <h1 className="mt-4 text-2xl font-bold">Praca oddana</h1>
           <p className="mt-2 text-muted">
             {state?.studentName}, Twoja praca została zapisana. Wynik ogłosi nauczyciel po sprawdzeniu.
@@ -477,7 +478,7 @@ export function PracticalStudent() {
   if (phase === "finished" && state) {
     return (
       <div className="card mx-auto max-w-lg p-8 text-center">
-        <p className="text-4xl">🔒</p>
+        <Lock size={32} className="mx-auto text-muted" aria-hidden />
         <p className="mt-3 text-lg font-semibold">Sesja została zakończona</p>
         <p className="mt-1 text-muted">Nauczyciel zamknął tę sesję. Twoja praca (jeśli została oddana) czeka na ocenę.</p>
       </div>
@@ -493,8 +494,12 @@ export function PracticalStudent() {
           <h1 className="mt-2 text-2xl font-bold">{state.task.title}</h1>
           <p className="mt-1 text-sm text-muted">{state.task.summary}</p>
           <div className="mt-4 flex flex-wrap justify-center gap-2">
-            <span className="chip">👤 {state.studentName}</span>
-            <span className="chip">⏱ {state.session.minutes} min</span>
+            <span className="chip">
+              <User size={12} aria-hidden /> {state.studentName}
+            </span>
+            <span className="chip">
+              <Timer size={12} aria-hidden /> {state.session.minutes} min
+            </span>
             <span className="chip">{state.task.files.length} plików</span>
           </div>
 
@@ -574,7 +579,13 @@ export function PracticalStudent() {
             className="btn-primary w-full py-3"
             disabled={joining || pin.length !== LIMITS.pinLength || name.trim().length < 2}
           >
-            {joining ? "Dołączanie…" : "Dołącz do sesji →"}
+            {joining ? (
+              "Dołączanie…"
+            ) : (
+              <>
+                Dołącz do sesji <ArrowRight size={16} aria-hidden />
+              </>
+            )}
           </button>
         </form>
         <p className="mt-5 text-center text-xs leading-relaxed text-muted">

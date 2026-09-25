@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { X } from "lucide-react";
 
 type Props = {
   title: string;
@@ -38,7 +39,7 @@ export function PinPresenter({ title, pin, path = "/testy", onClose }: Props) {
       className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-bg/95 p-6 backdrop-blur-xl"
     >
       <button ref={closeRef} type="button" onClick={onClose} className="btn-ghost absolute right-4 top-4">
-        ✕ Zamknij
+        <X size={14} aria-hidden /> Zamknij
       </button>
       <p className="eyebrow text-base">wejdź na stronę i wybierz test</p>
       <h2 className="mt-3 max-w-4xl text-center text-3xl font-bold tracking-tight sm:text-5xl">{title}</h2>
@@ -49,7 +50,7 @@ export function PinPresenter({ title, pin, path = "/testy", onClose }: Props) {
         {pin.split("").map((d, i) => (
           <span
             key={i}
-            className="flex h-20 w-14 items-center justify-center rounded-2xl border border-accent/40 bg-accent/[0.06] font-mono text-5xl font-bold text-accent shadow-glow sm:h-32 sm:w-24 sm:text-8xl"
+            className="flex h-20 w-14 items-center justify-center rounded-xl border border-accent/40 bg-accent/[0.06] font-mono text-5xl font-bold text-accent sm:h-32 sm:w-24 sm:text-8xl"
           >
             {d}
           </span>

@@ -17,12 +17,9 @@ export default async function TestsPage() {
 
   return (
     <div className="space-y-8">
-      <div className="max-w-2xl animate-fade-up">
-        <p className="eyebrow">{"// sprawdź się"}</p>
-        <h1 className="page-title mt-2">
-          Testy <span className="text-gradient">INF.03 i INF.04</span>
-        </h1>
-        <p className="mt-3 text-[15px] leading-relaxed text-muted">
+      <div className="max-w-3xl">
+        <h1 className="page-title">Testy</h1>
+        <p className="mt-2 text-sm leading-relaxed text-muted">
           Wybierz swoją kwalifikację, kliknij test, wpisz PIN od nauczyciela i swoje imię — i odpowiadaj na czas.
         </p>
       </div>

@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { getBrowserSupabase } from "@/lib/supabase/client";
+import { KeyRound } from "lucide-react";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -52,7 +53,9 @@ export function LoginForm() {
     <div className="mx-auto max-w-sm pt-6 sm:pt-12">
       <form onSubmit={onSubmit} className="card animate-fade-up space-y-5 p-6 sm:p-8" noValidate>
         <div>
-          <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-accent to-accent2 text-2xl shadow-glow">🔐</div>
+          <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-lg border border-accent/40 bg-accent/10 text-accent">
+            <KeyRound size={20} aria-hidden />
+          </div>
           <p className="eyebrow">$ sudo login</p>
           <h1 className="mt-1 text-2xl font-bold tracking-tight">Panel nauczyciela</h1>
           <p className="mt-1 text-sm text-muted">Zaloguj się kontem administratora.</p>

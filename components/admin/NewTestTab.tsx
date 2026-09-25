@@ -14,6 +14,7 @@ import {
   type TestDraft,
 } from "@/lib/validation";
 import { QUALIFICATIONS, QUALIFICATION_LABEL, type Qualification, type QuestionType } from "@/types/db";
+import { ArrowDown, ArrowLeftRight, ArrowUp, Check, Dices, X } from "lucide-react";
 
 const TYPE_LABEL: Record<QuestionType, string> = {
   closed: "zamknięte (jednokrotny wybór)",
@@ -122,7 +123,9 @@ export function NewTestTab() {
       {created && (
         <div className="card flex flex-wrap items-center justify-between gap-4 border-accent/40 bg-accent/[0.06] p-5" role="status">
           <div>
-            <p className="font-semibold text-accent">✓ Zapisano test „{created.title}”</p>
+            <p className="flex items-center gap-1.5 font-semibold text-accent">
+              <Check size={16} aria-hidden /> Zapisano test „{created.title}”
+            </p>
             <p className="mt-1 text-sm text-muted">Test jest już widoczny dla uczniów. Podaj im PIN (znajdziesz go też w zakładce Testy).</p>
           </div>
           <div className="text-right">
@@ -213,7 +216,7 @@ export function NewTestTab() {
               title="Wylosuj PIN"
               onClick={() => setDraft((d) => ({ ...d, pin: randomPin() }))}
             >
-              🎲
+              <Dices size={14} aria-hidden />
             </button>
           </div>
           {errors?.pin ? (
@@ -260,7 +263,7 @@ export function NewTestTab() {
           )}
           {!saveError && !created && (
             <p className="font-mono text-xs text-muted">
-              {draft.questions.length} pyt. · walidacja: {validation.ok ? "OK ✓" : "niekompletne"}
+              {draft.questions.length} pyt. · walidacja: {validation.ok ? "OK" : "niekompletne"}
             </p>
           )}
         </div>
@@ -308,7 +311,7 @@ function QuestionEditor({ index, count, question: q, errors, onChange, onType, o
             ))}
           </select>
           <button type="button" className="btn-ghost px-2 py-1" onClick={() => onMove(-1)} disabled={index === 0} aria-label="W górę">
-            ↑
+            <ArrowUp size={14} aria-hidden />
           </button>
           <button
             type="button"
@@ -317,10 +320,10 @@ function QuestionEditor({ index, count, question: q, errors, onChange, onType, o
             disabled={index === count - 1}
             aria-label="W dół"
           >
-            ↓
+            <ArrowDown size={14} aria-hidden />
           </button>
           <button type="button" className="btn-danger px-2 py-1" onClick={onRemove} disabled={count <= 1} aria-label="Usuń pytanie">
-            ✕
+            <X size={14} aria-hidden />
           </button>
         </div>
       </div>
@@ -397,7 +400,7 @@ function QuestionEditor({ index, count, question: q, errors, onChange, onType, o
         </fieldset>
       ) : q.type === "matching" ? (
         <fieldset className="mt-2">
-          <legend className="label">Pary do dopasowania (lewa ↔ prawa)</legend>
+          <legend className="label">Pary do dopasowania (lewa – prawa)</legend>
           <ul className="space-y-2">
             {q.pairs.map((pair, pi) => (
               <li key={pi} className="flex items-center gap-2">
@@ -414,7 +417,7 @@ function QuestionEditor({ index, count, question: q, errors, onChange, onType, o
                   aria-label={`Lewa strona pary ${pi + 1}`}
                 />
                 <span className="shrink-0 text-muted" aria-hidden>
-                  ↔
+                  <ArrowLeftRight size={14} className="text-muted" aria-hidden />
                 </span>
                 <input
                   className="input py-1.5"

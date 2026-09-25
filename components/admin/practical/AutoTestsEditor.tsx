@@ -2,6 +2,7 @@
 
 import { newLocalId, validateAutoTest } from "@/lib/practical/validation";
 import type { AutoTest, AutoTestType, InteractionStep, TextMatchMode } from "@/types/practical";
+import { X } from "lucide-react";
 
 type Props = {
   tests: AutoTest[];
@@ -123,7 +124,7 @@ export function AutoTestsEditor({ tests, onChange, fileNames, pageNames }: Props
                     onClick={() => onChange(tests.filter((t) => t.id !== test.id))}
                     aria-label="Usuń test"
                   >
-                    ✕
+                    <X size={14} aria-hidden />
                   </button>
                 </div>
 

@@ -1,4 +1,5 @@
 import type { TeacherRow } from "@/types/db";
+import { Check } from "lucide-react";
 
 type Props = {
   /** czy podtemat jest odhaczony — dla nieodhaczonych nie ma czego podpisywać */
@@ -28,7 +29,8 @@ export function TeacherMark({ done, name, size = "md" }: Props) {
       }`}
       title={label === null ? "Oznaczone przez nauczyciela — bez podpisu" : `Oznaczone przez: ${label}`}
     >
-      <span aria-hidden>✓</span> <span className="truncate">{label ?? "oznaczone"}</span>
+      <Check size={12} aria-hidden />
+      <span className="truncate">{label ?? "oznaczone"}</span>
     </span>
   );
 }

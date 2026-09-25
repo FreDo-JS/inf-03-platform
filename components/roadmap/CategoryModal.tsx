@@ -5,6 +5,7 @@ import { ProgressBar } from "@/components/ProgressBar";
 import { TeacherMark } from "@/components/TeacherMark";
 import { safeLinkUrl } from "@/lib/validation";
 import type { CategoryRow, ClassName, SubtopicLinkRow, SubtopicRow } from "@/types/db";
+import { Check, ExternalLink, X } from "lucide-react";
 
 type Props = {
   index: number;
@@ -38,7 +39,8 @@ function SubtopicLinks({ links }: { links: SubtopicLinkRow[] }) {
             rel="noopener noreferrer nofollow"
             className="chip max-w-full transition hover:border-accent/50 hover:text-accent"
           >
-            <span className="truncate">{l.label}</span> <span aria-hidden>↗</span>
+            <span className="truncate">{l.label}</span>
+            <ExternalLink size={12} aria-hidden />
           </a>
         </li>
       ))}
@@ -74,7 +76,7 @@ export function CategoryModal({ index, category, subtopics, isDone, markedBy, li
         role="dialog"
         aria-modal="true"
         aria-labelledby="cat-title"
-        className="card max-h-[88vh] w-full max-w-2xl animate-fade-up overflow-y-auto rounded-b-none bg-panel/95 p-5 sm:rounded-2xl sm:p-7"
+        className="card max-h-[88vh] w-full max-w-2xl overflow-y-auto rounded-b-none p-5 shadow-card sm:rounded-xl sm:p-6"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-4">
@@ -88,7 +90,7 @@ export function CategoryModal({ index, category, subtopics, isDone, markedBy, li
             <p className="mt-1 text-sm text-muted">{category.description}</p>
           </div>
           <button ref={closeRef} type="button" onClick={onClose} className="btn-ghost btn-sm shrink-0" aria-label="Zamknij">
-            ✕
+            <X size={16} aria-hidden />
           </button>
         </div>
 
@@ -111,10 +113,10 @@ export function CategoryModal({ index, category, subtopics, isDone, markedBy, li
                     role="img"
                     aria-label={done ? "ukończone" : "nieukończone"}
                     className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full font-mono text-xs font-bold ${
-                      done ? "bg-gradient-to-br from-accent to-accent2 text-bg" : "border border-line text-muted"
+                      done ? "border border-accent/50 bg-accent/10 text-accent" : "border border-line text-muted"
                     }`}
                   >
-                    {done ? "✓" : i + 1}
+                    {done ? <Check size={14} aria-hidden /> : i + 1}
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className={`font-medium leading-snug ${done ? "text-fg" : "text-fg/85"}`}>{s.title}</p>

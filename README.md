@@ -64,6 +64,16 @@ Stack: Next.js 15 (App Router) · TypeScript (strict) · Tailwind CSS · Supabas
 4. Limit prób: 20 błędnych PIN-ów / 5 min z jednego IP na test (300 łącznie). Zmiana PIN-u zeruje licznik.
    W szkole cała klasa często ma jedno publiczne IP, dlatego limit ma zapas.
 
+## Wygląd i układ
+
+Stała kolumna nawigacji po lewej, treść po prawej — jak w panelu CRM. W pasku bocznym
+są: nawigacja, wybór klasy (mapa nauki i postęp w panelu) oraz sekcje panelu
+nauczyciela. Sekcja panelu jest w adresie, więc `/admin?sekcja=wyniki` otwiera się
+od razu we właściwym miejscu, a przycisk „wstecz” działa.
+
+Na telefonie kolumna chowa się za przyciskiem i wysuwa jako panel. Interfejs jest
+płaski — bez gradientów i poświat — a zamiast emotek używamy ikon `lucide-react`.
+
 ## Struktura
 
 ```

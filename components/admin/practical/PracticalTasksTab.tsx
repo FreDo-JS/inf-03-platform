@@ -6,6 +6,7 @@ import { IdeWorkspace } from "@/components/practical/IdeWorkspace";
 import { fetchTasks } from "@/lib/practical/tasks";
 import { getBrowserSupabase } from "@/lib/supabase/client";
 import type { AttemptState, PracticalTaskRow, ProjectFile } from "@/types/practical";
+import { Eye, Timer, X } from "lucide-react";
 
 /** Sztuczny stan podejścia — podgląd IDE zadania, bez sesji i bez zapisu. */
 function previewState(task: PracticalTaskRow): AttemptState {
@@ -89,7 +90,7 @@ export function PracticalTasksTab() {
         />
         <div className="fixed bottom-4 left-1/2 z-30 -translate-x-1/2">
           <button type="button" className="btn-ghost shadow-card" onClick={() => setPreviewTask(null)}>
-            ✕ Zamknij podgląd (nic się nie zapisuje)
+            <X size={14} aria-hidden /> Zamknij podgląd (nic się nie zapisuje)
           </button>
         </div>
       </>
@@ -144,12 +145,14 @@ export function PracticalTasksTab() {
                     <span className="chip">{t.files.length} plików</span>
                     <span className="chip">{t.auto_tests.length} testów</span>
                     <span className="chip">{t.manual_criteria.length} kryteriów</span>
-                    <span className="chip">⏱ {t.default_minutes} min</span>
+                    <span className="chip">
+                  <Timer size={12} aria-hidden /> {t.default_minutes} min
+                </span>
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <button type="button" className="btn-ghost btn-sm" onClick={() => openPreview(t)}>
-                    👁 Jako uczeń
+                    <Eye size={14} aria-hidden /> Jako uczeń
                   </button>
                   <button type="button" className="btn-ghost btn-sm" onClick={() => setEditing(t)}>
                     Edytuj

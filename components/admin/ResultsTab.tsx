@@ -5,6 +5,7 @@ import { friendlyError } from "@/lib/errors";
 import { getBrowserSupabase } from "@/lib/supabase/client";
 import { formatDuration } from "@/lib/tests";
 import type { AttemptRow, EndedReason } from "@/types/db";
+import { RefreshCw } from "lucide-react";
 
 // Powód zakończenia podejścia. „Zmiana karty" to sygnał do sprawdzenia,
 // nie dowód ściągania — wykrywa tylko przełączenie karty w tej przeglądarce.
@@ -62,7 +63,13 @@ export function ResultsTab() {
           aria-label="Filtruj wyniki"
         />
         <button type="button" className="btn-ghost" onClick={() => void load()} disabled={loading}>
-          {loading ? "odświeżanie…" : "odśwież ↻"}
+          {loading ? (
+            "odświeżanie…"
+          ) : (
+            <>
+              <RefreshCw size={14} aria-hidden /> odśwież
+            </>
+          )}
         </button>
         {rows && (
           <span className="chip">

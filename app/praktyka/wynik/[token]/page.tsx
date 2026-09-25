@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { StudentFilesViewer } from "@/components/practical/StudentFilesViewer";
 import { parseResult } from "@/lib/practical/parse";
 import { getServerSupabase } from "@/lib/supabase/server";
+import { ArrowLeft, Check, Hourglass, X } from "lucide-react";
 
 export const metadata: Metadata = { title: "Wynik pracy" };
 export const dynamic = "force-dynamic";
@@ -24,7 +25,7 @@ export default async function ResultPage({ params }: { params: Promise<{ token: 
   if (!result.published) {
     return (
       <div className="card mx-auto max-w-lg animate-fade-up p-8 text-center">
-        <p className="text-5xl">⏳</p>
+        <Hourglass size={40} className="mx-auto text-muted" aria-hidden />
         <h1 className="mt-4 text-2xl font-bold">Wynik jeszcze nie opublikowany</h1>
         <p className="mt-2 text-muted">
           {result.studentName} · {result.taskTitle}
@@ -51,7 +52,7 @@ export default async function ResultPage({ params }: { params: Promise<{ token: 
           {result.finalPercent}%
         </p>
         <p className="mt-2 text-lg font-semibold">
-          {result.passed ? "Zaliczone ✓" : "Niezaliczone"}{" "}
+          {result.passed ? "Zaliczone" : "Niezaliczone"}{" "}
           <span className="text-sm font-normal text-muted">(próg {result.passThreshold}%)</span>
         </p>
         <div className="mt-4 flex flex-wrap justify-center gap-2">
@@ -86,7 +87,7 @@ export default async function ResultPage({ params }: { params: Promise<{ token: 
                     t.passed ? "bg-accent/15 text-accent" : "bg-danger/15 text-danger"
                   }`}
                 >
-                  {t.passed ? "✓" : "✗"}
+                  {t.passed ? <Check size={14} aria-hidden /> : <X size={14} aria-hidden />}
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="font-medium">{t.name}</p>
@@ -127,7 +128,7 @@ export default async function ResultPage({ params }: { params: Promise<{ token: 
 
       <div className="flex justify-center">
         <Link href="/" className="btn-ghost">
-          ← strona główna
+          <ArrowLeft size={14} aria-hidden /> strona główna
         </Link>
       </div>
     </div>
