@@ -235,6 +235,17 @@ a walidację kluczy, którą normalnie robi `create_test`, powtarza zestaw test�
 `tests/sql/testy-tresc.mjs` — przechodzi każdy test jako uczeń i sprawdza, czy
 komplet poprawnych odpowiedzi daje maksimum punktów.
 
+## Instrukcja dla nauczycieli
+
+[docs/Tebby-instrukcja-dla-nauczycieli.pdf](docs/Tebby-instrukcja-dla-nauczycieli.pdf) — dziewięć stron
+dla osób, które mają z aplikacji korzystać, a nie ją rozwijać: czym jest, pierwsze logowanie,
+mapa nauki i materiały, testy, egzamin praktyczny, wyniki i dziennik zmian, częste kłopoty
+oraz ściąga „chcę… → gdzie kliknąć”.
+
+Dokument powstaje ze skryptu `docs/generuj-instrukcje.py` (wymaga `pip install reportlab`).
+Po zmianach w aplikacji popraw treść w skrypcie i uruchom go ponownie — gotowy PDF leży
+w repozytorium, żeby dało się go po prostu wysłać.
+
 ## Jak dodać nauczyciela
 
 Konto w Supabase Auth to jeszcze nie uprawnienia — nauczyciel musi mieć wiersz
