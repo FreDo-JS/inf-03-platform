@@ -211,6 +211,28 @@ więc `javascript:` nie ma jak trafić do DOM.
 Migracja 003 przeniosła dotychczasowe `theory_url` / `tasks_url` do `subtopic_links` jako
 „Teoria” i „Zadania”. Stare kolumny zostały w bazie, ale aplikacja ich już nie używa.
 
+## Gotowe testy do wklejenia
+
+W `supabase/testy/` leżą gotowe zestawy pytań — jeden plik to jeden test:
+
+| Plik | Zakres | Pytań |
+|---|---|---|
+| `01-html-struktura-formularze-multimedia.sql` | HTML: struktura i semantyka, tabele i formularze, multimedia | 30 |
+| `02-css-selektory-uklad-rwd.sql` | CSS: selektory i model pudełkowy, Flexbox/Grid/pozycjonowanie, RWD | 30 |
+| `03-js-zmienne-warunki-petle-funkcje.sql` | JS: zmienne i typy, napisy, warunki, pętle, funkcje, Math | 30 |
+| `04-js-tablice-obiekty-dom-walidacja.sql` | JS: tablice, obiekty, DOM i zdarzenia, walidacja formularzy | 30 |
+
+Pytania ułożone na podstawie materiałów podpiętych do podtematów w panelu
+(w większości podsumowania „review” z freeCodeCamp v9). Każdy plik wkleja się
+do SQL Editora i tworzy jeden test z wylosowanym PIN-em — zobaczysz go w panelu
+w zakładce *Testy i PIN-y*.
+
+`create_test` tutaj nie zadziała: wymaga zalogowanego admina, a w SQL Editorze
+nie ma tokenu. Dlatego pliki wstawiają wiersze wprost do `tests` i `test_keys`,
+a walidację kluczy, którą normalnie robi `create_test`, powtarza zestaw testów
+`tests/sql/testy-tresc.mjs` — przechodzi każdy test jako uczeń i sprawdza, czy
+komplet poprawnych odpowiedzi daje maksimum punktów.
+
 ## Kto oznaczył podtemat
 
 Przy każdym ukończonym podtemacie — na mapie i w panelu — po prawej stronie kafelka

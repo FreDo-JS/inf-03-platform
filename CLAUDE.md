@@ -113,6 +113,15 @@ znaczenie). Jeden akcent `#2de2c1`, drugi `#38bdf8` tylko do odróżnienia INF.0
 Dodając ekran, trzymaj się klas z `globals.css` (`card`, `btn-*`, `chip`, `nav-link`)
 zamiast wymyślać nowe warianty.
 
+## Gotowe testy (supabase/testy/)
+
+Jeden plik = jeden test wkleptany do SQL Editora. **`create_test` tam nie przejdzie**
+(`not_authorized`, bo `auth.uid()` jest puste), więc pliki wstawiają wiersze wprost do
+`tests` i `test_keys`. To omija walidację kluczy z `create_test`, dlatego powtarza ją
+`tests/sql/testy-tresc.mjs`: sprawdza reguły kluczy i przechodzi każdy test jako uczeń
+(PIN → pytania → komplet poprawnych odpowiedzi = maksimum). Dokładając test, po prostu
+wrzuć plik do tego katalogu — zestaw sam go znajdzie.
+
 ## Rzeczy, które łatwo zepsuć
 
 **Kod i migracje wdrażają się osobno.** Aplikacja idzie na Vercela od razu, a pliki SQL
