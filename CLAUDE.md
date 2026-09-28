@@ -170,6 +170,13 @@ gdy zapis padnie. Wcześniej podpis czekał na powiadomienie z Realtime, więc p
 wyłączonej replikacji pojawiał się dopiero po odświeżeniu strony. Panel mówi też wprost,
 gdy brakuje migracji 012 albo gdy nauczyciel nie ustawił sobie podpisu.
 
+**Fokus przenoszony w tym samym zdarzeniu widzi stary stan.** W `PinInput` po wpisaniu
+cyfry przenosimy fokus od razu, a `onFocus` następnego pola pilnuje, żeby nie przeskoczyć
+za pierwsze puste — i czytało wtedy `value` sprzed aktualizacji, więc odbijało fokus
+z powrotem. Auto-przejście nie działało w ogóle. Dlatego komponent trzyma najświeższą
+wartość w `useRef` i to ją sprawdza. Ten sam schemat obowiązuje wszędzie, gdzie ruszasz
+fokus przed przerysowaniem.
+
 **Realtime**: każdy hook musi mieć unikalną nazwę kanału (`useId()`), inaczej leci
 „cannot add postgres_changes callbacks after subscribe()".
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { LIMITS } from "@/lib/validation";
 
 type Props = {
@@ -18,6 +18,15 @@ const LEN = LIMITS.pinLength;
 export function PinInput({ value, onChange, onComplete, disabled, invalid, autoFocus }: Props) {
   const refs = useRef<(HTMLInputElement | null)[]>([]);
   const digits = Array.from({ length: LEN }, (_, i) => value[i] ?? "");
+
+  // Najświeższa wartość poza stanem Reacta. Po wpisaniu cyfry przenosimy fokus
+  // w tym samym zdarzeniu, zanim komponent się przerysuje — gdyby onFocus
+  // sprawdzał wtedy `value` z domknięcia, widziałby stan sprzed zmiany
+  // i odbijał fokus z powrotem na poprzednie pole.
+  const latest = useRef(value);
+  useEffect(() => {
+    latest.current = value;
+  }, [value]);
 
   const focus = (i: number) => {
     const el = refs.current[Math.max(0, Math.min(LEN - 1, i))];
@@ -41,6 +50,7 @@ export function PinInput({ value, onChange, onComplete, disabled, invalid, autoF
       if (!d) break;
       next += d;
     }
+    latest.current = next;
     onChange(next);
     focus(i);
     if (next.length === LEN) onComplete?.(next);
@@ -50,10 +60,12 @@ export function PinInput({ value, onChange, onComplete, disabled, invalid, autoF
     if (e.key === "Backspace") {
       e.preventDefault();
       if (digits[i]) {
-        onChange(value.slice(0, i));
+        latest.current = value.slice(0, i);
+        onChange(latest.current);
         focus(i);
       } else if (i > 0) {
-        onChange(value.slice(0, i - 1));
+        latest.current = value.slice(0, i - 1);
+        onChange(latest.current);
         focus(i - 1);
       }
     } else if (e.key === "ArrowLeft") {
@@ -84,13 +96,16 @@ export function PinInput({ value, onChange, onComplete, disabled, invalid, autoF
           aria-invalid={invalid}
           onFocus={(e) => {
             // nie pozwalamy wskoczyć za pierwsze puste pole
-            if (i > value.length) focus(value.length);
+            if (i > latest.current.length) focus(latest.current.length);
             else e.target.select();
           }}
           onChange={(e) => {
             const v = e.target.value;
             // klawiatury mobilne czasem kasują bez zdarzenia Backspace
-            if (v === "") onChange(value.slice(0, i));
+            if (v === "") {
+              latest.current = value.slice(0, i);
+              onChange(latest.current);
+            }
             else setFrom(i, v.slice(d ? 1 : 0) || v);
           }}
           onKeyDown={(e) => onKeyDown(i, e)}
