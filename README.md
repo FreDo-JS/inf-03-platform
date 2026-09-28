@@ -31,6 +31,7 @@ Stack: Next.js 15 (App Router) · TypeScript (strict) · Tailwind CSS · Supabas
    - `supabase/012_progress_author.sql` — podpis nauczyciela przy oznaczonym podtemacie
    - `supabase/013_progress_author_fix.sql` — poprawka: ręczne uzupełnienie autorów z SQL Editora
    - `supabase/014_progress_log.sql` — dziennik oznaczeń tematów (sekcja Logi w panelu)
+   - `supabase/015_admin_invites.sql` — zaproszenia: nowy nauczyciel dostaje uprawnienia sam, przy zakładaniu konta
 
    Masz już bazę z poprzedniej wersji? Uruchom brakujące migracje (`002…`, `003…`) — nic nie nadpisują,
    a ponowne uruchomienie niczego nie duplikuje.
@@ -233,6 +234,31 @@ nie ma tokenu. Dlatego pliki wstawiają wiersze wprost do `tests` i `test_keys`,
 a walidację kluczy, którą normalnie robi `create_test`, powtarza zestaw testów
 `tests/sql/testy-tresc.mjs` — przechodzi każdy test jako uczeń i sprawdza, czy
 komplet poprawnych odpowiedzi daje maksimum punktów.
+
+## Jak dodać nauczyciela
+
+Konto w Supabase Auth to jeszcze nie uprawnienia — nauczyciel musi mieć wiersz
+w tabeli `admins`. Zamiast dopisywać go ręcznie po każdej rejestracji, użyj listy zaproszeń:
+
+1. W SQL Editorze:
+
+   ```sql
+   insert into admin_invites (email, note)
+   values ('nowy.nauczyciel@szkola.pl', 'informatyka')
+   on conflict (email) do nothing;
+   ```
+
+2. Supabase → *Authentication → Users → Invite user* → ten sam adres. Osoba dostaje mejla,
+   ustawia hasło i **od razu ma dostęp do panelu** — trigger dopisuje ją do `admins`
+   i zużywa zaproszenie.
+
+Kto nie jest na liście, dostaje zwykłe konto bez dostępu do panelu. Zaproszenia dodaje się
+wyłącznie z SQL Editora — dzięki temu nauczyciel nie może nadać uprawnień ani sobie, ani
+komuś innemu przez aplikację. Oczekujące zaproszenia:
+`select email, note, created_at from admin_invites order by created_at;`
+
+Jeśli konto powstało wcześniej niż zaproszenie, wystarczy uruchomić migrację 015 ponownie —
+nadrobi zaległości.
 
 ## Sprzątanie bazy i dziennik
 

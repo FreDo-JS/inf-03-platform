@@ -54,6 +54,7 @@ CHECK-i i funkcje. **Każda zmiana w `supabase/*.sql` musi mieć pokrycie w `tes
 | `010_inf04.sql` | druga kwalifikacja: tabela `classes` (FK zamiast list w CHECK-ach), `qualification` w `categories` i `tests`, `create_test` z szóstym argumentem |
 | `011_inf04_seed.sql` | mapa INF.04: 12 kategorii, ponad 50 podtematów, materiały do C# i Reacta |
 | `012_progress_author.sql` | `progress.marked_by` stemplowane triggerem, `admins.display_name`, widok `teachers`, `set_my_display_name()`; naprawia rekurencyjną politykę odczytu `admins` z 008 |
+| `015_admin_invites.sql` | lista `admin_invites` + trigger na `auth.users`: zaproszony adres dostaje uprawnienia przy zakładaniu konta; wpisy na listę tylko z SQL Editora |
 | `014_progress_log.sql` | `progress_log`: trigger zapisuje każde zaznaczenie i odznaczenie tematu (kto, kiedy, klasa); czyta i sprząta tylko nauczyciel, uczeń nie ma dostępu |
 | `013_progress_author_fix.sql` | trigger stempluje tylko przy zalogowanym użytkowniku, żeby dało się uzupełnić starych autorów z SQL Editora (ta sama treść funkcji jest w 012 — ponowne uruchomienie 012 nie może cofnąć poprawki) |
 
@@ -64,6 +65,11 @@ CHECK-i i funkcje. **Każda zmiana w `supabase/*.sql` musi mieć pokrycie w `tes
 - **Anon nie ma dostępu do tabel** modułu praktycznego — wyłącznie przez funkcje
   `SECURITY DEFINER` autoryzowane hashem tokenu (`sha256`).
 - **Nigdy service-role key** w kodzie ani w przeglądarce. Sekretów nie commitujemy.
+- Uprawnienia nadaje **lista zaproszeń** (`admin_invites`, migracja 015): dopisujesz adres
+  w SQL Editorze, osoba zakłada konto i trigger wpisuje ją do `admins`. Przez API nikt nie
+  zaprosi ani siebie, ani kolegi — zapis do tej tabeli mają wyłącznie właściciel bazy
+  i trigger. Nie przenoś tego do panelu bez rozmowy z użytkownikiem: to jedyna rzecz,
+  która dziś blokuje eskalację uprawnień między nauczycielami.
 - Nauczyciel = wiersz w tabeli `admins`. Samo „zalogowany" **nie** znaczy admin
   (to była dziura H2 z audytu). `is_admin()` ma `grant execute` dla `anon`
   **i** `authenticated` — inaczej publiczne polityki wywalają się na „permission denied".
