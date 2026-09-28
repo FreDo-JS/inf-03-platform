@@ -217,10 +217,10 @@ W `supabase/testy/` leżą gotowe zestawy pytań — jeden plik to jeden test:
 
 | Plik | Zakres | Pytań |
 |---|---|---|
-| `01-html-struktura-formularze-multimedia.sql` | HTML: struktura i semantyka, tabele i formularze, multimedia | 30 |
-| `02-css-selektory-uklad-rwd.sql` | CSS: selektory i model pudełkowy, Flexbox/Grid/pozycjonowanie, RWD | 30 |
-| `03-js-zmienne-warunki-petle-funkcje.sql` | JS: zmienne i typy, napisy, warunki, pętle, funkcje, Math | 30 |
-| `04-js-tablice-obiekty-dom-walidacja.sql` | JS: tablice, obiekty, DOM i zdarzenia, walidacja formularzy | 30 |
+| `01-html-struktura-formularze-multimedia.sql` | HTML: struktura i semantyka, tabele, listy i formularze, grafika i multimedia | 40 |
+| `02-css-selektory-uklad-rwd.sql` | CSS: selektory i kaskada, model pudełkowy, tła, Flexbox/Grid/pozycjonowanie, RWD | 40 |
+| `03-js-zmienne-warunki-petle-funkcje.sql` | JS: zmienne i typy, napisy i ich metody, operatory logiczne, warunki, pętle, funkcje, Math | 40 |
+| `04-js-tablice-obiekty-dom-walidacja.sql` | JS: tablice i ich metody, obiekty, DOM i zdarzenia, walidacja formularzy | 40 |
 
 Pytania ułożone na podstawie materiałów podpiętych do podtematów w panelu
 (w większości podsumowania „review” z freeCodeCamp v9). Każdy plik wkleja się

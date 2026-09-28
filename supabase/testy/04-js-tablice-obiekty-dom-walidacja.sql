@@ -12,7 +12,7 @@ with nowy as (
   insert into tests (title, time_limit, questions, qualification)
   values (
     'JavaScript: tablice, obiekty, DOM i walidacja',
-    1800,
+    2400,
     $json$[
       {"type":"closed","text":"Czym jest tablica w JavaScripcie?","options":["uporządkowanym zbiorem wartości, z których każda ma indeks liczbowy","zbiorem par klucz–wartość","funkcją zwracającą liczby","typem prostym, jak number"]},
       {"type":"input","text":"Jaki indeks ma pierwszy element tablicy?"},
@@ -43,7 +43,17 @@ with nowy as (
       {"type":"matching","text":"Dopasuj atrybut HTML do reguły, którą narzuca polu","left":["required","pattern","min","maxlength"],"right":["wartość musi pasować do wyrażenia regularnego","najmniejsza dopuszczalna wartość liczbowa","pole nie może zostać puste","największa dopuszczalna liczba znaków"]},
       {"type":"closed","text":"Kiedy właściwość patternMismatch przyjmuje wartość true?","options":["gdy wartość pola nie pasuje do wzorca z atrybutu pattern","gdy pole jest puste","gdy pole jest wyłączone","gdy wartość przekracza atrybut max"]},
       {"type":"select","text":"Który typ pola formularza sprawia, że przeglądarka sama sprawdza poprawność adresu poczty?","options":["email","text","search","url"]},
-      {"type":"closed","text":"Które zdarzenie formularza jest najwygodniejsze do sprawdzenia danych tuż przed wysłaniem?","options":["submit","click","input","change"]}
+      {"type":"closed","text":"Które zdarzenie formularza jest najwygodniejsze do sprawdzenia danych tuż przed wysłaniem?","options":["submit","click","input","change"]},
+      {"type":"closed","text":"Na czym polega destrukturyzacja tablicy?","options":["na przypisaniu elementów tablicy do osobnych zmiennych jednym zapisem","na usunięciu elementów z tablicy","na zamianie tablicy w napis","na posortowaniu tablicy"]},
+      {"type":"input","text":"Która metoda tablicy sprawdza, czy zawiera ona podaną wartość, i zwraca true albo false?"},
+      {"type":"select","text":"Która metoda wywołuje podaną funkcję dla każdego elementu tablicy?","options":["forEach()","includes()","join()","indexOf()"]},
+      {"type":"closed","text":"Co robi metoda join() wywołana na tablicy?","options":["łączy elementy w jeden napis","dołącza nową tablicę na koniec","sortuje elementy","dzieli tablicę na dwie"]},
+      {"type":"matching","text":"Dopasuj zapis do jego efektu na obiekcie osoba","left":["osoba.wiek","osoba[\"wiek\"]","delete osoba.wiek","Object.keys(osoba)"],"right":["usunięcie właściwości","odczyt zapisem nawiasowym","lista nazw właściwości","odczyt zapisem kropkowym"]},
+      {"type":"input","text":"Która metoda obiektu Object zwraca tablicę nazw jego właściwości?"},
+      {"type":"closed","text":"Jak odczytać wartość wpisaną przez użytkownika w polu tekstowym?","options":["przez właściwość value elementu pola","przez właściwość textContent pola","przez atrybut placeholder","przez metodę getText()"]},
+      {"type":"select","text":"Która metoda tworzy nowy element HTML w skrypcie?","options":["document.createElement()","document.querySelector()","element.append()","document.getElementById()"]},
+      {"type":"closed","text":"Do czego służy właściwość classList elementu?","options":["do dodawania, usuwania i sprawdzania klas CSS elementu","do odczytu treści elementu","do zmiany identyfikatora elementu","do pobrania listy dzieci elementu"]},
+      {"type":"closed","text":"Czym różni się textContent od innerHTML?","options":["textContent wstawia czysty tekst, innerHTML interpretuje znaczniki HTML","textContent działa tylko na akapitach","innerHTML zwraca liczbę znaków","nie różnią się niczym"]}
     ]$json$::jsonb,
     'inf03'
   )
@@ -80,6 +90,16 @@ select id, $json$[
   ["pole nie może zostać puste", "wartość musi pasować do wyrażenia regularnego", "najmniejsza dopuszczalna wartość liczbowa", "największa dopuszczalna liczba znaków"],
   ["gdy wartość pola nie pasuje do wzorca z atrybutu pattern"],
   ["email"],
-  ["submit"]
+  ["submit"],
+  ["na przypisaniu elementów tablicy do osobnych zmiennych jednym zapisem"],
+  ["includes", "includes()", ".includes()"],
+  ["forEach()"],
+  ["łączy elementy w jeden napis"],
+  ["odczyt zapisem kropkowym", "odczyt zapisem nawiasowym", "usunięcie właściwości", "lista nazw właściwości"],
+  ["Object.keys()", "Object.keys", "keys"],
+  ["przez właściwość value elementu pola"],
+  ["document.createElement()"],
+  ["do dodawania, usuwania i sprawdzania klas CSS elementu"],
+  ["textContent wstawia czysty tekst, innerHTML interpretuje znaczniki HTML"]
 ]$json$::jsonb
 from nowy;

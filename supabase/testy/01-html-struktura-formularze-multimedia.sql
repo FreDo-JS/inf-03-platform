@@ -14,7 +14,7 @@ with nowy as (
   insert into tests (title, time_limit, questions, qualification)
   values (
     'HTML: struktura, formularze i multimedia',
-    1800,
+    2400,
     $json$[
       {"type":"closed","text":"Który element przechowuje główną treść strony (jeden na dokument)?","options":["<main>","<section>","<div>","<body>"]},
       {"type":"closed","text":"Ile poziomów nagłówków definiuje HTML?","options":["6","3","10","8"]},
@@ -45,7 +45,17 @@ with nowy as (
       {"type":"matching","text":"Dopasuj stan odnośnika do sytuacji, w której obowiązuje","left":[":link",":visited",":hover",":active"],"right":["kursor znajduje się nad odnośnikiem","odnośnik jest właśnie klikany","strona docelowa była już odwiedzona","odnośnik jeszcze nieodwiedzony"]},
       {"type":"closed","text":"Które formaty obsługuje element <audio> według materiału?","options":["mp3, wav, ogg","mp4, webm, avi","jpg, png, webp","pdf, docx, txt"]},
       {"type":"input","text":"Który atrybut elementu <audio> lub <video> wyświetla wbudowany panel odtwarzania?"},
-      {"type":"closed","text":"Który element jest elementem zastępowanym (replaced), czyli jego treść pochodzi z zasobu zewnętrznego?","options":["<iframe>","<p>","<section>","<label>"]}
+      {"type":"closed","text":"Który element jest elementem zastępowanym (replaced), czyli jego treść pochodzi z zasobu zewnętrznego?","options":["<iframe>","<p>","<section>","<label>"]},
+      {"type":"input","text":"Od jakiej deklaracji zaczyna się poprawny dokument HTML5 (pierwsza linia pliku)?"},
+      {"type":"closed","text":"Do czego służy znacznik <meta charset=\"UTF-8\">?","options":["określa sposób kodowania znaków dokumentu","ustawia język strony","ustawia tytuł karty przeglądarki","podpina arkusz stylów"]},
+      {"type":"select","text":"Który znacznik trzeba dodać w <head>, aby strona poprawnie skalowała się na telefonach?","options":["<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">","<meta name=\"mobile\" content=\"true\">","<meta charset=\"UTF-8\">","<link rel=\"mobile\" href=\"styles.css\">"]},
+      {"type":"matching","text":"Dopasuj znacznik listy do jego roli","left":["<ul>","<ol>","<li>","<dl>"],"right":["lista definicji","pojedynczy element listy","lista nieuporządkowana (punktory)","lista uporządkowana (numeracja)"]},
+      {"type":"closed","text":"Którym znacznikiem tworzy się listę z automatyczną numeracją?","options":["<ol>","<ul>","<dl>","<list>"]},
+      {"type":"closed","text":"Które dwa atrybuty są wymagane w znaczniku <img>?","options":["src i alt","src i title","href i alt","source i description"]},
+      {"type":"input","text":"Który atrybut znacznika <img> ustawia szerokość obrazu w pikselach?"},
+      {"type":"select","text":"Który format obrazu jest formatem wektorowym, skalowalnym bez utraty jakości?","options":["SVG","JPEG","PNG","GIF"]},
+      {"type":"matching","text":"Dopasuj wartość atrybutu type pola formularza do jego przeznaczenia","left":["email","number","checkbox","radio"],"right":["wybór jednej opcji z grupy","pole na adres poczty, sprawdzane przez przeglądarkę","zaznaczenie niezależnej opcji","pole na wartość liczbową"]},
+      {"type":"closed","text":"Którym elementem tworzy się wielowierszowe pole tekstowe?","options":["<textarea>","<input type=\"text\">","<select>","<output>"]}
     ]$json$::jsonb,
     'inf03'
   )
@@ -82,6 +92,16 @@ select id, $json$[
   ["odnośnik jeszcze nieodwiedzony", "strona docelowa była już odwiedzona", "kursor znajduje się nad odnośnikiem", "odnośnik jest właśnie klikany"],
   ["mp3, wav, ogg"],
   ["controls", "atrybut controls"],
-  ["<iframe>"]
+  ["<iframe>"],
+  ["<!DOCTYPE html>", "!DOCTYPE html", "doctype html", "<!doctype html>"],
+  ["określa sposób kodowania znaków dokumentu"],
+  ["<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">"],
+  ["lista nieuporządkowana (punktory)", "lista uporządkowana (numeracja)", "pojedynczy element listy", "lista definicji"],
+  ["<ol>"],
+  ["src i alt"],
+  ["width", "atrybut width"],
+  ["SVG"],
+  ["pole na adres poczty, sprawdzane przez przeglądarkę", "pole na wartość liczbową", "zaznaczenie niezależnej opcji", "wybór jednej opcji z grupy"],
+  ["<textarea>"]
 ]$json$::jsonb
 from nowy;

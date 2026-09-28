@@ -13,7 +13,7 @@ with nowy as (
   insert into tests (title, time_limit, questions, qualification)
   values (
     'CSS: selektory, układ strony i RWD',
-    1800,
+    2400,
     $json$[
       {"type":"closed","text":"Z jakich warstw składa się model pudełkowy, licząc od treści na zewnątrz?","options":["content, padding, border, margin","margin, border, padding, content","content, margin, border, padding","padding, content, margin, border"]},
       {"type":"input","text":"Która właściwość CSS ustawia odstęp WEWNĄTRZ elementu, między jego treścią a obramowaniem?"},
@@ -44,7 +44,17 @@ with nowy as (
       {"type":"closed","text":"Co robi właściwość clear przy elementach z float?","options":["decyduje, czy element ma zejść poniżej opływanej treści","usuwa element ze strony","wyłącza float dla całego dokumentu","wyrównuje tekst do prawej"]},
       {"type":"closed","text":"Na czym polega responsywność strony?","options":["układ i treść dostosowują się do rozmiaru ekranu urządzenia","strona ma osobną wersję pod każdy telefon","strona ładuje się szybciej na telefonie","obrazy są zapisane w formacie wektorowym"]},
       {"type":"input","text":"Jaka reguła CSS (zaczynająca się od małpy) pozwala zastosować style zależnie od szerokości ekranu?"},
-      {"type":"select","text":"Która cecha zapytania medialnego mówi, czy urządzenie jest w orientacji poziomej, czy pionowej?","options":["orientation","aspect-ratio","resolution","screen"]}
+      {"type":"select","text":"Która cecha zapytania medialnego mówi, czy urządzenie jest w orientacji poziomej, czy pionowej?","options":["orientation","aspect-ratio","resolution","screen"]},
+      {"type":"matching","text":"Dopasuj zapis selektora do tego, co wybiera","left":["p",".oferta","#menu","nav a"],"right":["element o identyfikatorze menu","wszystkie akapity","odnośniki wewnątrz nawigacji","elementy z klasą oferta"]},
+      {"type":"closed","text":"Który selektor ma wyższą specyficzność i wygra przy sprzecznych regułach?","options":["selektor identyfikatora (#id)","selektor klasy (.klasa)","selektor elementu (p)","selektor uniwersalny (*)"]},
+      {"type":"select","text":"Co się stanie, gdy dwie reguły o tej samej specyficzności ustawiają tę samą właściwość?","options":["zadziała ta zapisana później w arkuszu","zadziała ta zapisana wcześniej","obie zostaną pominięte","przeglądarka zgłosi błąd"]},
+      {"type":"closed","text":"Która właściwość jest dziedziczona przez elementy potomne?","options":["color","margin","border","padding"]},
+      {"type":"input","text":"Która właściwość CSS ustawia kolor tła elementu?"},
+      {"type":"closed","text":"Do czego służy właściwość border-radius?","options":["zaokrągla rogi obramowania elementu","zmienia grubość obramowania","ustawia kolor obramowania","dodaje cień pod elementem"]},
+      {"type":"select","text":"Która właściwość zmienia rodzaj znacznika punktowanego na liście?","options":["list-style-type","list-style-position","line-height","text-decoration"]},
+      {"type":"matching","text":"Dopasuj właściwość Flexboksa do jej działania","left":["flex-direction","justify-content","align-items","flex-wrap"],"right":["wyrównanie w poprzek osi głównej","kierunek osi głównej (wiersz lub kolumna)","przenoszenie elementów do kolejnej linii","rozmieszczenie elementów wzdłuż osi głównej"]},
+      {"type":"closed","text":"Czym różni się pseudoelement od pseudoklasy?","options":["pseudoelement (np. ::before) tworzy i stylizuje fragment treści, pseudoklasa opisuje stan elementu","pseudoelement działa tylko na odnośnikach","pseudoklasa zapisywana jest dwoma dwukropkami","nie różnią się niczym poza zapisem"]},
+      {"type":"closed","text":"Na czym polega podejście mobile-first przy pisaniu stylów?","options":["najpierw pisze się style dla małych ekranów, a większe obsługuje się zapytaniami medialnymi","najpierw projektuje się wersję na duży monitor","tworzy się osobną stronę tylko dla telefonów","używa się wyłącznie jednostek px"]}
     ]$json$::jsonb,
     'inf03'
   )
@@ -81,6 +91,16 @@ select id, $json$[
   ["decyduje, czy element ma zejść poniżej opływanej treści"],
   ["układ i treść dostosowują się do rozmiaru ekranu urządzenia"],
   ["@media", "media", "@media screen"],
-  ["orientation"]
+  ["orientation"],
+  ["wszystkie akapity", "elementy z klasą oferta", "element o identyfikatorze menu", "odnośniki wewnątrz nawigacji"],
+  ["selektor identyfikatora (#id)"],
+  ["zadziała ta zapisana później w arkuszu"],
+  ["color"],
+  ["background-color", "background"],
+  ["zaokrągla rogi obramowania elementu"],
+  ["list-style-type"],
+  ["kierunek osi głównej (wiersz lub kolumna)", "rozmieszczenie elementów wzdłuż osi głównej", "wyrównanie w poprzek osi głównej", "przenoszenie elementów do kolejnej linii"],
+  ["pseudoelement (np. ::before) tworzy i stylizuje fragment treści, pseudoklasa opisuje stan elementu"],
+  ["najpierw pisze się style dla małych ekranów, a większe obsługuje się zapytaniami medialnymi"]
 ]$json$::jsonb
 from nowy;
