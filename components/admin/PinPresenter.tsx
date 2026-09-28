@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { X } from "lucide-react";
+import { Portal } from "@/components/shell/Portal";
 
 type Props = {
   title: string;
@@ -32,7 +33,8 @@ export function PinPresenter({ title, pin, path = "/testy", onClose }: Props) {
   }, [onClose]);
 
   return (
-    <div
+    <Portal>
+      <div
       role="dialog"
       aria-modal="true"
       aria-label={`PIN testu ${title}`}
@@ -57,6 +59,7 @@ export function PinPresenter({ title, pin, path = "/testy", onClose }: Props) {
           </span>
         ))}
       </div>
-    </div>
+      </div>
+    </Portal>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { ProgressBar } from "@/components/ProgressBar";
+import { Portal } from "@/components/shell/Portal";
 import { TeacherMark } from "@/components/TeacherMark";
 import { safeLinkUrl } from "@/lib/validation";
 import type { CategoryRow, ClassName, SubtopicLinkRow, SubtopicRow } from "@/types/db";
@@ -70,7 +71,8 @@ export function CategoryModal({ index, category, subtopics, isDone, markedBy, li
   const n = subtopics.filter((s) => isDone(s.id)).length;
 
   return (
-    <div
+    <Portal>
+      <div
       className="fixed inset-0 z-40 flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center sm:p-4"
       onClick={onClose}
     >
@@ -132,6 +134,7 @@ export function CategoryModal({ index, category, subtopics, isDone, markedBy, li
         </ul>
         <p className="mt-5 text-center text-xs text-muted">Stan ukończenia ustawia nauczyciel — widok tylko do odczytu.</p>
       </div>
-    </div>
+      </div>
+    </Portal>
   );
 }

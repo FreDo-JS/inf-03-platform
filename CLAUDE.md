@@ -196,6 +196,12 @@ z powrotem. Auto-przejście nie działało w ogóle. Dlatego komponent trzyma na
 wartość w `useRef` i to ją sprawdza. Ten sam schemat obowiązuje wszędzie, gdzie ruszasz
 fokus przed przerysowaniem.
 
+**Okna modalne renderuj przez `components/shell/Portal.tsx`.** Nakładka `fixed inset-0`
+umieszczona w drzewie treści łapie style kontenera — `space-y-8` dokłada `margin-top: 2rem`
+każdemu dziecku, także pozycjonowanemu `fixed`. Tło modala zaczynało się wtedy 32 px
+poniżej krawędzi okna (w oknie z PIN-em 16 px, bo tam był `space-y-4`) i nie przykrywało
+góry strony. Portal przenosi warstwę do `body`, więc żaden kontener jej nie dotyka.
+
 **Realtime**: każdy hook musi mieć unikalną nazwę kanału (`useId()`), inaczej leci
 „cannot add postgres_changes callbacks after subscribe()".
 

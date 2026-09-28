@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { PROCTOR_LABEL, type ProctorKind } from "@/lib/hooks/useProctorGuard";
 import { TriangleAlert } from "lucide-react";
+import { Portal } from "@/components/shell/Portal";
 
 /**
  * Ostrzeżenie po pierwszym opuszczeniu egzaminu (zmiana karty, przejście do
@@ -26,12 +27,13 @@ export function ProctorWarning({
   }, []);
 
   return (
-    <div
-      role="alertdialog"
-      aria-modal="true"
-      aria-labelledby="proctor-warning-title"
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/85 p-4 backdrop-blur-sm"
-    >
+    <Portal>
+      <div
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="proctor-warning-title"
+        className="fixed inset-0 z-[60] flex items-center justify-center bg-black/85 p-4 backdrop-blur-sm"
+      >
       <div className="card w-full max-w-md animate-fade-up border-warn/50 p-6 text-center sm:p-8">
         <TriangleAlert size={40} className="mx-auto text-warn" aria-hidden />
         <h2 id="proctor-warning-title" className="mt-4 text-xl font-bold">
@@ -54,6 +56,7 @@ export function ProctorWarning({
           {onReturnFullscreen ? "Wracam na pełny ekran" : "Rozumiem, wracam do pracy"}
         </button>
       </div>
-    </div>
+      </div>
+    </Portal>
   );
 }
