@@ -70,6 +70,16 @@ export type ProgressRow = {
   marked_by: string | null;
 };
 
+/** Wpis dziennika oznaczeń (tabela progress_log, migracja 014). */
+export type ProgressLogRow = {
+  id: number;
+  class_name: string;
+  subtopic_id: string;
+  action: "zaznaczono" | "odznaczono";
+  actor: string | null;
+  at: string;
+};
+
 /** Nauczyciel widoczny przy podtemacie. Widok teachers: bez e-maila. */
 export type TeacherRow = {
   id: string;
@@ -228,6 +238,8 @@ export type Database = {
     Tables: {
       progress: Table<ProgressRow, { class_name: ClassName; subtopic_id: string; updated_at?: string }>;
       classes: Table<ClassRow, ClassRow>;
+      // dziennik zapisuje trigger — z API wolno go tylko czytać i kasować
+      progress_log: Table<ProgressLogRow, never, never>;
       categories: Table<CategoryRow, CategoryRow>;
       subtopics: Table<SubtopicRow, SubtopicRow>;
       subtopic_links: Table<

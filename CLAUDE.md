@@ -54,6 +54,7 @@ CHECK-i i funkcje. **Każda zmiana w `supabase/*.sql` musi mieć pokrycie w `tes
 | `010_inf04.sql` | druga kwalifikacja: tabela `classes` (FK zamiast list w CHECK-ach), `qualification` w `categories` i `tests`, `create_test` z szóstym argumentem |
 | `011_inf04_seed.sql` | mapa INF.04: 12 kategorii, ponad 50 podtematów, materiały do C# i Reacta |
 | `012_progress_author.sql` | `progress.marked_by` stemplowane triggerem, `admins.display_name`, widok `teachers`, `set_my_display_name()`; naprawia rekurencyjną politykę odczytu `admins` z 008 |
+| `014_progress_log.sql` | `progress_log`: trigger zapisuje każde zaznaczenie i odznaczenie tematu (kto, kiedy, klasa); czyta i sprząta tylko nauczyciel, uczeń nie ma dostępu |
 | `013_progress_author_fix.sql` | trigger stempluje tylko przy zalogowanym użytkowniku, żeby dało się uzupełnić starych autorów z SQL Editora (ta sama treść funkcji jest w 012 — ponowne uruchomienie 012 nie może cofnąć poprawki) |
 
 ### Nienaruszalne zasady bezpieczeństwa
@@ -121,6 +122,17 @@ Jeden plik = jeden test wkleptany do SQL Editora. **`create_test` tam nie przejd
 `tests/sql/testy-tresc.mjs`: sprawdza reguły kluczy i przechodzi każdy test jako uczeń
 (PIN → pytania → komplet poprawnych odpowiedzi = maksimum). Dokładając test, po prostu
 wrzuć plik do tego katalogu — zestaw sam go znajdzie.
+
+## Dziennik i sprzątanie bazy
+
+Sekcja **Logi** w panelu pokazuje historię oznaczeń z `progress_log` — tabela `progress`
+trzyma tylko stan bieżący, więc bez dziennika odznaczenie kasowało ślad. Wpisy tworzy
+wyłącznie trigger (SECURITY DEFINER, bo tabela nie ma polityki INSERT); przez API można
+je czytać i kasować, nigdy dopisywać ani zmieniać. Dziennika **nie widzi uczeń**.
+
+W **Wynikach** nauczyciel kasuje pojedyncze wpisy i „widoczne” — czyli te po filtrze,
+z liczbą w potwierdzeniu. To celowe: zawężasz filtrem, potem kasujesz. W Logach jest
+analogiczne „wyczyść starsze niż 90 dni”.
 
 ## Rzeczy, które łatwo zepsuć
 

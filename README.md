@@ -30,6 +30,7 @@ Stack: Next.js 15 (App Router) · TypeScript (strict) · Tailwind CSS · Supabas
    - `supabase/011_inf04_seed.sql` — mapa nauki INF.04 (12 kategorii, ponad 50 podtematów, materiały)
    - `supabase/012_progress_author.sql` — podpis nauczyciela przy oznaczonym podtemacie
    - `supabase/013_progress_author_fix.sql` — poprawka: ręczne uzupełnienie autorów z SQL Editora
+   - `supabase/014_progress_log.sql` — dziennik oznaczeń tematów (sekcja Logi w panelu)
 
    Masz już bazę z poprzedniej wersji? Uruchom brakujące migracje (`002…`, `003…`) — nic nie nadpisują,
    a ponowne uruchomienie niczego nie duplikuje.
@@ -232,6 +233,17 @@ nie ma tokenu. Dlatego pliki wstawiają wiersze wprost do `tests` i `test_keys`,
 a walidację kluczy, którą normalnie robi `create_test`, powtarza zestaw testów
 `tests/sql/testy-tresc.mjs` — przechodzi każdy test jako uczeń i sprawdza, czy
 komplet poprawnych odpowiedzi daje maksimum punktów.
+
+## Sprzątanie bazy i dziennik
+
+- **Wyniki** — każdy wpis ma kosz, a w pasku narzędzi jest „Usuń widoczne (N)”, które
+  kasuje dokładnie to, co zostało po filtrze (potwierdzenie podaje liczbę). Tak czyścisz
+  bazę po serii kartkówek bez kasowania wszystkiego naraz.
+- **Logi** — nowa sekcja z historią oznaczeń tematów: kiedy, w której klasie, jaki temat,
+  zaznaczono czy odznaczono i przez kogo. Historia zostaje nawet po cofnięciu oznaczenia,
+  bo zapisuje ją trigger w bazie (migracja `014_progress_log.sql`), a nie sama tabela
+  postępu. Filtr po klasie i po nazwie tematu, plus „wyczyść starsze niż 90 dni”.
+  Dziennik widzi wyłącznie nauczyciel.
 
 ## Kto oznaczył podtemat
 

@@ -10,6 +10,7 @@ import { PracticalSessionsTab } from "./practical/PracticalSessionsTab";
 import { PracticalTasksTab } from "./practical/PracticalTasksTab";
 import { PracticalWorksTab } from "./practical/PracticalWorksTab";
 import { LinksTab } from "./LinksTab";
+import { LogTab } from "./LogTab";
 import { NewTestTab } from "./NewTestTab";
 import { ProgressTab } from "./ProgressTab";
 import { ResultsTab } from "./ResultsTab";
@@ -129,6 +130,7 @@ export function AdminPanel({ email, categories, subtopics, initialProgress, teac
         {tab === "tests" && <TestsTab />}
         {tab === "new" && <NewTestTab />}
         {tab === "results" && <ResultsTab />}
+        {tab === "log" && <LogTab subtopics={subtopics} teachers={teachers} />}
         {tab === "ptasks" && <PracticalTasksTab />}
         {tab === "psessions" && <PracticalSessionsTab />}
         {tab === "pworks" && <PracticalWorksTab />}

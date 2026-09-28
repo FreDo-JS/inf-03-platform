@@ -5,7 +5,7 @@ import { friendlyError } from "@/lib/errors";
 import { getBrowserSupabase } from "@/lib/supabase/client";
 import { formatDuration } from "@/lib/tests";
 import type { AttemptRow, EndedReason } from "@/types/db";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, Trash2 } from "lucide-react";
 
 // Powód zakończenia podejścia. „Zmiana karty" to sygnał do sprawdzenia,
 // nie dowód ściągania — wykrywa tylko przełączenie karty w tej przeglądarce.
@@ -22,6 +22,7 @@ export function ResultsTab() {
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState("");
   const [loading, setLoading] = useState(false);
+  const [usuwanie, setUsuwanie] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -43,6 +44,44 @@ export function ResultsTab() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  /**
+   * Kasowanie wyników. Nieodwracalne — RLS pozwala na nie tylko nauczycielowi
+   * (polityka z migracji 008), więc jedyną barierą po stronie strony jest
+   * potwierdzenie z konkretną liczbą wpisów.
+   */
+  const usunJeden = async (r: AttemptRow) => {
+    if (usuwanie !== null) return;
+    const kiedy = new Date(r.created_at).toLocaleString("pl-PL", { dateStyle: "short", timeStyle: "short" });
+    if (!window.confirm(`Usunąć wynik: ${r.student_name} — ${r.test_title} (${kiedy})?\n\nTej operacji nie da się cofnąć.`)) return;
+
+    setUsuwanie(r.id);
+    setError(null);
+    const { error: dbError } = await getBrowserSupabase().from("attempts").delete().eq("id", r.id);
+    setUsuwanie(null);
+    if (dbError) {
+      setError(friendlyError(dbError, "Nie udało się usunąć wyniku."));
+      return;
+    }
+    setRows((prev) => (prev === null ? prev : prev.filter((x) => x.id !== r.id)));
+  };
+
+  const usunWidoczne = async () => {
+    if (usuwanie !== null || visible.length === 0) return;
+    const czego = filter.trim() === "" ? "WSZYSTKIE wyniki" : `wyniki pasujące do filtru „${filter.trim()}”`;
+    if (!window.confirm(`Usunąć ${czego} — ${visible.length} wpisów?\n\nTej operacji nie da się cofnąć.`)) return;
+
+    setUsuwanie("wiele");
+    setError(null);
+    const ids = visible.map((r) => r.id);
+    const { error: dbError } = await getBrowserSupabase().from("attempts").delete().in("id", ids);
+    setUsuwanie(null);
+    if (dbError) {
+      setError(friendlyError(dbError, "Nie udało się usunąć wyników."));
+      return;
+    }
+    setRows((prev) => (prev === null ? prev : prev.filter((x) => !ids.includes(x.id))));
+  };
 
   const visible = useMemo(() => {
     const f = filter.trim().toLowerCase();
@@ -75,6 +114,18 @@ export function ResultsTab() {
           <span className="chip">
             {visible.length} / {rows.length} wpisów
           </span>
+        )}
+        {rows !== null && visible.length > 0 && (
+          <button
+            type="button"
+            className="btn-danger btn-sm"
+            onClick={() => void usunWidoczne()}
+            disabled={usuwanie !== null}
+            title="Usuwa wpisy widoczne na liście — zawęź je filtrem, jeśli nie chcesz skasować wszystkiego"
+          >
+            <Trash2 size={14} aria-hidden />
+            {usuwanie === "wiele" ? "Usuwanie…" : `Usuń widoczne (${visible.length})`}
+          </button>
         )}
       </div>
 
@@ -112,6 +163,15 @@ export function ResultsTab() {
                     {r.test_id === null && <span className="ml-1 text-xs">(usunięty)</span>}
                   </p>
                   <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                    <button
+                      type="button"
+                      className="btn-danger btn-sm ml-auto order-last"
+                      onClick={() => void usunJeden(r)}
+                      disabled={usuwanie !== null}
+                      aria-label={`Usuń wynik: ${r.student_name}`}
+                    >
+                      <Trash2 size={13} aria-hidden /> usuń
+                    </button>
                     <span className={`chip ${(REASON[r.ended_reason] ?? REASON.completed).className}`}>
                       {(REASON[r.ended_reason] ?? REASON.completed).label}
                     </span>
@@ -141,6 +201,7 @@ export function ResultsTab() {
                     Zmiany karty
                   </th>
                   <th className="px-4 py-3">Data</th>
+                  <th className="px-4 py-3 text-right">Usuń</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/[0.05]">
@@ -177,6 +238,17 @@ export function ResultsTab() {
                       </td>
                       <td className="whitespace-nowrap px-4 py-3 font-mono text-xs text-muted">
                         {new Date(r.created_at).toLocaleString("pl-PL", { dateStyle: "short", timeStyle: "short" })}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <button
+                          type="button"
+                          className="btn-danger btn-sm"
+                          onClick={() => void usunJeden(r)}
+                          disabled={usuwanie !== null}
+                          aria-label={`Usuń wynik: ${r.student_name}`}
+                        >
+                          <Trash2 size={13} aria-hidden />
+                        </button>
                       </td>
                     </tr>
                   );
