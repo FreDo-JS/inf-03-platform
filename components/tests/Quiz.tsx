@@ -19,12 +19,25 @@ import {
   validatePin,
   validateStudentName,
 } from "@/lib/validation";
-import type { EndedReason, OpenedTest, QuizAnswer, SubmitResult } from "@/types/db";
+import type {
+  EndedReason,
+  OpenedTest,
+  QuizAnswer,
+  SubmitResult,
+} from "@/types/db";
 import { MatchingQuestionView } from "./MatchingQuestionView";
 import { PinInput } from "./PinInput";
 import { ProctorWarning } from "./ProctorWarning";
 import { SecondTabBlocked } from "./SecondTabBlocked";
-import { ArrowLeft, ArrowRight, Check, Timer, TriangleAlert, User, X } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  Timer,
+  TriangleAlert,
+  User,
+  X,
+} from "lucide-react";
 
 type Props = {
   testId: string;
@@ -53,7 +66,9 @@ const TYPE_HINT: Record<string, string> = {
 };
 
 const isAnswered = (a: QuizAnswer | undefined): boolean =>
-  Array.isArray(a) ? a.some((x) => x !== null && x !== "") : typeof a === "string" && a.trim() !== "";
+  Array.isArray(a)
+    ? a.some((x) => x !== null && x !== "")
+    : typeof a === "string" && a.trim() !== "";
 
 export function Quiz({ testId, title, timeLimitSec, questionCount }: Props) {
   const [phase, setPhase] = useState<Phase>("pin");
@@ -76,7 +91,9 @@ export function Quiz({ testId, title, timeLimitSec, questionCount }: Props) {
   /** kolejność pytań na to podejście (indeksy w test.questions), tasowana przy starcie */
   const [order, setOrder] = useState<number[]>([]);
   /** potasowana prawa kolumna pytań matching, klucz = indeks pytania w test.questions */
-  const [rightColumns, setRightColumns] = useState<Record<number, string[]>>({});
+  const [rightColumns, setRightColumns] = useState<Record<number, string[]>>(
+    {},
+  );
   const [step, setStep] = useState(0);
   const [remaining, setRemaining] = useState(timeLimitSec);
   const [result, setResult] = useState<SubmitResult | null>(null);
@@ -111,11 +128,19 @@ export function Quiz({ testId, title, timeLimitSec, questionCount }: Props) {
       }
       setCheckingPin(true);
       setPinError(null);
-      const { data, error } = await getBrowserSupabase().rpc("open_test", { p_test_id: testId, p_pin: v.value });
+      const { data, error } = await getBrowserSupabase().rpc("open_test", {
+        p_test_id: testId,
+        p_pin: v.value,
+      });
       setCheckingPin(false);
 
       if (error) {
-        setPinError(friendlyError(error, "Nie udało się sprawdzić PIN-u. Spróbuj ponownie."));
+        setPinError(
+          friendlyError(
+            error,
+            "Nie udało się sprawdzić PIN-u. Spróbuj ponownie.",
+          ),
+        );
         return;
       }
       const parsed = parseOpenTest(data);
@@ -221,12 +246,16 @@ export function Quiz({ testId, title, timeLimitSec, questionCount }: Props) {
    */
   const syncClock = useCallback(
     async (sessionId: string) => {
-      const { data, error } = await getBrowserSupabase().rpc("quiz_time", { p_session_id: sessionId });
+      const { data, error } = await getBrowserSupabase().rpc("quiz_time", {
+        p_session_id: sessionId,
+      });
       const parsed = error ? null : parseServerTime(data);
 
       if (parsed === null || parsed.endsAt === null) {
         if (endsAtRef.current === null) {
-          console.warn("Brak czasu z serwera — odliczanie lokalne do czasu najbliższej synchronizacji.");
+          console.warn(
+            "Brak czasu z serwera — odliczanie lokalne do czasu najbliższej synchronizacji.",
+          );
           clockOffsetRef.current = 0;
           endsAtRef.current = Date.now() + limitSec * 1000;
         }
@@ -237,52 +266,73 @@ export function Quiz({ testId, title, timeLimitSec, questionCount }: Props) {
 
       const endsAt = endsAtRef.current;
       if (endsAt !== null) {
-        setRemaining(Math.max(0, Math.round((endsAt - (Date.now() + clockOffsetRef.current)) / 1000)));
+        setRemaining(
+          Math.max(
+            0,
+            Math.round((endsAt - (Date.now() + clockOffsetRef.current)) / 1000),
+          ),
+        );
       }
     },
     [limitSec],
   );
 
   // ------------------------------------------------------------ 3. wysłanie
-  const submit = useCallback(async (reason: EndedReason = "completed") => {
-    if (!test || submittingRef.current || submittedRef.current) return;
-    submittingRef.current = true;
-    lastReasonRef.current = reason;
-    setPhase("submitting");
-    setErrorMsg(null);
+  const submit = useCallback(
+    async (reason: EndedReason = "completed") => {
+      if (!test || submittingRef.current || submittedRef.current) return;
+      submittingRef.current = true;
+      lastReasonRef.current = reason;
+      setPhase("submitting");
+      setErrorMsg(null);
 
-    const { data, error } = await getBrowserSupabase().rpc("submit_attempt", {
-      p_session_id: test.sessionId,
-      p_answers: sanitizeAnswers(answersRef.current, test.questions.length),
-      p_ended_reason: reason,
-      p_tab_switches: tabSwitchesRef.current,
-    });
-    submittingRef.current = false;
+      const { data, error } = await getBrowserSupabase().rpc("submit_attempt", {
+        p_session_id: test.sessionId,
+        p_answers: sanitizeAnswers(answersRef.current, test.questions.length),
+        p_ended_reason: reason,
+        p_tab_switches: tabSwitchesRef.current,
+      });
+      submittingRef.current = false;
 
-    if (error) {
-      const fatal = isDuplicateAttempt(error) || SESSION_ERRORS.some((s) => error.message.includes(s));
-      if (fatal) submittedRef.current = true;
-      setCanRetry(!fatal);
-      setErrorMsg(friendlyError(error, "Nie udało się zapisać wyniku. Sprawdź internet i spróbuj ponownie."));
-      setPhase("error");
-      return;
-    }
-    const parsed = parseSubmitResult(data);
-    if (!parsed) {
-      setCanRetry(false);
-      setErrorMsg("Wynik zapisano, ale nie udało się go wyświetlić.");
-      setPhase("error");
-      return;
-    }
-    submittedRef.current = true;
-    setResult(parsed);
-    setPhase("done");
-    if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
-  }, [test]);
+      if (error) {
+        const fatal =
+          isDuplicateAttempt(error) ||
+          SESSION_ERRORS.some((s) => error.message.includes(s));
+        if (fatal) submittedRef.current = true;
+        setCanRetry(!fatal);
+        setErrorMsg(
+          friendlyError(
+            error,
+            "Nie udało się zapisać wyniku. Sprawdź internet i spróbuj ponownie.",
+          ),
+        );
+        setPhase("error");
+        return;
+      }
+      const parsed = parseSubmitResult(data);
+      if (!parsed) {
+        setCanRetry(false);
+        setErrorMsg("Wynik zapisano, ale nie udało się go wyświetlić.");
+        setPhase("error");
+        return;
+      }
+      submittedRef.current = true;
+      setResult(parsed);
+      setPhase("done");
+      if (document.fullscreenElement)
+        void document.exitFullscreen().catch(() => undefined);
+    },
+    [test],
+  );
 
   // Nadzór: przełączenie karty, przejście do innego okna albo wyjście
   // z pełnego ekranu. Pierwsze → ostrzeżenie, drugie → koniec testu.
-  const { countRef: tabCountRef, showWarning, dismissWarning, lastKind } = useProctorGuard({
+  const {
+    countRef: tabCountRef,
+    showWarning,
+    dismissWarning,
+    lastKind,
+  } = useProctorGuard({
     active: phase === "running",
     watchFullscreen: true,
     onViolation: (_kind, count) => {
@@ -346,24 +396,32 @@ export function Quiz({ testId, title, timeLimitSec, questionCount }: Props) {
       return next;
     });
 
-  const answeredCount = useMemo(() => answers.filter(isAnswered).length, [answers]);
+  const answeredCount = useMemo(
+    () => answers.filter(isAnswered).length,
+    [answers],
+  );
 
   const header = (
     <div className="text-center">
-      <p className="eyebrow">{"$ ./start-test"}</p>
-      <h1 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">{test?.title ?? title}</h1>
+      {/* <p className="eyebrow">{"$ ./start-test"}</p> */}
+      <h1 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">
+        {test?.title ?? title}
+      </h1>
       <div className="mt-3 flex flex-wrap justify-center gap-2">
         <span className="chip">
           {total} {pluralPytania(total)}
         </span>
         <span className="chip">
-            <Timer size={12} aria-hidden /> {Math.round(limitSec / 60)} min
-          </span>
+          <Timer size={12} aria-hidden /> {Math.round(limitSec / 60)} min
+        </span>
       </div>
     </div>
   );
 
-  if (secondTab) return <SecondTabBlocked title="Ten test jest już otwarty w innej karcie" />;
+  if (secondTab)
+    return (
+      <SecondTabBlocked title="Ten test jest już otwarty w innej karcie" />
+    );
 
   // ================================================================ PIN
   if (phase === "pin") {
@@ -403,20 +461,24 @@ export function Quiz({ testId, title, timeLimitSec, questionCount }: Props) {
               disabled={checkingPin || pin.length !== LIMITS.pinLength}
             >
               {checkingPin ? (
-              "Sprawdzanie…"
-            ) : (
-              <>
-                Dalej <ArrowRight size={16} aria-hidden />
-              </>
-            )}
+                "Sprawdzanie…"
+              ) : (
+                <>
+                  Dalej <ArrowRight size={16} aria-hidden />
+                </>
+              )}
             </button>
           </form>
           <p className="mt-5 text-center text-xs leading-relaxed text-muted">
-            PIN chroni test przed osobami spoza klasy. Nauczyciel może go zmienić przed każdą lekcją.
+            PIN chroni test przed osobami spoza klasy. Nauczyciel może go
+            zmienić przed każdą lekcją.
           </p>
         </div>
         <div className="mt-4 text-center">
-          <Link href="/testy" className="text-sm text-muted transition hover:text-accent">
+          <Link
+            href="/testy"
+            className="text-sm text-muted transition hover:text-accent"
+          >
             <ArrowLeft size={14} aria-hidden /> wszystkie testy
           </Link>
         </div>
@@ -431,7 +493,8 @@ export function Quiz({ testId, title, timeLimitSec, questionCount }: Props) {
         <div className="card p-6 sm:p-8">
           {header}
           <div className="alert-ok mt-6 flex items-center justify-center gap-1.5">
-            <Check size={15} aria-hidden /> PIN poprawny — możesz podejść do testu
+            <Check size={15} aria-hidden /> PIN poprawny — możesz podejść do
+            testu
           </div>
           <form onSubmit={start} className="mt-6 space-y-4" noValidate>
             <div>
@@ -459,15 +522,27 @@ export function Quiz({ testId, title, timeLimitSec, questionCount }: Props) {
                 </p>
               )}
             </div>
-            <button type="submit" className="btn-primary w-full py-3" disabled={starting}>
+            <button
+              type="submit"
+              className="btn-primary w-full py-3"
+              disabled={starting}
+            >
               {starting ? "Startowanie…" : "Rozpocznij test ▶"}
             </button>
           </form>
           <ul className="mt-4 space-y-1 text-left text-xs leading-relaxed text-muted">
             <li>• Test otworzy się na pełnym ekranie i musi w nim pozostać.</li>
-            <li>• Zmiana karty lub przejście do innego okna są rejestrowane; za drugim razem test kończy się sam.</li>
-            <li>• Czas liczy serwer — zmiana zegara w komputerze nic nie daje.</li>
-            <li>• Pytania są w losowej kolejności, a do poprzedniego pytania nie można wrócić.</li>
+            <li>
+              • Zmiana karty lub przejście do innego okna są rejestrowane; za
+              drugim razem test kończy się sam.
+            </li>
+            <li>
+              • Czas liczy serwer — zmiana zegara w komputerze nic nie daje.
+            </li>
+            <li>
+              • Pytania są w losowej kolejności, a do poprzedniego pytania nie
+              można wrócić.
+            </li>
           </ul>
         </div>
       </div>
@@ -479,12 +554,18 @@ export function Quiz({ testId, title, timeLimitSec, questionCount }: Props) {
     const pct = Math.round((result.score / result.total) * 100);
     const r = 52;
     const circ = 2 * Math.PI * r;
-    const verdict = pct >= 75 ? "Świetny wynik" : pct >= 50 ? "Nieźle, tak trzymaj" : "Warto powtórzyć materiał";
+    const verdict =
+      pct >= 75
+        ? "Świetny wynik"
+        : pct >= 50
+          ? "Nieźle, tak trzymaj"
+          : "Warto powtórzyć materiał";
     return (
       <div className="mx-auto max-w-2xl animate-fade-up space-y-4">
         {result.endedReason === "tab_switch" && (
           <div className="alert-error text-center font-medium" role="alert">
-            Test zakończony automatycznie — wykryto zmianę karty. Pytania bez odpowiedzi zostały policzone jako błędne.
+            Test zakończony automatycznie — wykryto zmianę karty. Pytania bez
+            odpowiedzi zostały policzone jako błędne.
           </div>
         )}
         <div className="card p-6 text-center sm:p-8">
@@ -503,7 +584,14 @@ export function Quiz({ testId, title, timeLimitSec, questionCount }: Props) {
                   <stop offset="100%" stopColor="#38bdf8" />
                 </linearGradient>
               </defs>
-              <circle cx="60" cy="60" r={r} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="10" />
+              <circle
+                cx="60"
+                cy="60"
+                r={r}
+                fill="none"
+                stroke="rgba(255,255,255,0.07)"
+                strokeWidth="10"
+              />
               <circle
                 cx="60"
                 cy="60"
@@ -529,7 +617,9 @@ export function Quiz({ testId, title, timeLimitSec, questionCount }: Props) {
             {studentName} · czas {formatDuration(result.durationSec)}
           </p>
           {result.tabSwitchCount > 0 && (
-            <p className="mt-2 text-sm text-warn">Opuszczenia karty w trakcie testu: {result.tabSwitchCount}</p>
+            <p className="mt-2 text-sm text-warn">
+              Opuszczenia karty w trakcie testu: {result.tabSwitchCount}
+            </p>
           )}
         </div>
 
@@ -546,16 +636,25 @@ export function Quiz({ testId, title, timeLimitSec, questionCount }: Props) {
                   aria-label={ok ? "poprawna" : "błędna"}
                   role="img"
                 >
-                  {ok ? <Check size={14} aria-hidden /> : <X size={14} aria-hidden />}
+                  {ok ? (
+                    <Check size={14} aria-hidden />
+                  ) : (
+                    <X size={14} aria-hidden />
+                  )}
                 </span>
                 <div className="min-w-0">
-                  <p className="font-mono text-xs text-muted">pytanie {i + 1}</p>
+                  <p className="font-mono text-xs text-muted">
+                    pytanie {i + 1}
+                  </p>
                   <p className="mt-0.5 break-words leading-snug">{q.text}</p>
                   {q.type === "matching" ? (
                     <ul className="mt-1.5 space-y-0.5 text-sm text-muted">
                       {q.left.map((leftItem, li) => (
                         <li key={leftItem} className="break-words">
-                          {leftItem} <span className="text-muted">→</span> <span className="text-fg">{(Array.isArray(given) && given[li]) || "— brak —"}</span>
+                          {leftItem} <span className="text-muted">→</span>{" "}
+                          <span className="text-fg">
+                            {(Array.isArray(given) && given[li]) || "— brak —"}
+                          </span>
                         </li>
                       ))}
                     </ul>
@@ -563,7 +662,9 @@ export function Quiz({ testId, title, timeLimitSec, questionCount }: Props) {
                     <p className="mt-1.5 break-words text-sm text-muted">
                       Twoja odpowiedź:{" "}
                       <span className={ok ? "text-accent" : "text-fg"}>
-                        {typeof given === "string" && given !== "" ? given : "— brak —"}
+                        {typeof given === "string" && given !== ""
+                          ? given
+                          : "— brak —"}
                       </span>
                     </p>
                   )}
@@ -572,7 +673,9 @@ export function Quiz({ testId, title, timeLimitSec, questionCount }: Props) {
             );
           })}
         </ol>
-        <p className="text-center text-xs text-muted">Poprawne odpowiedzi nie są pokazywane — test można powtórzyć.</p>
+        <p className="text-center text-xs text-muted">
+          Poprawne odpowiedzi nie są pokazywane — test można powtórzyć.
+        </p>
         <div className="flex justify-center">
           <Link href="/testy" className="btn-ghost">
             <ArrowLeft size={14} aria-hidden /> wróć do listy testów
@@ -591,7 +694,11 @@ export function Quiz({ testId, title, timeLimitSec, questionCount }: Props) {
         <p className="mt-1 text-muted">{errorMsg}</p>
         <div className="mt-6 flex flex-wrap justify-center gap-3">
           {canRetry && (
-            <button type="button" className="btn-primary" onClick={() => void submit(lastReasonRef.current)}>
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={() => void submit(lastReasonRef.current)}
+            >
               Spróbuj ponownie
             </button>
           )}
@@ -619,7 +726,11 @@ export function Quiz({ testId, title, timeLimitSec, questionCount }: Props) {
         <ProctorWarning
           kind={lastKind}
           onConfirm={dismissWarning}
-          onReturnFullscreen={() => void document.documentElement.requestFullscreen().catch(() => undefined)}
+          onReturnFullscreen={() =>
+            void document.documentElement
+              .requestFullscreen()
+              .catch(() => undefined)
+          }
         />
       )}
 
@@ -629,12 +740,14 @@ export function Quiz({ testId, title, timeLimitSec, questionCount }: Props) {
           <div className="min-w-0">
             <p className="truncate font-semibold">{test.title}</p>
             <p className="flex items-center gap-1.5 truncate text-sm text-muted">
-            <User size={14} aria-hidden /> {studentName}
-          </p>
+              <User size={14} aria-hidden /> {studentName}
+            </p>
           </div>
           <div
             className={`shrink-0 rounded-xl border px-3.5 py-1.5 font-mono text-xl font-bold tabular-nums sm:text-2xl ${
-              lowTime ? "animate-pulse border-danger/60 bg-danger/10 text-danger" : "border-accent/40 bg-accent/5 text-accent"
+              lowTime
+                ? "animate-pulse border-danger/60 bg-danger/10 text-danger"
+                : "border-accent/40 bg-accent/5 text-accent"
             }`}
             role="timer"
             aria-label="Pozostały czas"
@@ -651,7 +764,12 @@ export function Quiz({ testId, title, timeLimitSec, questionCount }: Props) {
       </div>
 
       {/* postęp — bez nawigacji wstecz: do poprzednich pytań nie można wrócić */}
-      <ProgressBar value={step + 1} max={total} label={`pytanie ${step + 1} z ${total}`} size="sm" />
+      <ProgressBar
+        value={step + 1}
+        max={total}
+        label={`pytanie ${step + 1} z ${total}`}
+        size="sm"
+      />
 
       {/* pytanie */}
       <div key={step} className="card animate-fade-up p-5 sm:p-8">
@@ -661,14 +779,21 @@ export function Quiz({ testId, title, timeLimitSec, questionCount }: Props) {
           </span>
           <span className="chip">{TYPE_HINT[q.type]}</span>
         </div>
-        <h2 className="mt-4 break-words text-xl font-semibold leading-snug sm:text-2xl">{q.text}</h2>
+        <h2 className="mt-4 break-words text-xl font-semibold leading-snug sm:text-2xl">
+          {q.text}
+        </h2>
 
         <div className="mt-6">
           {q.type === "closed" && (
-            <div className="grid gap-3 sm:grid-cols-2" role="radiogroup" aria-label="Odpowiedzi">
+            <div
+              className="grid gap-3 sm:grid-cols-2"
+              role="radiogroup"
+              aria-label="Odpowiedzi"
+            >
               {q.options.map((opt, i) => {
                 const selected = answer === opt;
-                const style = OPTION_STYLES[i % OPTION_STYLES.length] ?? OPTION_STYLES[0];
+                const style =
+                  OPTION_STYLES[i % OPTION_STYLES.length] ?? OPTION_STYLES[0];
                 return (
                   <button
                     key={i}
@@ -679,7 +804,9 @@ export function Quiz({ testId, title, timeLimitSec, questionCount }: Props) {
                     onClick={() => setAnswer(opt)}
                     className={`group flex min-h-[3.75rem] items-center gap-3 rounded-xl border-2 p-3 text-left transition active:scale-[0.99]
                       focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/70 ${
-                        selected ? style.ring : "border-line bg-bg/50 hover:border-white/20 hover:bg-white/[0.03]"
+                        selected
+                          ? style.ring
+                          : "border-line bg-bg/50 hover:border-white/20 hover:bg-white/[0.03]"
                       }`}
                   >
                     <span
@@ -689,8 +816,16 @@ export function Quiz({ testId, title, timeLimitSec, questionCount }: Props) {
                     >
                       {String.fromCharCode(65 + i)}
                     </span>
-                    <span className="break-words text-[15px] font-medium">{opt}</span>
-                    {selected && <Check size={16} className="ml-auto shrink-0 text-accent" aria-hidden />}
+                    <span className="break-words text-[15px] font-medium">
+                      {opt}
+                    </span>
+                    {selected && (
+                      <Check
+                        size={16}
+                        className="ml-auto shrink-0 text-accent"
+                        aria-hidden
+                      />
+                    )}
                   </button>
                 );
               })}
@@ -702,7 +837,9 @@ export function Quiz({ testId, title, timeLimitSec, questionCount }: Props) {
               className="input py-3 text-base"
               value={typeof answer === "string" ? answer : ""}
               disabled={busy}
-              onChange={(e) => setAnswer(e.target.value === "" ? null : e.target.value)}
+              onChange={(e) =>
+                setAnswer(e.target.value === "" ? null : e.target.value)
+              }
               aria-label="Wybierz odpowiedź"
             >
               <option value="">— wybierz odpowiedź —</option>
@@ -735,7 +872,12 @@ export function Quiz({ testId, title, timeLimitSec, questionCount }: Props) {
               question={q}
               right={rightColumns[questionIndex] ?? q.right}
               value={
-                Array.isArray(answer) ? answer : Array.from({ length: q.left.length }, (): string | null => null)
+                Array.isArray(answer)
+                  ? answer
+                  : Array.from(
+                      { length: q.left.length },
+                      (): string | null => null,
+                    )
               }
               onChange={(next) => setAnswer(next)}
               disabled={busy}
@@ -749,23 +891,34 @@ export function Quiz({ testId, title, timeLimitSec, questionCount }: Props) {
           odpowiedzi: {answeredCount}/{total}
         </span>
         {isLast ? (
-          <button type="button" className="btn-primary px-6" disabled={busy} onClick={() => void submit("completed")}>
+          <button
+            type="button"
+            className="btn-primary px-6"
+            disabled={busy}
+            onClick={() => void submit("completed")}
+          >
             {busy ? (
-                "Zapisywanie…"
-              ) : (
-                <>
-                  Zakończ test <Check size={16} aria-hidden />
-                </>
-              )}
+              "Zapisywanie…"
+            ) : (
+              <>
+                Zakończ test <Check size={16} aria-hidden />
+              </>
+            )}
           </button>
         ) : (
-          <button type="button" className="btn-primary px-6" disabled={busy} onClick={() => setStep((s) => s + 1)}>
+          <button
+            type="button"
+            className="btn-primary px-6"
+            disabled={busy}
+            onClick={() => setStep((s) => s + 1)}
+          >
             Dalej <ArrowRight size={16} aria-hidden />
           </button>
         )}
       </div>
       <p className="text-center text-xs text-muted">
-        Po przejściu dalej nie można wrócić do poprzedniego pytania ani zmienić odpowiedzi.
+        Po przejściu dalej nie można wrócić do poprzedniego pytania ani zmienić
+        odpowiedzi.
       </p>
     </div>
   );

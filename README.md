@@ -249,8 +249,14 @@ w tabeli `admins`. Zamiast dopisywać go ręcznie po każdej rejestracji, użyj 
    ```
 
 2. Supabase → *Authentication → Users → Invite user* → ten sam adres. Osoba dostaje mejla,
-   ustawia hasło i **od razu ma dostęp do panelu** — trigger dopisuje ją do `admins`
-   i zużywa zaproszenie.
+   klika link, trafia na stronę **Ustaw hasło** (`/admin/haslo`) i **od razu ma dostęp
+   do panelu** — trigger dopisuje ją do `admins` i zużywa zaproszenie.
+
+   W Supabase → *Authentication → URL Configuration* **Site URL** musi wskazywać adres
+   aplikacji, a lista **Redirect URLs** zawierać ten adres i `…/admin/haslo`. Link z mejla
+   może wrócić na dowolną podstronę — aplikacja sama przeniesie gościa na ustawianie hasła
+   razem z tokenem. Publiczna rejestracja zostaje **wyłączona**: kont nie zakłada się
+   samodzielnie, tylko z zaproszenia.
 
 Kto nie jest na liście, dostaje zwykłe konto bez dostępu do panelu. Zaproszenia dodaje się
 wyłącznie z SQL Editora — dzięki temu nauczyciel nie może nadać uprawnień ani sobie, ani

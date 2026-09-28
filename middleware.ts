@@ -91,7 +91,15 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  // Logowanie i ustawianie hasła muszą działać bez sesji: to pierwsza z nich
+  // jest miejscem, gdzie sesja powstaje, a druga dostaje ją z linku w mejlu.
   const isLogin = path === "/admin/login";
+  const isSetPassword = path === "/admin/haslo";
+
+  if (isSetPassword) {
+    response.headers.set("Cache-Control", "private, no-store");
+    return withCsp(response);
+  }
 
   if (!user && !isLogin) {
     const to = request.nextUrl.clone();

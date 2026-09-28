@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { getBrowserSupabase } from "@/lib/supabase/client";
+import Link from "next/link";
 import { KeyRound } from "lucide-react";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -29,10 +30,11 @@ export function LoginForm() {
 
     setBusy(true);
     setError(null);
-    const { error: authError } = await getBrowserSupabase().auth.signInWithPassword({
-      email: cleanEmail,
-      password,
-    });
+    const { error: authError } =
+      await getBrowserSupabase().auth.signInWithPassword({
+        email: cleanEmail,
+        password,
+      });
     setPassword("");
     setBusy(false);
 
@@ -51,14 +53,22 @@ export function LoginForm() {
 
   return (
     <div className="mx-auto max-w-sm pt-6 sm:pt-12">
-      <form onSubmit={onSubmit} className="card animate-fade-up space-y-5 p-6 sm:p-8" noValidate>
+      <form
+        onSubmit={onSubmit}
+        className="card animate-fade-up space-y-5 p-6 sm:p-8"
+        noValidate
+      >
         <div>
           <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-lg border border-accent/40 bg-accent/10 text-accent">
             <KeyRound size={20} aria-hidden />
           </div>
-          <p className="eyebrow">$ sudo login</p>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight">Panel nauczyciela</h1>
-          <p className="mt-1 text-sm text-muted">Zaloguj się kontem administratora.</p>
+          {/* <p className="eyebrow">$ sudo login</p> */}
+          <h1 className="mt-1 text-2xl font-bold tracking-tight">
+            Panel nauczyciela
+          </h1>
+          <p className="mt-1 text-sm text-muted">
+            Zaloguj się kontem administratora.
+          </p>
         </div>
         <div>
           <label htmlFor="email" className="label">
@@ -95,9 +105,19 @@ export function LoginForm() {
             {error}
           </p>
         )}
-        <button type="submit" className="btn-primary w-full py-3" disabled={busy}>
+        <button
+          type="submit"
+          className="btn-primary w-full py-3"
+          disabled={busy}
+        >
           {busy ? "logowanie…" : "Zaloguj"}
         </button>
+        <p className="text-center text-xs text-muted">
+          Masz zaproszenie i nie ustawiłeś jeszcze hasła?{" "}
+          <Link href="/admin/haslo" className="text-accent hover:underline">
+            Ustaw hasło
+          </Link>
+        </p>
       </form>
     </div>
   );

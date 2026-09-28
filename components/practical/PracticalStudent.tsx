@@ -1,19 +1,36 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { IdeWorkspace, type SaveStatus } from "@/components/practical/IdeWorkspace";
+import {
+  IdeWorkspace,
+  type SaveStatus,
+} from "@/components/practical/IdeWorkspace";
 import { PinInput } from "@/components/tests/PinInput";
 import { ProctorWarning } from "@/components/tests/ProctorWarning";
 import { SecondTabBlocked } from "@/components/tests/SecondTabBlocked";
 import { friendlyError } from "@/lib/errors";
 import { useProctorGuard, type ProctorKind } from "@/lib/hooks/useProctorGuard";
 import { useSingleTabLock } from "@/lib/hooks/useSingleTabLock";
-import { parseAttemptState, parseEvent, parseJoin, parseSave, parseSubmit } from "@/lib/practical/parse";
-import { PRACTICAL_LIMITS, validateFiles, validatePracticalName } from "@/lib/practical/validation";
+import {
+  parseAttemptState,
+  parseEvent,
+  parseJoin,
+  parseSave,
+  parseSubmit,
+} from "@/lib/practical/parse";
+import {
+  PRACTICAL_LIMITS,
+  validateFiles,
+  validatePracticalName,
+} from "@/lib/practical/validation";
 import { formatClock } from "@/lib/tests";
 import { getBrowserSupabase } from "@/lib/supabase/client";
 import { LIMITS, parseServerTime, validatePin } from "@/lib/validation";
-import type { AttemptState, PracticalEndedReason, ProjectFile } from "@/types/practical";
+import type {
+  AttemptState,
+  PracticalEndedReason,
+  ProjectFile,
+} from "@/types/practical";
 import { ArrowRight, CircleCheckBig, Lock, Timer, User } from "lucide-react";
 
 const TOKEN_KEY = "inf03.practical.token";
@@ -77,7 +94,9 @@ export function PracticalStudent() {
     filesRef.current = next.files;
     setLastSavedAt(next.lastSavedAt);
     clockOffsetRef.current = Date.parse(next.session.serverNow) - Date.now();
-    endsAtRef.current = next.session.endsAt ? Date.parse(next.session.endsAt) : null;
+    endsAtRef.current = next.session.endsAt
+      ? Date.parse(next.session.endsAt)
+      : null;
 
     if (next.status !== "in_progress") {
       submittedRef.current = true;
@@ -97,7 +116,10 @@ export function PracticalStudent() {
     if (!token) return;
     tokenRef.current = token;
     void (async () => {
-      const { data, error } = await getBrowserSupabase().rpc("practical_state", { p_token: token });
+      const { data, error } = await getBrowserSupabase().rpc(
+        "practical_state",
+        { p_token: token },
+      );
       if (error) {
         writeToken(null);
         tokenRef.current = null;
@@ -114,13 +136,19 @@ export function PracticalStudent() {
     const id = window.setInterval(async () => {
       const token = tokenRef.current;
       if (!token) return;
-      const { data, error } = await getBrowserSupabase().rpc("practical_state", { p_token: token });
+      const { data, error } = await getBrowserSupabase().rpc(
+        "practical_state",
+        { p_token: token },
+      );
       if (error) return;
       const parsed = parseAttemptState(data);
       if (parsed) {
         setState(parsed);
-        clockOffsetRef.current = Date.parse(parsed.session.serverNow) - Date.now();
-        endsAtRef.current = parsed.session.endsAt ? Date.parse(parsed.session.endsAt) : null;
+        clockOffsetRef.current =
+          Date.parse(parsed.session.serverNow) - Date.now();
+        endsAtRef.current = parsed.session.endsAt
+          ? Date.parse(parsed.session.endsAt)
+          : null;
         if (parsed.session.status === "finished") setPhase("finished");
       }
     }, 5000);
@@ -155,7 +183,8 @@ export function PracticalStudent() {
     setResetIn(20);
     setPhase("join");
 
-    if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
+    if (document.fullscreenElement)
+      void document.exitFullscreen().catch(() => undefined);
   }, []);
 
   // odliczanie do automatycznego powrotu po oddaniu pracy
@@ -249,7 +278,8 @@ export function PracticalStudent() {
 
     if (error) {
       setSaveStatus("error");
-      if (error.message.includes("time_up")) setNotice("Czas minął — praca zostanie oddana automatycznie.");
+      if (error.message.includes("time_up"))
+        setNotice("Czas minął — praca zostanie oddana automatycznie.");
       return false;
     }
     const parsed = parseSave(data);
@@ -269,8 +299,12 @@ export function PracticalStudent() {
       filesRef.current = next;
       dirtyRef.current = true;
       setSaveStatus("saving");
-      if (debounceRef.current !== null) window.clearTimeout(debounceRef.current);
-      debounceRef.current = window.setTimeout(() => void save(), AUTOSAVE_DEBOUNCE_MS);
+      if (debounceRef.current !== null)
+        window.clearTimeout(debounceRef.current);
+      debounceRef.current = window.setTimeout(
+        () => void save(),
+        AUTOSAVE_DEBOUNCE_MS,
+      );
     },
     [save],
   );
@@ -285,51 +319,64 @@ export function PracticalStudent() {
   }, [phase, save]);
 
   // ------------------------------------------------------------- oddanie
-  const submit = useCallback(
-    async (reason: PracticalEndedReason) => {
-      const token = tokenRef.current;
-      if (!token || submittedRef.current) return;
-      submittedRef.current = true;
-      setSubmitting(true);
-
-      const { data, error } = await getBrowserSupabase().rpc("practical_submit", {
-        p_token: token,
-        p_files: filesRef.current,
-        p_reason: reason,
-      });
-      setSubmitting(false);
-
-      if (error) {
-        submittedRef.current = false;
-        setNotice(friendlyError(error, "Nie udało się oddać pracy. Spróbuj jeszcze raz."));
-        return;
-      }
-      // Tokenu wyniku uczniowi nie pokazujemy — ocenę ogłasza nauczyciel.
-      // Sprawdzamy tylko, czy serwer potwierdził przyjęcie pracy.
-      if (parseSubmit(data) === null) {
-        setNotice("Praca została wysłana, ale serwer odpowiedział nietypowo. Zgłoś to nauczycielowi.");
-      }
-      setResetIn(20);
-      setPhase("submitted");
-      if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
-    },
-    [],
-  );
-
-  // ------------------------------------------------- nadzór: karta i pełny ekran
-  const reportSwitch = useCallback(async (kind: ProctorKind) => {
+  const submit = useCallback(async (reason: PracticalEndedReason) => {
     const token = tokenRef.current;
     if (!token || submittedRef.current) return;
-    const { data, error } = await getBrowserSupabase().rpc("practical_event", {
+    submittedRef.current = true;
+    setSubmitting(true);
+
+    const { data, error } = await getBrowserSupabase().rpc("practical_submit", {
       p_token: token,
-      p_type: kind === "tab" ? "tab_hidden" : kind === "focus" ? "focus_lost" : "fullscreen_exit",
-      p_details: {},
+      p_files: filesRef.current,
+      p_reason: reason,
     });
-    if (error) return;
-    // o zakończeniu decyduje serwer, który prowadzi licznik
-    const parsed = parseEvent(data);
-    if (parsed?.shouldEnd) void submit("tab_switch");
-  }, [submit]);
+    setSubmitting(false);
+
+    if (error) {
+      submittedRef.current = false;
+      setNotice(
+        friendlyError(error, "Nie udało się oddać pracy. Spróbuj jeszcze raz."),
+      );
+      return;
+    }
+    // Tokenu wyniku uczniowi nie pokazujemy — ocenę ogłasza nauczyciel.
+    // Sprawdzamy tylko, czy serwer potwierdził przyjęcie pracy.
+    if (parseSubmit(data) === null) {
+      setNotice(
+        "Praca została wysłana, ale serwer odpowiedział nietypowo. Zgłoś to nauczycielowi.",
+      );
+    }
+    setResetIn(20);
+    setPhase("submitted");
+    if (document.fullscreenElement)
+      void document.exitFullscreen().catch(() => undefined);
+  }, []);
+
+  // ------------------------------------------------- nadzór: karta i pełny ekran
+  const reportSwitch = useCallback(
+    async (kind: ProctorKind) => {
+      const token = tokenRef.current;
+      if (!token || submittedRef.current) return;
+      const { data, error } = await getBrowserSupabase().rpc(
+        "practical_event",
+        {
+          p_token: token,
+          p_type:
+            kind === "tab"
+              ? "tab_hidden"
+              : kind === "focus"
+                ? "focus_lost"
+                : "fullscreen_exit",
+          p_details: {},
+        },
+      );
+      if (error) return;
+      // o zakończeniu decyduje serwer, który prowadzi licznik
+      const parsed = parseEvent(data);
+      if (parsed?.shouldEnd) void submit("tab_switch");
+    },
+    [submit],
+  );
 
   const { showWarning, dismissWarning, lastKind } = useProctorGuard({
     active: phase === "working",
@@ -339,7 +386,10 @@ export function PracticalStudent() {
   });
 
   // Praca tylko w jednej karcie — druga dostaje ekran z informacją.
-  const secondTab = useSingleTabLock("praktyka", phase === "working" || phase === "lobby");
+  const secondTab = useSingleTabLock(
+    "praktyka",
+    phase === "working" || phase === "lobby",
+  );
 
   const onLargePaste = useCallback((length: number, file: string) => {
     const token = tokenRef.current;
@@ -359,7 +409,9 @@ export function PracticalStudent() {
     const id = window.setInterval(async () => {
       const token = tokenRef.current;
       if (!token || submittedRef.current) return;
-      const { data, error } = await getBrowserSupabase().rpc("practical_time", { p_token: token });
+      const { data, error } = await getBrowserSupabase().rpc("practical_time", {
+        p_token: token,
+      });
       if (error) return;
       const parsed = parseServerTime(data);
       if (!parsed) return;
@@ -399,28 +451,45 @@ export function PracticalStudent() {
     try {
       await document.documentElement.requestFullscreen();
     } catch {
-      setNotice("Bez trybu pełnoekranowego nie można rozpocząć. Zezwól przeglądarce na pełny ekran i spróbuj ponownie.");
+      setNotice(
+        "Bez trybu pełnoekranowego nie można rozpocząć. Zezwól przeglądarce na pełny ekran i spróbuj ponownie.",
+      );
       return;
     }
     // Gdyby serwer nie podał terminu (sesja bez ends_at albo błąd RPC), odliczamy
     // lokalnie od limitu sesji — lepiej to niż zamrożone 0:00. Najbliższa
     // synchronizacja z serwerem i tak nadpisze ten termin.
     if (endsAtRef.current === null) {
-      endsAtRef.current = Date.now() + clockOffsetRef.current + state.session.minutes * 60000;
+      endsAtRef.current =
+        Date.now() + clockOffsetRef.current + state.session.minutes * 60000;
     }
-    await getBrowserSupabase().rpc("practical_event", { p_token: token, p_type: "start", p_details: {} });
+    await getBrowserSupabase().rpc("practical_event", {
+      p_token: token,
+      p_type: "start",
+      p_details: {},
+    });
     setNotice(null);
     setPhase("working");
   };
 
   const confirmSubmit = () => {
-    const left = remainingSec > 0 ? `Do końca zostało jeszcze ${formatClock(remainingSec)}. ` : "";
-    if (window.confirm(`${left}Zakończyć podejście i oddać pracę? Po oddaniu nie można już nic zmienić.`))
+    const left =
+      remainingSec > 0
+        ? `Do końca zostało jeszcze ${formatClock(remainingSec)}. `
+        : "";
+    if (
+      window.confirm(
+        `${left}Zakończyć podejście i oddać pracę? Po oddaniu nie można już nic zmienić.`,
+      )
+    )
       void submit("completed");
   };
 
   // =============================================================== ekrany
-  if (secondTab) return <SecondTabBlocked title="Praca praktyczna jest już otwarta w innej karcie" />;
+  if (secondTab)
+    return (
+      <SecondTabBlocked title="Praca praktyczna jest już otwarta w innej karcie" />
+    );
 
   if (phase === "working" && state) {
     return (
@@ -429,7 +498,11 @@ export function PracticalStudent() {
           <ProctorWarning
             kind={lastKind}
             onConfirm={dismissWarning}
-            onReturnFullscreen={() => void document.documentElement.requestFullscreen().catch(() => undefined)}
+            onReturnFullscreen={() =>
+              void document.documentElement
+                .requestFullscreen()
+                .catch(() => undefined)
+            }
           />
         )}
         <IdeWorkspace
@@ -459,15 +532,25 @@ export function PracticalStudent() {
     return (
       <div className="mx-auto max-w-lg animate-fade-up">
         <div className="card p-6 text-center sm:p-8">
-          <CircleCheckBig size={40} className="mx-auto text-accent" aria-hidden />
+          <CircleCheckBig
+            size={40}
+            className="mx-auto text-accent"
+            aria-hidden
+          />
           <h1 className="mt-4 text-2xl font-bold">Praca oddana</h1>
           <p className="mt-2 text-muted">
-            {state?.studentName}, Twoja praca została zapisana. Wynik ogłosi nauczyciel po sprawdzeniu.
+            {state?.studentName}, Twoja praca została zapisana. Wynik ogłosi
+            nauczyciel po sprawdzeniu.
           </p>
           <p className="mt-6 text-sm text-muted">
-            Ekran wróci do wyboru egzaminu za <span className="font-mono text-accent">{resetIn}</span> s.
+            Ekran wróci do wyboru egzaminu za{" "}
+            <span className="font-mono text-accent">{resetIn}</span> s.
           </p>
-          <button type="button" className="btn-primary mt-4 w-full py-3" onClick={resetToJoin}>
+          <button
+            type="button"
+            className="btn-primary mt-4 w-full py-3"
+            onClick={resetToJoin}
+          >
             Gotowe — zwolnij komputer
           </button>
         </div>
@@ -480,7 +563,10 @@ export function PracticalStudent() {
       <div className="card mx-auto max-w-lg p-8 text-center">
         <Lock size={32} className="mx-auto text-muted" aria-hidden />
         <p className="mt-3 text-lg font-semibold">Sesja została zakończona</p>
-        <p className="mt-1 text-muted">Nauczyciel zamknął tę sesję. Twoja praca (jeśli została oddana) czeka na ocenę.</p>
+        <p className="mt-1 text-muted">
+          Nauczyciel zamknął tę sesję. Twoja praca (jeśli została oddana) czeka
+          na ocenę.
+        </p>
       </div>
     );
   }
@@ -506,20 +592,35 @@ export function PracticalStudent() {
           {active ? (
             <>
               <div className="alert-ok mt-6 text-left">
-                Nauczyciel rozpoczął egzamin. Po kliknięciu poniżej strona przejdzie w tryb pełnoekranowy.
+                Nauczyciel rozpoczął egzamin. Po kliknięciu poniżej strona
+                przejdzie w tryb pełnoekranowy.
               </div>
               <ul className="mt-4 space-y-1 text-left text-sm text-muted">
-                <li>• Wyjście z pełnego ekranu, zmiana karty i przejście do innego okna są rejestrowane.</li>
+                <li>
+                  • Wyjście z pełnego ekranu, zmiana karty i przejście do innego
+                  okna są rejestrowane.
+                </li>
                 <li>• Za drugim razem praca zostanie oddana automatycznie.</li>
-                <li>• Czas liczy serwer — zmiana zegara w komputerze nic nie daje.</li>
-                <li>• Kod zapisuje się sam — po odświeżeniu strony wracasz do swojej pracy.</li>
+                <li>
+                  • Czas liczy serwer — zmiana zegara w komputerze nic nie daje.
+                </li>
+                <li>
+                  • Kod zapisuje się sam — po odświeżeniu strony wracasz do
+                  swojej pracy.
+                </li>
               </ul>
-              <button type="button" className="btn-primary mt-6 w-full py-3" onClick={() => void startWork()}>
+              <button
+                type="button"
+                className="btn-primary mt-6 w-full py-3"
+                onClick={() => void startWork()}
+              >
                 Rozpocznij pracę ▶
               </button>
             </>
           ) : (
-            <p className="mt-6 animate-pulse text-muted">Czekaj na rozpoczęcie przez nauczyciela…</p>
+            <p className="mt-6 animate-pulse text-muted">
+              Czekaj na rozpoczęcie przez nauczyciela…
+            </p>
           )}
           {notice && <p className="alert-error mt-4 text-left">{notice}</p>}
         </div>
@@ -532,9 +633,13 @@ export function PracticalStudent() {
     <div className="mx-auto max-w-md animate-fade-up">
       <div className="card p-6 sm:p-8">
         <div className="text-center">
-          <p className="eyebrow">{"// część praktyczna"}</p>
-          <h1 className="mt-2 text-2xl font-bold tracking-tight">Egzamin praktyczny</h1>
-          <p className="mt-2 text-sm text-muted">Wpisz PIN sesji od nauczyciela i swoje imię.</p>
+          {/* <p className="eyebrow">{"// część praktyczna"}</p> */}
+          <h1 className="mt-2 text-2xl font-bold tracking-tight">
+            Egzamin praktyczny
+          </h1>
+          <p className="mt-2 text-sm text-muted">
+            Wpisz PIN sesji od nauczyciela i swoje imię.
+          </p>
         </div>
 
         <form onSubmit={join} className="mt-7 space-y-5" noValidate>
@@ -577,7 +682,11 @@ export function PracticalStudent() {
           <button
             type="submit"
             className="btn-primary w-full py-3"
-            disabled={joining || pin.length !== LIMITS.pinLength || name.trim().length < 2}
+            disabled={
+              joining ||
+              pin.length !== LIMITS.pinLength ||
+              name.trim().length < 2
+            }
           >
             {joining ? (
               "Dołączanie…"
@@ -589,7 +698,8 @@ export function PracticalStudent() {
           </button>
         </form>
         <p className="mt-5 text-center text-xs leading-relaxed text-muted">
-          Pracujesz w przeglądarce: arkusz, edytor kodu i podgląd strony. Wszystko zapisuje się automatycznie.
+          Pracujesz w przeglądarce: arkusz, edytor kodu i podgląd strony.
+          Wszystko zapisuje się automatycznie.
         </p>
       </div>
     </div>

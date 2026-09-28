@@ -54,7 +54,7 @@ CHECK-i i funkcje. **Każda zmiana w `supabase/*.sql` musi mieć pokrycie w `tes
 | `010_inf04.sql` | druga kwalifikacja: tabela `classes` (FK zamiast list w CHECK-ach), `qualification` w `categories` i `tests`, `create_test` z szóstym argumentem |
 | `011_inf04_seed.sql` | mapa INF.04: 12 kategorii, ponad 50 podtematów, materiały do C# i Reacta |
 | `012_progress_author.sql` | `progress.marked_by` stemplowane triggerem, `admins.display_name`, widok `teachers`, `set_my_display_name()`; naprawia rekurencyjną politykę odczytu `admins` z 008 |
-| `015_admin_invites.sql` | lista `admin_invites` + trigger na `auth.users`: zaproszony adres dostaje uprawnienia przy zakładaniu konta; wpisy na listę tylko z SQL Editora |
+| `015_admin_invites.sql` (+ strona `/admin/haslo`) | lista `admin_invites` + trigger na `auth.users`: zaproszony adres dostaje uprawnienia przy zakładaniu konta; wpisy na listę tylko z SQL Editora |
 | `014_progress_log.sql` | `progress_log`: trigger zapisuje każde zaznaczenie i odznaczenie tematu (kto, kiedy, klasa); czyta i sprząta tylko nauczyciel, uczeń nie ma dostępu |
 | `013_progress_author_fix.sql` | trigger stempluje tylko przy zalogowanym użytkowniku, żeby dało się uzupełnić starych autorów z SQL Editora (ta sama treść funkcji jest w 012 — ponowne uruchomienie 012 nie może cofnąć poprawki) |
 
@@ -139,6 +139,19 @@ je czytać i kasować, nigdy dopisywać ani zmieniać. Dziennika **nie widzi ucz
 W **Wynikach** nauczyciel kasuje pojedyncze wpisy i „widoczne” — czyli te po filtrze,
 z liczbą w potwierdzeniu. To celowe: zawężasz filtrem, potem kasujesz. W Logach jest
 analogiczne „wyczyść starsze niż 90 dni”.
+
+## Zaproszenia i ustawianie hasła
+
+Projekt **nie ma rejestracji** i mieć nie powinien — konta zakłada się zaproszeniem
+z panelu Supabase. Link z mejla wraca na Site URL z danymi sesji po krzyżyku
+(`#access_token=…`) albo jako `?code=…`. Bez obsługi trafiał na mapę nauki i token
+przepadał, więc nie dało się ustawić hasła.
+
+Odbiera go `components/shell/InviteCatcher.tsx` (wpięty w `AppShell`, działa na każdej
+stronie) i przenosi na `/admin/haslo` razem z tokenem. Tam `SetPasswordForm` zakłada sesję
+(`setSession` albo `exchangeCodeForSession`), **czyści token z paska adresu** i pozwala
+ustawić hasło. Middleware przepuszcza tę stronę bez sesji — tak jak logowanie — bo sesja
+dopiero tam powstaje.
 
 ## Rzeczy, które łatwo zepsuć
 

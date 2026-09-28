@@ -71,7 +71,9 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
     router.refresh();
   };
 
-  const onAdmin = pathname.startsWith("/admin") && pathname !== "/admin/login";
+  // Na logowaniu i przy ustawianiu hasła nikt nie jest jeszcze zalogowany —
+  // sekcje panelu i wylogowanie nie mają tam sensu.
+  const onAdmin = pathname.startsWith("/admin") && pathname !== "/admin/login" && pathname !== "/admin/haslo";
   const section = params.get("sekcja");
   const activeSection: AdminSection = isAdminSection(section) ? section : "progress";
   // Uczeń wybiera klasę tutaj; w panelu nauczyciela wybór stoi nad paskiem postępu,

@@ -4,6 +4,7 @@ import { Menu, X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { Suspense, useEffect, useState, type ReactNode } from "react";
 import { Brand } from "@/components/shell/Brand";
+import { InviteCatcher } from "@/components/shell/InviteCatcher";
 import { Sidebar } from "@/components/shell/Sidebar";
 
 /**
@@ -33,6 +34,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen lg:flex">
+      <InviteCatcher />
       {/* pasek boczny — stały na dużych ekranach */}
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 border-r border-line bg-panel lg:block">
         <Suspense fallback={null}>
