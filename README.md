@@ -32,6 +32,7 @@ Stack: Next.js 15 (App Router) · TypeScript (strict) · Tailwind CSS · Supabas
    - `supabase/013_progress_author_fix.sql` — poprawka: ręczne uzupełnienie autorów z SQL Editora
    - `supabase/014_progress_log.sql` — dziennik oznaczeń tematów (sekcja Logi w panelu)
    - `supabase/015_admin_invites.sql` — zaproszenia: nowy nauczyciel dostaje uprawnienia sam, przy zakładaniu konta
+   - `supabase/016_cpp_grafika_java.sql` — działy C++ i grafika (GIMP) dla INF.03 oraz C++ i Java dla INF.04
 
    Masz już bazę z poprzedniej wersji? Uruchom brakujące migracje (`002…`, `003…`) — nic nie nadpisują,
    a ponowne uruchomienie niczego nie duplikuje.
