@@ -33,6 +33,7 @@ Stack: Next.js 15 (App Router) · TypeScript (strict) · Tailwind CSS · Supabas
    - `supabase/014_progress_log.sql` — dziennik oznaczeń tematów (sekcja Logi w panelu)
    - `supabase/015_admin_invites.sql` — zaproszenia: nowy nauczyciel dostaje uprawnienia sam, przy zakładaniu konta
    - `supabase/016_cpp_grafika_java.sql` — działy C++ i grafika (GIMP) dla INF.03 oraz C++ i Java dla INF.04
+   - `supabase/017_praktyka_todo_kalkulator.sql` — dwa zadania praktyczne na 60 minut (lista zadań, kalkulator napiwku)
 
    Masz już bazę z poprzedniej wersji? Uruchom brakujące migracje (`002…`, `003…`) — nic nie nadpisują,
    a ponowne uruchomienie niczego nie duplikuje.

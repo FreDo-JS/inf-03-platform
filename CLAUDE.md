@@ -54,6 +54,7 @@ CHECK-i i funkcje. **Każda zmiana w `supabase/*.sql` musi mieć pokrycie w `tes
 | `010_inf04.sql` | druga kwalifikacja: tabela `classes` (FK zamiast list w CHECK-ach), `qualification` w `categories` i `tests`, `create_test` z szóstym argumentem |
 | `011_inf04_seed.sql` | mapa INF.04: 12 kategorii, ponad 50 podtematów, materiały do C# i Reacta |
 | `012_progress_author.sql` | `progress.marked_by` stemplowane triggerem, `admins.display_name`, widok `teachers`, `set_my_display_name()`; naprawia rekurencyjną politykę odczytu `admins` z 008 |
+| `017_praktyka_todo_kalkulator.sql` | dwa zadania praktyczne na 60 min: lista zadań i kalkulator napiwku; wzorce przechodzą testy w 100%, pliki startowe dają 7 pkt |
 | `016_cpp_grafika_java.sql` | nowe działy mapy: C++ i grafika (GIMP) w INF.03, C++ i Java w INF.04 — same dane, pozycje kategorii 9–10 i 13–14 |
 | `015_admin_invites.sql` (+ strona `/admin/haslo`) | lista `admin_invites` + trigger na `auth.users`: zaproszony adres dostaje uprawnienia przy zakładaniu konta; wpisy na listę tylko z SQL Editora |
 | `014_progress_log.sql` | `progress_log`: trigger zapisuje każde zaznaczenie i odznaczenie tematu (kto, kiedy, klasa); czyta i sprząta tylko nauczyciel, uczeń nie ma dostępu |
