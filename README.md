@@ -167,9 +167,12 @@ powstaje w dwóch krokach — testy automatyczne, potem weryfikacja nauczyciela.
    Sesja dostaje 6-cyfrowy PIN i przechodzi: poczekalnia → trwa → zakończona. Czas startuje jednym
    kliknięciem dla całej klasy (zegar serwera). Tabela na żywo: kto dołączył, kiedy ostatnio zapisał,
    ile zmian karty i dużych wklejeń, czy oddał.
+   Zakończoną sesję można **usunąć** — razem z nią znikają wszystkie jej prace, więc potwierdzenie
+   podaje ich liczbę i przypomina o wcześniejszym eksporcie CSV.
 3. *Prace* — podgląd plików (Monaco tylko do odczytu) i działającej strony, uruchomienie testów,
    korekta wyniku testu (z wymaganym uzasadnieniem; oryginał automatu zostaje), punkty za kryteria
-   ręczne, komentarz, publikacja i eksport CSV.
+   ręczne, komentarz, publikacja i eksport CSV. Każdą pracę można **usunąć** pojedynczo (kosz
+   przy wierszu), gdyby w bazie miała zostać tylko część podejść.
 
 **Uczeń:** `/praktyka` → PIN i imię → poczekalnia → tryb pełnoekranowy → IDE (arkusz | edytor | podgląd).
 Kod zapisuje się sam (3 s po przerwie w pisaniu i co 30 s), odświeżenie strony wraca do pracy.
@@ -284,6 +287,10 @@ nadrobi zaległości.
 - **Wyniki** — każdy wpis ma kosz, a w pasku narzędzi jest „Usuń widoczne (N)”, które
   kasuje dokładnie to, co zostało po filtrze (potwierdzenie podaje liczbę). Tak czyścisz
   bazę po serii kartkówek bez kasowania wszystkiego naraz.
+- **Praktyka** — w *Sesjach* kosz przy zakończonej sesji kasuje ją wraz z pracami i zapisem
+  nadzoru (kaskada w bazie), a w *Pracach* kosz przy wierszu kasuje pojedyncze podejście.
+  Zadanie zostaje nienaruszone i można je wykorzystać w kolejnej sesji. Eksportuj CSV, zanim
+  skasujesz — z bazy nie da się tego odzyskać.
 - **Logi** — nowa sekcja z historią oznaczeń tematów: kiedy, w której klasie, jaki temat,
   zaznaczono czy odznaczono i przez kogo. Historia zostaje nawet po cofnięciu oznaczenia,
   bo zapisuje ją trigger w bazie (migracja `014_progress_log.sql`), a nie sama tabela

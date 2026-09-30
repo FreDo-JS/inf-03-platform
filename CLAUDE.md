@@ -236,6 +236,11 @@ Tabem i wyjść z egzaminu. Czas pokazuje `formatClock` (h:mm:ss) — `formatDur
 150 minut „150:00”. Gdy serwer nie poda `ends_at`, `startWork` ustawia termin lokalnie z
 `session.minutes`, żeby zegar nie stał na 0:00.
 
+**Praktyka — sprzątanie**: zakończoną sesję i pojedyncze prace kasuje nauczyciel wprost z tabel
+(`practical_sessions` / `practical_attempts`), bez funkcji RPC — polityki `admin all practical_*`
+już na to pozwalają, a `on delete cascade` zabiera prace i zdarzenia. Przycisk przy sesji pokazuje
+się dopiero przy statusie `finished`, żeby nikt nie skasował trwającego egzaminu klasie spod rąk.
+
 **Praktyka — koniec pracy**: uczeń **nie dostaje linku do wyniku**. Po „Zakończ i oddaj"
 ekran wraca do wpisywania PIN-u (20 s albo od razu przyciskiem), czyszcząc token, pliki
 i zegar, żeby usiadł kolejny uczeń. Link do wyniku kopiuje nauczyciel w zakładce *Prace*.

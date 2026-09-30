@@ -104,6 +104,73 @@ try {
   ok("nauczyciel tworzy sesję na 60 minut", false, e.message);
 }
 
+console.log("\n== SPRZATANIE PO EGZAMINIE ==");
+// Nauczyciel kasuje zakonczone sesje i pojedyncze prace, zeby nie zalegaly
+// w bazie. Klucze obce maja ON DELETE CASCADE, wiec sprawdzamy, czy razem
+// z sesja znikaja prace i zdarzenia, czy zadanie zostaje i czy uczen nic
+// nie skasuje.
+const jakoAdmin = () => db.exec(`reset role; select set_config('request.jwt.claim.role','authenticated',false);
+  select set_config('request.jwt.claim.sub','11111111-1111-1111-1111-111111111111',false); set role authenticated;`);
+const jakoUczen = () => db.exec(`reset role; select set_config('request.jwt.claim.role','anon',false);
+  select set_config('request.jwt.claim.sub','',false); set role anon;`);
+const dodajPrace = async (sesjaId, imie) => {
+  await db.exec('reset role;');
+  const a = (await db.query(
+    `insert into practical_attempts (session_id, student_name, attempt_token_hash, result_token)
+     values ($1::uuid, $2, $3, $4) returning id`,
+    [sesjaId, imie, 'hash-' + imie, 'wynik-' + imie],
+  )).rows[0].id;
+  await db.query(`insert into practical_events (attempt_id, type) values ($1::uuid, 'start')`, [a]);
+  return a;
+};
+const ile = async (sql, param) => (await db.query(sql, [param])).rows[0].n;
+
+await jakoAdmin();
+const sesja = (await db.query(`select practical_create_session($1::uuid, '2a', 60) as s`, [id])).rows[0].s;
+const praca = await dodajPrace(sesja.id, 'Ala');
+await db.query(`select practical_finish_session($1::uuid)`, [sesja.id]).catch(() => {});
+
+// uczen nie ma zadnej polityki na tych tabelach — kasowanie nic nie rusza
+await jakoUczen();
+let uczenSkasowal = null;
+try {
+  uczenSkasowal = (await db.query(
+    `with d as (delete from practical_attempts where id = $1::uuid returning 1) select count(*)::int n from d`,
+    [praca],
+  )).rows[0].n;
+} catch { uczenSkasowal = 'blad'; }
+ok('uczen nie skasuje cudzej pracy', uczenSkasowal === 0 || uczenSkasowal === 'blad', String(uczenSkasowal));
+await db.exec('reset role;');
+ok('  …praca nadal jest w bazie', (await ile(`select count(*)::int n from practical_attempts where id = $1::uuid`, praca)) === 1);
+
+// nauczyciel kasuje pojedyncza prace — razem z jej zdarzeniami
+await jakoAdmin();
+const usuniete = (await db.query(
+  `with d as (delete from practical_attempts where id = $1::uuid returning 1) select count(*)::int n from d`,
+  [praca],
+)).rows[0].n;
+ok('nauczyciel kasuje pojedyncza prace', usuniete === 1);
+await db.exec('reset role;');
+ok('  …zdarzenia tej pracy znikaja kaskadowo',
+  (await ile(`select count(*)::int n from practical_events where attempt_id = $1::uuid`, praca)) === 0);
+
+// kasowanie sesji zabiera ze soba pozostale prace
+const praca2 = await dodajPrace(sesja.id, 'Bartek');
+await jakoAdmin();
+const usSesji = (await db.query(
+  `with d as (delete from practical_sessions where id = $1::uuid returning 1) select count(*)::int n from d`,
+  [sesja.id],
+)).rows[0].n;
+ok('nauczyciel kasuje zakonczona sesje', usSesji === 1);
+await db.exec('reset role;');
+ok('  …prace z tej sesji znikaja razem z nia',
+  (await ile(`select count(*)::int n from practical_attempts where id = $1::uuid`, praca2)) === 0);
+ok('  …i ich zdarzenia tez',
+  (await ile(`select count(*)::int n from practical_events where attempt_id = $1::uuid`, praca2)) === 0);
+ok('samo zadanie zostaje i da sie je uzyc ponownie',
+  (await ile(`select count(*)::int n from practical_tasks where id = $1::uuid`, id)) === 1);
+await db.exec('reset role;');
+
 console.log("\n== IDEMPOTENCJA ==");
 await db.exec("reset role;");
 const przed = (await db.query(`select count(*)::int n from practical_tasks`)).rows[0].n;

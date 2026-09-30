@@ -7,7 +7,7 @@ import { fetchTasks } from "@/lib/practical/tasks";
 import { getBrowserSupabase } from "@/lib/supabase/client";
 import { CLASS_NAMES, CLASS_QUALIFICATION, QUALIFICATIONS, QUALIFICATION_LABEL } from "@/types/db";
 import type { PracticalAttemptRow, PracticalSessionRow, PracticalTaskRow, SessionStatus } from "@/types/practical";
-import { MonitorPlay, Timer } from "lucide-react";
+import { MonitorPlay, Timer, Trash2 } from "lucide-react";
 
 const SESSION_COLUMNS = "id, task_id, class_name, pin, status, minutes, allow_paste, pass_threshold, started_at, ends_at, created_at" as const;
 const ATTEMPT_MONITOR_COLUMNS =
@@ -116,6 +116,31 @@ export function PracticalSessionsTab() {
     const { error: rpcError } = await getBrowserSupabase().rpc("practical_finish_session", { p_session_id: session.id });
     setBusy(false);
     if (rpcError) setError(friendlyError(rpcError, "Nie udało się zakończyć sesji."));
+    void load();
+  };
+
+  /**
+   * Usunięcie zakończonej sesji. Klucze obce mają ON DELETE CASCADE, więc razem
+   * z sesją znikają wszystkie prace uczniów i zapisane zdarzenia — dlatego
+   * w potwierdzeniu podajemy, ile prac przepadnie, i pozwalamy na to dopiero
+   * po zakończeniu sesji.
+   */
+  const deleteSession = async (session: PracticalSessionRow) => {
+    const prace = attempts.filter((a) => a.session_id === session.id).length;
+    const ostrzezenie =
+      prace === 0
+        ? "Usunąć tę sesję?"
+        : `Usunąć tę sesję razem z ${prace} pracami uczniów?\n\nPrace znikną z bazy bezpowrotnie — jeśli są potrzebne, najpierw wyeksportuj je do CSV w zakładce Prace.`;
+    if (!window.confirm(`${ostrzezenie}\n\nTej operacji nie da się cofnąć.`)) return;
+
+    setBusy(true);
+    setError(null);
+    const { error: dbError } = await getBrowserSupabase().from("practical_sessions").delete().eq("id", session.id);
+    setBusy(false);
+    if (dbError) {
+      setError(friendlyError(dbError, "Nie udało się usunąć sesji."));
+      return;
+    }
     void load();
   };
 
@@ -256,6 +281,11 @@ export function PracticalSessionsTab() {
                   {s.status !== "finished" && (
                     <button type="button" className="btn-danger btn-sm" onClick={() => void finishSession(s)} disabled={busy}>
                       Zakończ sesję
+                    </button>
+                  )}
+                  {s.status === "finished" && (
+                    <button type="button" className="btn-danger btn-sm" onClick={() => void deleteSession(s)} disabled={busy}>
+                      <Trash2 size={14} aria-hidden /> Usuń sesję z pracami
                     </button>
                   )}
                   {s.ends_at && s.status === "active" && (

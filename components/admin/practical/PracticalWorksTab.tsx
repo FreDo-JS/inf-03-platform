@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { WorkReview } from "@/components/admin/practical/WorkReview";
+import { friendlyError } from "@/lib/errors";
 import { downloadCsv, toCsv } from "@/lib/practical/csv";
 import { parseAutoResults, parseFiles, parseManualScores, parseOverrides } from "@/lib/practical/parse";
 import { runAutoTests, type RunProgress } from "@/lib/practical/runner";
@@ -9,7 +10,7 @@ import { fetchTasks } from "@/lib/practical/tasks";
 import { getBrowserSupabase } from "@/lib/supabase/client";
 import type { Json } from "@/types/db";
 import type { PracticalAttemptRow, PracticalSessionRow, PracticalTaskRow } from "@/types/practical";
-import { Download } from "lucide-react";
+import { Download, Trash2 } from "lucide-react";
 
 const ATTEMPT_COLUMNS =
   "id, session_id, student_name, result_token, files, last_saved_at, status, submitted_at, ended_reason, tab_switch_count, large_paste_count, auto_results, auto_checked_at, overrides, manual_scores, teacher_comment, final_percent, published_at, created_at" as const;
@@ -230,6 +231,26 @@ export function PracticalWorksTab() {
     );
   }
 
+  /**
+   * Usunięcie jednej pracy. Kasuje też powiązane zdarzenia (kaskada w bazie).
+   * Ocena i pliki ucznia przepadają, więc pytamy wprost i imiennie.
+   */
+  const deleteAttempt = async (a: PracticalAttemptRow) => {
+    if (busy) return;
+    if (!window.confirm(`Usunąć pracę: ${a.student_name}?\n\nPliki i ocena znikną z bazy. Tej operacji nie da się cofnąć.`)) return;
+
+    setBusy(true);
+    setError(null);
+    const { error: dbError } = await getBrowserSupabase().from("practical_attempts").delete().eq("id", a.id);
+    setBusy(false);
+    if (dbError) {
+      setError(friendlyError(dbError, "Nie udało się usunąć pracy."));
+      return;
+    }
+    if (openId === a.id) setOpenId(null);
+    setAttempts((prev) => prev.filter((x) => x.id !== a.id));
+  };
+
   return (
     <div className="space-y-4">
       <div className="card flex flex-wrap items-end gap-3 p-4">
@@ -321,14 +342,25 @@ export function PracticalWorksTab() {
                     {a.ended_reason === "time_up" && <span className="chip border-warn/50 text-warn">koniec czasu</span>}
                     {a.ended_reason === "teacher_ended" && <span className="chip">zakończone przez nauczyciela</span>}
                   </div>
-                  <button
-                    type="button"
-                    className="btn-ghost btn-sm mt-3 w-full"
-                    onClick={() => setOpenId(a.id)}
-                    disabled={a.status === "in_progress"}
-                  >
-                    Otwórz pracę
-                  </button>
+                  <div className="mt-3 flex gap-2">
+                    <button
+                      type="button"
+                      className="btn-ghost btn-sm flex-1"
+                      onClick={() => setOpenId(a.id)}
+                      disabled={a.status === "in_progress"}
+                    >
+                      Otwórz pracę
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-danger btn-sm"
+                      onClick={() => void deleteAttempt(a)}
+                      disabled={busy}
+                      aria-label={`Usuń pracę: ${a.student_name}`}
+                    >
+                      <Trash2 size={13} aria-hidden />
+                    </button>
+                  </div>
                 </li>
               );
             })}
@@ -399,14 +431,26 @@ export function PracticalWorksTab() {
                       )}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <button
-                        type="button"
-                        className="btn-ghost btn-sm"
-                        onClick={() => setOpenId(a.id)}
-                        disabled={a.status === "in_progress"}
-                      >
-                        Otwórz
-                      </button>
+                      <div className="flex justify-end gap-2">
+                        <button
+                          type="button"
+                          className="btn-ghost btn-sm"
+                          onClick={() => setOpenId(a.id)}
+                          disabled={a.status === "in_progress"}
+                        >
+                          Otwórz
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-danger btn-sm"
+                          onClick={() => void deleteAttempt(a)}
+                          disabled={busy}
+                          title="Usuń pracę z bazy"
+                          aria-label={`Usuń pracę: ${a.student_name}`}
+                        >
+                          <Trash2 size={13} aria-hidden />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
