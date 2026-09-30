@@ -97,6 +97,27 @@ for (const file of files) {
   });
   ok("klucze spełniają reguły create_test", bledy.length === 0, bledy.slice(0, 3).join(" | "));
 
+  // Rozkład poprawnych odpowiedzi. Pierwsza wersja testów miała 107 na 107
+  // poprawnych odpowiedzi na pozycji A — uczeń zauważa taki wzorzec po trzech
+  // pytaniach i dalej zgaduje. Pilnujemy, żeby żadna pozycja nie dominowała.
+  {
+    const pozycje = [];
+    questions.forEach((q, i) => {
+      if (q.type !== "closed" && q.type !== "select") return;
+      pozycje.push(q.options.indexOf(keys[i][0]));
+    });
+    const licznik = pozycje.reduce((m, x) => ({ ...m, [x]: (m[x] ?? 0) + 1 }), {});
+    const najczestsza = Math.max(...Object.values(licznik));
+    const udzial = najczestsza / pozycje.length;
+    const opis = Object.entries(licznik)
+      .sort()
+      .map(([i, n]) => `${"ABCDEFGH"[i]}:${n}`)
+      .join(" ");
+    ok(`rozkład poprawnych odpowiedzi jest wyrównany (${opis})`, udzial <= 0.4,
+      `${Math.round(udzial * 100)}% odpowiedzi stoi na jednej pozycji`);
+    ok("odpowiedzi nie stoją wszystkie w tym samym miejscu", Object.keys(licznik).length >= 3);
+  }
+
   const typy = questions.reduce((m, q) => ({ ...m, [q.type]: (m[q.type] ?? 0) + 1 }), {});
   console.log("        typy pytań:", JSON.stringify(typy));
   ok("są co najmniej trzy typy pytań", Object.keys(typy).length >= 3, JSON.stringify(typy));

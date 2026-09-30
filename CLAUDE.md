@@ -122,6 +122,17 @@ zamiast wymyślać nowe warianty.
 
 ## Gotowe testy (supabase/testy/)
 
+**Pliki SQL są generowane, nie pisane ręcznie.** Źródłem są `scripts/testy/test-N.mjs`
+(treść pytań z jawnie zaznaczoną poprawną odpowiedzią) plus `scripts/testy/generator.mjs`,
+który losuje kolejność opcji i wypisuje SQL. Poprawiasz pytanie w `.mjs`, uruchamiasz
+`node scripts/testy/test-N.mjs` i commitujesz oba pliki.
+
+Powód: pierwsza wersja miała **107 na 107 poprawnych odpowiedzi na pozycji A** — pisane
+z ręki, zawsze „poprawna najpierw”. Generator rozkłada je równo (ziarno jest stałe, więc
+plik nie zmienia się przy każdym uruchomieniu), a `testy-tresc.mjs` pilnuje, żeby żadna
+pozycja nie przekroczyła 40%. Pytania mają być oparte na kodzie i typowych błędach,
+nie na definicjach w stylu „Czym jest X?”.
+
 Jeden plik = jeden test wkleptany do SQL Editora. **`create_test` tam nie przejdzie**
 (`not_authorized`, bo `auth.uid()` jest puste), więc pliki wstawiają wiersze wprost do
 `tests` i `test_keys`. To omija walidację kluczy z `create_test`, dlatego powtarza ją
