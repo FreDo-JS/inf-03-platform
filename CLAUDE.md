@@ -54,6 +54,7 @@ CHECK-i i funkcje. **Każda zmiana w `supabase/*.sql` musi mieć pokrycie w `tes
 | `010_inf04.sql` | druga kwalifikacja: tabela `classes` (FK zamiast list w CHECK-ach), `qualification` w `categories` i `tests`, `create_test` z szóstym argumentem |
 | `011_inf04_seed.sql` | mapa INF.04: 12 kategorii, ponad 50 podtematów, materiały do C# i Reacta |
 | `012_progress_author.sql` | `progress.marked_by` stemplowane triggerem, `admins.display_name`, widok `teachers`, `set_my_display_name()`; naprawia rekurencyjną politykę odczytu `admins` z 008 |
+| `018_attempt_answers.sql` | `attempts.answers` i `attempts.results` — odpowiedzi ucznia zapisywane przy wyniku; podstawa analizy pytań w panelu |
 | `017_praktyka_todo_kalkulator.sql` | dwa zadania praktyczne na 60 min: lista zadań i kalkulator napiwku; wzorce przechodzą testy w 100%, pliki startowe dają 7 pkt |
 | `016_cpp_grafika_java.sql` | nowe działy mapy: C++ i grafika (GIMP) w INF.03, C++ i Java w INF.04 — same dane, pozycje kategorii 9–10 i 13–14 |
 | `015_admin_invites.sql` (+ strona `/admin/haslo`) | lista `admin_invites` + trigger na `auth.users`: zaproszony adres dostaje uprawnienia przy zakładaniu konta; wpisy na listę tylko z SQL Editora |
@@ -141,6 +142,24 @@ Jeden plik = jeden test wkleptany do SQL Editora. **`create_test` tam nie przejd
 `tests/sql/testy-tresc.mjs`: sprawdza reguły kluczy i przechodzi każdy test jako uczeń
 (PIN → pytania → komplet poprawnych odpowiedzi = maksimum). Dokładając test, po prostu
 wrzuć plik do tego katalogu — zestaw sam go znajdzie.
+
+## Analiza pytań
+
+Zakładka **Wyniki** ma dwa widoki: listę podejść i analizę pytań. Analiza bierze
+`attempts.answers` / `attempts.results` (migracja 018), dokłada treść pytań z `tests`
+i klucz z `test_keys`, i liczy rozkład odpowiedzi. Rachunki siedzą w czystym module
+`lib/analiza.ts` — komponent `QuestionAnalysis` tylko rysuje.
+
+Dwie zasady, których nie ruszaj:
+
+- **O zaliczeniu pytania decyduje `results` policzone przez serwer przy oddaniu testu**, nie
+  ponowne porównanie z kluczem. Gdy nauczyciel poprawi klucz po fakcie, procenty nadal opisują
+  to, co uczniowie faktycznie dostali. Klucz służy wyłącznie do pokazania poprawnej odpowiedzi.
+- **Do analizy wchodzą tylko podejścia o długości tablic równej liczbie pytań.** Po dopisaniu
+  pytania stare odpowiedzi trafiłyby pod cudze pytania; panel je odkłada i mówi ile.
+
+Odpowiedzi otwarte grupujemy funkcją `normalizuj()` — lustrem `normalize_answer()` z bazy.
+Gdy jedno się zmieni, drugie trzeba poprawić razem z nim, inaczej rozkład rozjedzie się z oceną.
 
 ## Dziennik i sprzątanie bazy
 
@@ -260,7 +279,7 @@ i zegar, żeby usiadł kolejny uczeń. Link do wyniku kopiuje nauczyciel w zakł
 ## Po stronie użytkownika (wciąż otwarte)
 
 1. Wkleić `NEXT_PUBLIC_SUPABASE_ANON_KEY` do `.env.local` (przeze mnie skasowany).
-2. Wykonać migracje **003–011** w Supabase SQL Editor — nic z nich nie było testowane
+2. Wykonać migracje **003–018** w Supabase SQL Editor — nic z nich nie było testowane
    na prawdziwej bazie, tylko na PGlite.
 3. Dopisać konta nauczycieli do tabeli `admins` i wyłączyć publiczną rejestrację.
 

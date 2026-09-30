@@ -138,6 +138,13 @@ export type AttemptRow = {
   ended_reason: EndedReason;
   /** ile razy uczeń opuścił kartę w trakcie podejścia (sygnał, nie dowód) */
   tab_switch_count: number;
+  /**
+   * Odpowiedzi ucznia, indeks = indeks pytania (migracja 018). null w całej
+   * kolumnie oznacza podejście sprzed tej migracji — panel to rozróżnia.
+   */
+  answers: Json | null;
+  /** Wynik per pytanie policzony przez serwer, indeks = indeks pytania. */
+  results: Json | null;
 };
 
 export type TestKeysRow = {

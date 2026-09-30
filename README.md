@@ -34,6 +34,7 @@ Stack: Next.js 15 (App Router) · TypeScript (strict) · Tailwind CSS · Supabas
    - `supabase/015_admin_invites.sql` — zaproszenia: nowy nauczyciel dostaje uprawnienia sam, przy zakładaniu konta
    - `supabase/016_cpp_grafika_java.sql` — działy C++ i grafika (GIMP) dla INF.03 oraz C++ i Java dla INF.04
    - `supabase/017_praktyka_todo_kalkulator.sql` — dwa zadania praktyczne na 60 minut (lista zadań, kalkulator napiwku)
+   - `supabase/018_attempt_answers.sql` — odpowiedzi ucznia zapisywane przy wyniku (analiza pytań w panelu)
 
    Masz już bazę z poprzedniej wersji? Uruchom brakujące migracje (`002…`, `003…`) — nic nie nadpisują,
    a ponowne uruchomienie niczego nie duplikuje.
@@ -102,6 +103,7 @@ supabase/          schema.sql, seed.sql
 | **PIN + sesja** (`open_test`, `begin_session`) | pytania dostępne dopiero po PIN-ie; kolumna `tests.questions` zablokowana dla anon (uprawnienia kolumnowe); limit prób PIN |
 | **`submit_attempt(session)`** (RPC) | ocena i pomiar czasu po stronie serwera, jeden zapis na sesję, sesja wygasa po limicie + 5 min; powód zakończenia spoza listy → `completed`, licznik zmian karty przycięty do 0–1000 |
 | **`create_test()`** (RPC) | atomowy zapis testu + klucza, ponowna walidacja wszystkich pól w bazie |
+| **Odpowiedzi ucznia** (018) | zapisuje je wyłącznie `submit_attempt`, przycięte i o długości równej liczbie pytań (CHECK); czyta je tylko nauczyciel, klucz zostaje w `test_keys` |
 | `lib/validation.ts` | ta sama walidacja w UI i przed każdym wywołaniem Supabase |
 | React JSX | cały tekst użytkownika renderowany jako tekst; brak `dangerouslySetInnerHTML` (reguła ESLint `react/no-danger`) |
 | Materiały (`subtopic_links`) | RLS: odczyt publiczny, zapis tylko dla zalogowanych; `href` tylko dla http(s) (CHECK w bazie + `safeLinkUrl` w UI) |
@@ -150,6 +152,8 @@ Pozwalała ona wstawić dowolny wynik bezpośrednio przez API, z pominięciem PI
   druga karta dostaje komunikat, pierwsza pracuje dalej.
 - **Czas liczy serwer:** odliczanie startuje od terminu podanego przez bazę i jest z nią synchronizowane
   co 15 s (`quiz_time`). Przestawienie zegara w systemie nic nie daje.
+- **Analiza pytań:** przy wyniku zapisuje się to, co uczeń odpowiedział, więc w panelu widać
+  nie tylko ile klasa zdobyła punktów, ale **na czym się wykłada** (migracja 018).
 
   ⚠️ To wykrywa zachowanie tej przeglądarki. Nie wykryje telefonu obok ani drugiego komputera —
   traktuj to jako sygnał do sprawdzenia, nie jako dowód ściągania.
@@ -284,6 +288,16 @@ nadrobi zaległości.
 
 ## Sprzątanie bazy i dziennik
 
+- **Wyniki → Analiza pytań** — drugi widok tej samej zakładki: wybierasz test i widzisz
+  procent poprawnych dla każdego pytania (domyślnie od najtrudniejszego) oraz **rozkład
+  odpowiedzi**. Przy pytaniach zamkniętych — ile osób kliknęło każdą opcję, przy otwartych —
+  co dokładnie wpisywali (grupowane tak, jak ocenia baza: bez wielkości liter i nadmiaru spacji),
+  przy dopasowaniach — skuteczność każdej pary z osobna, bo punkt jest zero-jedynkowy i sam
+  procent nie mówi, która para się sypie. To materiał na omówienie testu na lekcji.
+
+  Analiza obejmuje podejścia napisane **po** migracji `018_attempt_answers.sql` — wcześniejsze
+  nie mają zapisanych odpowiedzi i są liczone osobno. Pominięte są też podejścia do innej wersji
+  testu (gdy pytania zmieniły się po napisaniu) — panel podaje, ile ich było.
 - **Wyniki** — każdy wpis ma kosz, a w pasku narzędzi jest „Usuń widoczne (N)”, które
   kasuje dokładnie to, co zostało po filtrze (potwierdzenie podaje liczbę). Tak czyścisz
   bazę po serii kartkówek bez kasowania wszystkiego naraz.
