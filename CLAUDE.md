@@ -5,7 +5,7 @@ trzymamy się w tym repo, i pułapki, na które już raz wdepnęliśmy.
 
 ## Czym to jest
 
-Aplikacja dla nauczyciela INF.03 i klas **2a / 4e / 4d**, trzy moduły:
+Aplikacja dla nauczyciela INF.03 i klas **1a / 2a / 4e / 4d**, trzy moduły:
 
 1. **Mapa nauki** (`/roadmap`) — kategorie → podtematy, postęp per klasa, realtime,
    materiały (linki) dodawane przez nauczyciela bez limitu.
@@ -54,6 +54,7 @@ CHECK-i i funkcje. **Każda zmiana w `supabase/*.sql` musi mieć pokrycie w `tes
 | `010_inf04.sql` | druga kwalifikacja: tabela `classes` (FK zamiast list w CHECK-ach), `qualification` w `categories` i `tests`, `create_test` z szóstym argumentem |
 | `011_inf04_seed.sql` | mapa INF.04: 12 kategorii, ponad 50 podtematów, materiały do C# i Reacta |
 | `012_progress_author.sql` | `progress.marked_by` stemplowane triggerem, `admins.display_name`, widok `teachers`, `set_my_display_name()`; naprawia rekurencyjną politykę odczytu `admins` z 008 |
+| `019_klasy_1a_3a.sql` | klasy 1a (INF.03) i 3a (INF.04) — insert do `classes` plus lustrzany wpis w `CLASS_QUALIFICATION`; `tests/sql/klasy.mjs` pilnuje, żeby tabela i TypeScript się nie rozjechały |
 | `018_attempt_answers.sql` | `attempts.answers` i `attempts.results` — odpowiedzi ucznia zapisywane przy wyniku; podstawa analizy pytań w panelu |
 | `017_praktyka_todo_kalkulator.sql` | dwa zadania praktyczne na 60 min: lista zadań i kalkulator napiwku; wzorce przechodzą testy w 100%, pliki startowe dają 7 pkt |
 | `016_cpp_grafika_java.sql` | nowe działy mapy: C++ i grafika (GIMP) w INF.03, C++ i Java w INF.04 — same dane, pozycje kategorii 9–10 i 13–14 |
@@ -84,7 +85,7 @@ Raport z pełnego audytu: `docs/audyt-bezpieczenstwa.md`.
 
 ## Dwie kwalifikacje
 
-INF.03 (klasy 2a, 4e, 4d) i INF.04 (4a, 4g) dzielą kod i bazę. Kwalifikacja jest
+INF.03 (klasy 1a, 2a, 4e, 4d) i INF.04 (3a, 4a, 4g) dzielą kod i bazę. Kwalifikacja jest
 kolumną w `categories` i `tests`, a klasa wskazuje kwalifikację przez tabelę `classes`
 (w TypeScripcie lustrzane `CLASS_QUALIFICATION` w `types/db.ts`). Dopisanie klasy = insert
 do `classes` + wpis w tej mapie; CHECK-i z listą klas już nie istnieją, jest FK.
@@ -279,7 +280,7 @@ i zegar, żeby usiadł kolejny uczeń. Link do wyniku kopiuje nauczyciel w zakł
 ## Po stronie użytkownika (wciąż otwarte)
 
 1. Wkleić `NEXT_PUBLIC_SUPABASE_ANON_KEY` do `.env.local` (przeze mnie skasowany).
-2. Wykonać migracje **003–018** w Supabase SQL Editor — nic z nich nie było testowane
+2. Wykonać migracje **003–019** w Supabase SQL Editor — nic z nich nie było testowane
    na prawdziwej bazie, tylko na PGlite.
 3. Dopisać konta nauczycieli do tabeli `admins` i wyłączyć publiczną rejestrację.
 

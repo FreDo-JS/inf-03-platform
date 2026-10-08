@@ -4,8 +4,8 @@ Aplikacja dla dwóch kwalifikacji w jednej bazie i jednym wdrożeniu:
 
 | Kwalifikacja | Klasy | Zakres |
 |---|---|---|
-| **INF.03** | 2a, 4e, 4d | Tworzenie i administrowanie stronami i aplikacjami internetowymi oraz bazami danych |
-| **INF.04** | 4a, 4g | Projektowanie, programowanie i testowanie aplikacji (C# i React) |
+| **INF.03** | 1a, 2a, 4e, 4d | Tworzenie i administrowanie stronami i aplikacjami internetowymi oraz bazami danych |
+| **INF.04** | 3a, 4a, 4g | Projektowanie, programowanie i testowanie aplikacji (C# i React) |
 
 Mapa tematów z postępem aktualizowanym na żywo, testy w stylu Kahoot i panel
 nauczyciela. Klasa decyduje, którą kwalifikację widzi uczeń — jedna poprawka
@@ -35,6 +35,7 @@ Stack: Next.js 15 (App Router) · TypeScript (strict) · Tailwind CSS · Supabas
    - `supabase/016_cpp_grafika_java.sql` — działy C++ i grafika (GIMP) dla INF.03 oraz C++ i Java dla INF.04
    - `supabase/017_praktyka_todo_kalkulator.sql` — dwa zadania praktyczne na 60 minut (lista zadań, kalkulator napiwku)
    - `supabase/018_attempt_answers.sql` — odpowiedzi ucznia zapisywane przy wyniku (analiza pytań w panelu)
+   - `supabase/019_klasy_1a_3a.sql` — klasy 1a (INF.03) i 3a (INF.04)
 
    Masz już bazę z poprzedniej wersji? Uruchom brakujące migracje (`002…`, `003…`) — nic nie nadpisują,
    a ponowne uruchomienie niczego nie duplikuje.
@@ -342,7 +343,7 @@ Kwalifikacja jest kolumną, nie osobną instalacją:
 **Czego to nie obejmuje:** moduł Praktyka to nadal symulator HTML/CSS/JS. Egzamin
 praktyczny INF.04 (aplikacja konsolowa w C#, aplikacja desktopowa/mobilna, dokumentacja)
 wymaga kompilacji i uruchomienia kodu poza przeglądarką, czego ten IDE nie robi i nie
-udaje, że robi. Sesje praktyczne można założyć dla 4a i 4g, ale sensownie wykorzystasz
+udaje, że robi. Sesje praktyczne można założyć dla 3a, 4a i 4g, ale sensownie wykorzystasz
 je tylko do zadań webowych bez kroku budowania.
 
 ## Edycja treści mapy

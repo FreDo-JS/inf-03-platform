@@ -16,7 +16,7 @@ export const QUALIFICATION_FULL: Record<Qualification, string> = {
   inf04: "Projektowanie, programowanie i testowanie aplikacji",
 };
 
-export const CLASS_NAMES = ["2a", "4e", "4d", "4a", "4g"] as const;
+export const CLASS_NAMES = ["1a", "2a", "4e", "4d", "3a", "4a", "4g"] as const;
 export type ClassName = (typeof CLASS_NAMES)[number];
 
 /**
@@ -24,9 +24,11 @@ export type ClassName = (typeof CLASS_NAMES)[number];
  * tutaj jest po to, żeby interfejs nie musiał czekać na zapytanie.
  */
 export const CLASS_QUALIFICATION: Record<ClassName, Qualification> = {
+  "1a": "inf03",
   "2a": "inf03",
   "4e": "inf03",
   "4d": "inf03",
+  "3a": "inf04",
   "4a": "inf04",
   "4g": "inf04",
 };
