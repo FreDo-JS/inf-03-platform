@@ -5,6 +5,7 @@ import { friendlyError } from "@/lib/errors";
 import { getBrowserSupabase } from "@/lib/supabase/client";
 import {
   LIMITS,
+  gapsInCode,
   emptyPair,
   emptyQuestion,
   parseCreateTestResult,
@@ -21,6 +22,7 @@ const TYPE_LABEL: Record<QuestionType, string> = {
   select: "lista rozwijana",
   input: "pole tekstowe",
   matching: "dopasowywanie (drag & drop)",
+  gaps: "uzupełnianie luk w kodzie",
 };
 
 /** Losowy PIN po stronie klienta (crypto) — tylko podpowiedź, baza i tak waliduje format. */
@@ -77,6 +79,9 @@ export function NewTestTab() {
       }
       if (type === "matching") {
         return { ...q, type, options: [], correctIndex: null, accepted: [], pairs: q.pairs.length >= 2 ? q.pairs : [emptyPair(), emptyPair()] };
+      }
+      if (type === "gaps") {
+        return { ...q, type, options: [], correctIndex: null, accepted: [], pairs: [] };
       }
       const options = q.options.length >= 2 ? q.options : ["", ""];
       const keepCorrect = q.type === "closed" || q.type === "select";
@@ -454,6 +459,8 @@ function QuestionEditor({ index, count, question: q, errors, onChange, onType, o
             Uczeń zobaczy prawą kolumnę potasowaną i przeciąga ją na pasujące pola po lewej.
           </p>
         </fieldset>
+      ) : q.type === "gaps" ? (
+        <GapsFields q={q} onChange={onChange} />
       ) : (
         <fieldset className="mt-2">
           <legend className="label">Akceptowane odpowiedzi (wielkość liter i spacje na brzegach bez znaczenia)</legend>
@@ -503,5 +510,125 @@ function QuestionEditor({ index, count, question: q, errors, onChange, onType, o
         </ul>
       )}
     </li>
+  );
+}
+
+/**
+ * Pytanie z lukami: fragment kodu z markerami [[1]], [[2]]… i warianty
+ * odpowiedzi dla każdej luki. Liczbę luk liczy `gapsInCode` — ta sama reguła
+ * co w bazie (`gaps_count` z migracji 020), więc kreator nie da się zapisać
+ * czegoś, co baza odrzuci.
+ */
+function GapsFields({
+  q,
+  onChange,
+}: {
+  q: DraftQuestion;
+  onChange: (fn: (q: DraftQuestion) => DraftQuestion) => void;
+}) {
+  const kod = q.code;
+  const luk = gapsInCode(kod);
+  const pokazBlad = kod.trim().length > 0 && luk === 0;
+
+  const ustawWariant = (gi: number, vi: number, value: string) =>
+    onChange((x) => {
+      const next = Array.from({ length: Math.max(luk, x.gapAnswers.length) }, (_, i) => [...(x.gapAnswers[i] ?? [])]);
+      const luka = next[gi] ?? [];
+      luka[vi] = value;
+      next[gi] = luka;
+      return { ...x, gapAnswers: next };
+    });
+
+  const dodajWariant = (gi: number) =>
+    onChange((x) => {
+      const next = Array.from({ length: Math.max(luk, x.gapAnswers.length) }, (_, i) => [...(x.gapAnswers[i] ?? [])]);
+      next[gi] = [...(next[gi] ?? []), ""];
+      return { ...x, gapAnswers: next };
+    });
+
+  const usunWariant = (gi: number, vi: number) =>
+    onChange((x) => {
+      const next = Array.from({ length: Math.max(luk, x.gapAnswers.length) }, (_, i) => [...(x.gapAnswers[i] ?? [])]);
+      next[gi] = (next[gi] ?? []).filter((_, k) => k !== vi);
+      return { ...x, gapAnswers: next };
+    });
+
+  return (
+    <fieldset className="mt-2 space-y-3">
+      <div>
+        <legend className="label">Kod z lukami</legend>
+        <textarea
+          className="input min-h-[8rem] w-full py-2 font-mono text-sm"
+          value={kod}
+          maxLength={LIMITS.gapCode.max}
+          spellCheck={false}
+          placeholder={"div {\n  display: [[1]];\n  flex-direction: [[2]];\n}"}
+          onChange={(e) => {
+            const v = e.target.value;
+            onChange((x) => ({ ...x, code: v }));
+          }}
+          aria-label="Kod z lukami"
+        />
+        <p className={`mt-1 text-xs ${pokazBlad ? "text-danger" : "text-muted"}`}>
+          {pokazBlad
+            ? `Luki oznacz jako [[1]], [[2]]… — numery kolejno od 1, każdy raz, maks. ${LIMITS.gaps.max} luk.`
+            : luk > 0
+              ? `Luki: ${luk}. Uczeń zobaczy kod z polami do wpisania w miejscach markerów.`
+              : "Wstaw w kod markery [[1]], [[2]]… w miejscach, które uczeń ma uzupełnić."}
+        </p>
+      </div>
+
+      {luk > 0 && (
+        <div className="space-y-2">
+          <legend className="label">
+            Poprawne odpowiedzi (wielkość liter i spacje na brzegach bez znaczenia)
+          </legend>
+          {Array.from({ length: luk }, (_, gi) => {
+            const warianty = q.gapAnswers[gi] ?? [""];
+            return (
+              <div key={gi} className="rounded-xl border border-line p-2">
+                <p className="mb-1.5 font-mono text-xs text-muted">luka [[{gi + 1}]]</p>
+                <ul className="space-y-1.5">
+                  {(warianty.length === 0 ? [""] : warianty).map((w, vi) => (
+                    <li key={vi} className="flex items-center gap-2">
+                      <input
+                        className="input py-1.5 font-mono"
+                        value={w}
+                        maxLength={LIMITS.gapAnswer.max}
+                        placeholder={vi === 0 ? "poprawna odpowiedź" : `wariant ${vi + 1}`}
+                        spellCheck={false}
+                        onChange={(e) => ustawWariant(gi, vi, e.target.value)}
+                        aria-label={`Luka ${gi + 1}, wariant ${vi + 1}`}
+                      />
+                      <button
+                        type="button"
+                        className="btn-ghost shrink-0 px-2 py-1"
+                        disabled={warianty.length <= 1}
+                        aria-label={`Usuń wariant ${vi + 1} dla luki ${gi + 1}`}
+                        onClick={() => usunWariant(gi, vi)}
+                      >
+                        −
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+                <button
+                  type="button"
+                  className="btn-ghost mt-1.5 px-3 py-1 text-xs"
+                  disabled={warianty.length >= LIMITS.gapVariants.max}
+                  onClick={() => dodajWariant(gi)}
+                >
+                  + wariant
+                </button>
+              </div>
+            );
+          })}
+          <p className="text-xs text-muted">
+            Punkt jest za komplet poprawnych luk — tak samo jak przy dopasowywaniu par. Skuteczność
+            każdej luki z osobna zobaczysz w analizie pytań.
+          </p>
+        </div>
+      )}
+    </fieldset>
   );
 }

@@ -36,6 +36,7 @@ Stack: Next.js 15 (App Router) · TypeScript (strict) · Tailwind CSS · Supabas
    - `supabase/017_praktyka_todo_kalkulator.sql` — dwa zadania praktyczne na 60 minut (lista zadań, kalkulator napiwku)
    - `supabase/018_attempt_answers.sql` — odpowiedzi ucznia zapisywane przy wyniku (analiza pytań w panelu)
    - `supabase/019_klasy_1a_3a.sql` — klasy 1a (INF.03) i 3a (INF.04)
+   - `supabase/020_gaps_questions.sql` — piąty typ pytania: uzupełnianie luk w kodzie
 
    Masz już bazę z poprzedniej wersji? Uruchom brakujące migracje (`002…`, `003…`) — nic nie nadpisują,
    a ponowne uruchomienie niczego nie duplikuje.
@@ -135,9 +136,17 @@ Pozwalała ona wstawić dowolny wynik bezpośrednio przez API, z pominięciem PI
 
 ## Testy — zasady podejścia
 
-- **Cztery typy pytań:** jednokrotny wybór, lista rozwijana, pole tekstowe oraz
-  **dopasowywanie par** (przeciąganie myszą albo dwa dotknięcia: element → pole).
-  Pytanie z parami zalicza się tylko w komplecie, bez punktów częściowych.
+- **Pięć typów pytań:** jednokrotny wybór, lista rozwijana, pole tekstowe,
+  **dopasowywanie par** (przeciąganie myszą albo dwa dotknięcia: element → pole)
+  oraz **uzupełnianie luk w kodzie**. Pytanie z parami i pytanie z lukami zalicza
+  się tylko w komplecie, bez punktów częściowych.
+- **Luki w kodzie:** w kreatorze wklejasz fragment kodu i oznaczasz luki jako
+  `[[1]]`, `[[2]]`… (numery kolejno od 1, maks. 10). Każda luka ma własną listę
+  akceptowanych odpowiedzi — do pięciu wariantów. Uczeń widzi kod z polami do
+  wpisania w miejscach markerów; kod jest tylko tekstem, nic się nie uruchamia.
+  Wielkość liter i spacje na brzegach nie mają znaczenia, tak jak w pytaniach
+  otwartych. W analizie pytań widać skuteczność **każdej luki z osobna**, więc
+  wiadomo, która konkretnie sypie całe pytanie.
 - **Losowa kolejność pytań** przy każdym podejściu (Fisher–Yates, tylko w pamięci przeglądarki).
   Kolumna z odpowiedziami w pytaniach z parami też jest tasowana. Dane w `tests.questions` zostają bez zmian.
 - **Bez cofania:** nie ma przycisku „Wstecz", a po przejściu dalej odpowiedzi nie da się zmienić.

@@ -6,6 +6,7 @@
 import { shuffle } from "@/lib/shuffle";
 import {
   CLASS_NAMES,
+  type AnswerKey,
   type AnswerKeys,
   type ClassName,
   type EndedReason,
@@ -31,12 +32,31 @@ export const LIMITS = {
   pinLength: 6,
   pairs: { min: 2, max: 10 },
   pairSide: { min: 1, max: 150 },
+  gaps: { min: 1, max: 10 },
+  gapCode: { min: 1, max: 2000 },
+  gapAnswer: { min: 1, max: 100 },
+  gapVariants: { min: 1, max: 5 },
   linkLabel: { min: 1, max: 120 },
   linkUrl: { min: 1, max: 500 },
   sortOrder: { min: 0, max: 999 },
 } as const;
 
 export type Result<T> = { ok: true; value: T } | { ok: false; error: string };
+
+/**
+ * Liczba luk w kodzie albo 0, gdy numeracja jest niepoprawna (dziura, powtórzony
+ * numer, za dużo luk). Lustro funkcji `gaps_count` z migracji 020 — gdy jedno
+ * się zmieni, drugie trzeba poprawić razem z nim, bo baza odrzuci pytanie,
+ * które kreator uzna za dobre.
+ */
+export function gapsInCode(code: string): number {
+  const numery = [...code.matchAll(/\[\[(\d+)\]\]/g)].map((m) => Number(m[1]));
+  if (numery.length < LIMITS.gaps.min || numery.length > LIMITS.gaps.max) return 0;
+  for (let i = 1; i <= numery.length; i++) {
+    if (numery.filter((n) => n === i).length !== 1) return 0;
+  }
+  return numery.length;
+}
 
 // ---------------------------------------------------------------------------
 // Podstawowe operacje na tekście
@@ -206,6 +226,10 @@ export type DraftQuestion = {
   accepted: string[];
   /** matching: pary do dopasowania */
   pairs: DraftPair[];
+  /** gaps: fragment kodu z markerami [[1]], [[2]]… */
+  code: string;
+  /** gaps: akceptowane warianty dla kolejnych luk */
+  gapAnswers: string[][];
 };
 
 export type TestDraft = {
@@ -240,6 +264,8 @@ export function emptyQuestion(type: QuestionType = "closed"): DraftQuestion {
     correctIndex: null,
     accepted: type === "input" ? [""] : [],
     pairs: type === "matching" ? [emptyPair(), emptyPair()] : [],
+    code: "",
+    gapAnswers: [],
   };
 }
 
@@ -247,7 +273,7 @@ export function emptyPair(): DraftPair {
   return { left: "", right: "" };
 }
 
-function validateQuestion(q: DraftQuestion): { errors: string[]; question?: PublicQuestion; key?: string[] } {
+function validateQuestion(q: DraftQuestion): { errors: string[]; question?: PublicQuestion; key?: AnswerKey } {
   const errors: string[] = [];
   const text = cleanText(q.text);
   if (text.length === 0) errors.push("Treść pytania jest wymagana.");
@@ -300,6 +326,38 @@ function validateQuestion(q: DraftQuestion): { errors: string[]; question?: Publ
       question: { type: "matching", text, left: pairs.map((p) => p.left), right: shuffle(pairs.map((p) => p.right)) },
       key: pairs.map((p) => p.right),
     };
+  }
+
+  if (q.type === "gaps") {
+    // Kod zostaje taki, jaki wpisał nauczyciel — tylko końce linii ujednolicamy,
+    // bo wcięcia i podział na wiersze są treścią pytania.
+    const code = q.code.replace(/\r\n/g, "\n");
+    if (code.trim().length === 0) errors.push("Wklej fragment kodu z lukami.");
+    else if (code.length > LIMITS.gapCode.max) errors.push(`Kod: maks. ${LIMITS.gapCode.max} znaków.`);
+
+    const luk = code.trim().length === 0 ? 0 : gapsInCode(code);
+    if (code.trim().length > 0 && luk === 0) {
+      errors.push(
+        `Oznacz luki jako [[1]], [[2]]… — numery kolejno od 1, każdy raz, maks. ${LIMITS.gaps.max} luk.`,
+      );
+    }
+
+    const klucz = Array.from({ length: luk }, (_, i) => {
+      const warianty = (q.gapAnswers[i] ?? []).map(cleanText).filter((a) => a.length > 0);
+      return [...new Set(warianty)];
+    });
+    if (luk > 0) {
+      if (klucz.some((w) => w.length === 0)) errors.push("Każda luka musi mieć co najmniej jedną poprawną odpowiedź.");
+      if (klucz.some((w) => w.length > LIMITS.gapVariants.max)) {
+        errors.push(`Luka: maksymalnie ${LIMITS.gapVariants.max} wariantów odpowiedzi.`);
+      }
+      if (klucz.some((w) => w.some((a) => !lengthOk(a, LIMITS.gapAnswer)))) {
+        errors.push(`Odpowiedź do luki: maks. ${LIMITS.gapAnswer.max} znaków.`);
+      }
+    }
+
+    if (errors.length > 0) return { errors };
+    return { errors, question: { type: "gaps", text, code }, key: klucz };
   }
 
   // input
@@ -385,6 +443,9 @@ export function parseQuestions(json: Json | unknown): PublicQuestion[] | null {
       const { left, right } = item;
       if (!isStringArray(left) || !isStringArray(right) || left.length !== right.length || left.length < 2) return null;
       out.push({ type: "matching", text: item.text, left, right });
+    } else if (item.type === "gaps") {
+      if (typeof item.code !== "string" || gapsInCode(item.code) === 0) return null;
+      out.push({ type: "gaps", text: item.text, code: item.code });
     } else if (item.type === "closed" || item.type === "select") {
       const opts = item.options;
       if (!Array.isArray(opts) || !opts.every((o): o is string => typeof o === "string")) return null;

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { analizuj, type AnalizaPytania, type AnalizaTestu } from "@/lib/analiza";
+import { analizuj, type AnalizaPytania, type AnalizaTestu, type Klucz } from "@/lib/analiza";
 import { friendlyError } from "@/lib/errors";
 import { getBrowserSupabase } from "@/lib/supabase/client";
 import { pluralPytania } from "@/lib/tests";
@@ -21,7 +21,7 @@ import { Check, TriangleAlert } from "lucide-react";
 
 type Props = { attempts: AttemptRow[] };
 
-type Tresc = { questions: PublicQuestion[]; klucze: string[][] };
+type Tresc = { questions: PublicQuestion[]; klucze: Klucz[] };
 
 /** Kolor procentu: te same progi, co przy wynikach podejść. */
 function kolor(udzial: number): string {
@@ -37,6 +37,7 @@ const TYP: Record<PublicQuestion["type"], string> = {
   select: "wybór z listy",
   input: "otwarte",
   matching: "dopasowanie",
+  gaps: "luki w kodzie",
 };
 
 /** Pasek udziału — bez etykiety, bo liczby stoją obok w tabeli wariantów. */
@@ -101,8 +102,18 @@ export function QuestionAnalysis({ attempts }: Props) {
       return;
     }
     const surowy = keyRes.data?.answers;
-    const klucze: string[][] = Array.isArray(surowy)
-      ? surowy.map((k) => (Array.isArray(k) ? k.filter((x): x is string => typeof x === "string") : []))
+    // Klucz pytania z lukami jest zagnieżdżony (warianty per luka), więc
+    // zachowujemy obie postacie zamiast spłaszczać wszystko do listy napisów.
+    const klucze: Klucz[] = Array.isArray(surowy)
+      ? surowy.map((k) => {
+          if (!Array.isArray(k)) return [];
+          if (k.every((x) => Array.isArray(x))) {
+            return (k as unknown[]).map((g) =>
+              Array.isArray(g) ? g.filter((x): x is string => typeof x === "string") : [],
+            );
+          }
+          return k.filter((x): x is string => typeof x === "string");
+        })
       : [];
     setTresc({ questions, klucze });
   }, [testId]);
@@ -245,6 +256,12 @@ function PytanieKarta({ q }: { q: AnalizaPytania }) {
       </div>
 
       <p className="mt-2 break-words leading-snug">{pytanie.text}</p>
+
+      {pytanie.type === "gaps" && (
+        <pre className="mt-2 overflow-x-auto whitespace-pre-wrap break-words rounded-lg border border-line bg-white/[0.03] p-3 font-mono text-xs leading-6">
+          {pytanie.code}
+        </pre>
+      )}
 
       <div className="mt-2">
         <div className="h-2 overflow-hidden rounded-full bg-white/[0.06]">

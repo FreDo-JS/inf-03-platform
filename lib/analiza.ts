@@ -45,6 +45,15 @@ export type Para = {
   udzial: number;
 };
 
+/**
+ * Klucz jednego pytania: lista akceptowanych odpowiedzi, dla matching permutacja
+ * prawej kolumny, a dla gaps — po jednej liście wariantów na każdą lukę.
+ */
+export type Klucz = readonly string[] | readonly (readonly string[])[];
+
+const jestListaList = (v: unknown): v is readonly (readonly string[])[] =>
+  Array.isArray(v) && v.every((x) => jestTablicaNapisow(x));
+
 export type AnalizaPytania = {
   index: number;
   pytanie: PublicQuestion;
@@ -53,7 +62,7 @@ export type AnalizaPytania = {
   trafien: number;
   udzial: number;
   warianty: Wariant[];
-  /** Skuteczność każdego dopasowania z osobna — tylko dla pytań typu matching. */
+  /** Skuteczność każdej pary (matching) albo każdej luki (gaps) z osobna. */
   pary: Para[];
 };
 
@@ -75,7 +84,7 @@ const jestTablicaNapisow = (v: unknown): v is string[] =>
 export function analizuj(
   podejscia: readonly PodejscieDoAnalizy[],
   pytania: readonly PublicQuestion[],
-  klucze: readonly (readonly string[])[],
+  klucze: readonly Klucz[],
 ): AnalizaTestu {
   // Do analizy wchodzą tylko podejścia pasujące do obecnej wersji testu:
   // po dopisaniu pytania stare tablice miałyby inną długość i odpowiedzi
@@ -98,7 +107,10 @@ export function analizuj(
   const udzialem = (ile: number) => (n > 0 ? ile / n : 0);
 
   const wynik: AnalizaPytania[] = pytania.map((pytanie, i) => {
-    const klucz = jestTablicaNapisow(klucze[i]) ? [...(klucze[i] as string[])] : [];
+    const kluczSurowy = klucze[i];
+    // gaps ma klucz zagnieżdżony (warianty per luka) — płaska lista nie ma dla
+    // niego sensu, rozklad pokazujemy w parach
+    const klucz = jestTablicaNapisow(kluczSurowy) ? [...kluczSurowy] : [];
     const trafien = dobre.filter((d) => d.results[i] === true).length;
 
     const odpowiedzi = dobre.map((d) => d.answers[i]);
@@ -108,7 +120,23 @@ export function analizuj(
     const warianty: Wariant[] = [];
     const pary: Para[] = [];
 
-    if (pytanie.type === "matching") {
+    if (pytanie.type === "gaps") {
+      // Punkt jest za komplet luk, więc sam procent nie mówi, która luka sypie
+      // całe pytanie — rozbijamy go na pojedyncze luki.
+      const warianty = jestListaList(kluczSurowy) ? kluczSurowy : [];
+      warianty.forEach((dozwolone, j) => {
+        const zbior = new Set(dozwolone.map(normalizuj));
+        const trafienia = odpowiedzi.filter(
+          (o) => Array.isArray(o) && typeof o[j] === "string" && zbior.has(normalizuj(o[j] as string)),
+        ).length;
+        pary.push({
+          lewa: `luka ${j + 1}`,
+          poprawna: dozwolone.join(" / "),
+          trafien: trafienia,
+          udzial: udzialem(trafienia),
+        });
+      });
+    } else if (pytanie.type === "matching") {
       // matching ocenia się zero-jedynkowo, więc sam procent niewiele mówi:
       // rozbijamy go na pary, bo zwykle sypie się jedna konkretna.
       pytanie.left.forEach((lewa, j) => {

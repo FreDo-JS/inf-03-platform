@@ -10,7 +10,7 @@ Aplikacja dla nauczyciela INF.03 i klas **1a / 2a / 4e / 4d**, trzy moduły:
 1. **Mapa nauki** (`/roadmap`) — kategorie → podtematy, postęp per klasa, realtime,
    materiały (linki) dodawane przez nauczyciela bez limitu.
 2. **Testy teoretyczne** (`/testy`) — bez logowania, uczeń podaje imię, wchodzi na
-   **PIN**, pytania typu `closed` / `select` / `input` / `matching`, timer, pełny ekran,
+   **PIN**, pytania typu `closed` / `select` / `input` / `matching` / `gaps`, timer, pełny ekran,
    wyniki widoczne **tylko** w panelu.
 3. **Egzamin praktyczny** (`/praktyka`) — sesja z PIN-em, IDE w przeglądarce
    (arkusz | Monaco | podgląd na żywo), autozapis, oddanie pracy, testy automatyczne
@@ -54,6 +54,7 @@ CHECK-i i funkcje. **Każda zmiana w `supabase/*.sql` musi mieć pokrycie w `tes
 | `010_inf04.sql` | druga kwalifikacja: tabela `classes` (FK zamiast list w CHECK-ach), `qualification` w `categories` i `tests`, `create_test` z szóstym argumentem |
 | `011_inf04_seed.sql` | mapa INF.04: 12 kategorii, ponad 50 podtematów, materiały do C# i Reacta |
 | `012_progress_author.sql` | `progress.marked_by` stemplowane triggerem, `admins.display_name`, widok `teachers`, `set_my_display_name()`; naprawia rekurencyjną politykę odczytu `admins` z 008 |
+| `020_gaps_questions.sql` | typ pytania `gaps` — uzupełnianie luk w kodzie; `gaps_count()`, walidacja klucza zagnieżdżonego i ocena zero-jedynkowa |
 | `019_klasy_1a_3a.sql` | klasy 1a (INF.03) i 3a (INF.04) — insert do `classes` plus lustrzany wpis w `CLASS_QUALIFICATION`; `tests/sql/klasy.mjs` pilnuje, żeby tabela i TypeScript się nie rozjechały |
 | `018_attempt_answers.sql` | `attempts.answers` i `attempts.results` — odpowiedzi ucznia zapisywane przy wyniku; podstawa analizy pytań w panelu |
 | `017_praktyka_todo_kalkulator.sql` | dwa zadania praktyczne na 60 min: lista zadań i kalkulator napiwku; wzorce przechodzą testy w 100%, pliki startowe dają 7 pkt |
@@ -143,6 +144,37 @@ Jeden plik = jeden test wkleptany do SQL Editora. **`create_test` tam nie przejd
 `tests/sql/testy-tresc.mjs`: sprawdza reguły kluczy i przechodzi każdy test jako uczeń
 (PIN → pytania → komplet poprawnych odpowiedzi = maksimum). Dokładając test, po prostu
 wrzuć plik do tego katalogu — zestaw sam go znajdzie.
+
+## Pytania z lukami w kodzie
+
+Piąty typ pytania (migracja 020), odpowiednik „fill in the blanks" z Moodle —
+z tą różnicą, że **nic nie uruchamiamy**: sprawdzamy wpisany tekst, nie wynik
+działania kodu.
+
+```json
+{"type":"gaps","text":"Uzupełnij regułę…","code":"div {\n  display: [[1]];\n}"}
+```
+
+- Markery `[[1]]`, `[[2]]`… numerowane od 1 bez przerw, każdy dokładnie raz,
+  maks. 10 luk. Liczy je `gaps_count()` w bazie i **lustrzana** `gapsInCode()`
+  w `lib/validation.ts` — zmieniasz jedno, poprawiasz drugie, inaczej kreator
+  przepuści pytanie, które baza odrzuci.
+- Klucz jest **zagnieżdżony**: po jednej liście wariantów na lukę
+  (`[["flex"], ["column","kolumna"]]`), do pięciu wariantów każdy. To jedyny
+  typ pytania z takim kształtem klucza — dlatego `AnswerKey` to
+  `string[] | string[][]`, a analiza ma `Klucz` z rozpoznaniem obu postaci.
+- Odpowiedź ucznia to tablica napisów w kolejności luk.
+- **Ocena zero-jedynkowa**, jak przy dopasowywaniu par: punkt za komplet.
+  Punkty cząstkowe wymagałyby przebudowy całej punktacji (`attempts.score` to
+  liczba całkowita, jeden punkt za pytanie). Zamiast tego analiza pytań pokazuje
+  skuteczność każdej luki osobno — w `AnalizaPytania.pary`, tam gdzie matching
+  trzyma swoje pary.
+- Porównanie przez `normalize_answer()`, czyli bez wielkości liter i nadmiaru
+  spacji — tak samo jak pytania otwarte. Dla kodu to świadomy kompromis
+  (JavaScript rozróżnia wielkość liter); gdy to przeszkadza, nauczyciel dopisuje
+  warianty.
+- Kod renderujemy w `<pre>` jako **tekst**, z polami `<input>` w miejscach
+  markerów (`components/tests/GapsQuestionView.tsx`). Nigdy jako HTML.
 
 ## Analiza pytań
 
@@ -280,7 +312,7 @@ i zegar, żeby usiadł kolejny uczeń. Link do wyniku kopiuje nauczyciel w zakł
 ## Po stronie użytkownika (wciąż otwarte)
 
 1. Wkleić `NEXT_PUBLIC_SUPABASE_ANON_KEY` do `.env.local` (przeze mnie skasowany).
-2. Wykonać migracje **003–019** w Supabase SQL Editor — nic z nich nie było testowane
+2. Wykonać migracje **003–020** w Supabase SQL Editor — nic z nich nie było testowane
    na prawdziwej bazie, tylko na PGlite.
 3. Dopisać konta nauczycieli do tabeli `admins` i wyłączyć publiczną rejestrację.
 

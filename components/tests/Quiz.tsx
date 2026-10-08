@@ -11,6 +11,7 @@ import { getBrowserSupabase } from "@/lib/supabase/client";
 import { formatDuration, pluralPytania } from "@/lib/tests";
 import {
   LIMITS,
+  gapsInCode,
   parseBeginSession,
   parseOpenTest,
   parseServerTime,
@@ -25,6 +26,7 @@ import type {
   QuizAnswer,
   SubmitResult,
 } from "@/types/db";
+import { GapsQuestionView } from "./GapsQuestionView";
 import { MatchingQuestionView } from "./MatchingQuestionView";
 import { PinInput } from "./PinInput";
 import { ProctorWarning } from "./ProctorWarning";
@@ -63,6 +65,7 @@ const TYPE_HINT: Record<string, string> = {
   select: "wybierz z listy",
   input: "wpisz odpowiedź",
   matching: "dopasuj pary",
+  gaps: "uzupełnij luki",
 };
 
 const isAnswered = (a: QuizAnswer | undefined): boolean =>
@@ -647,7 +650,19 @@ export function Quiz({ testId, title, timeLimitSec, questionCount }: Props) {
                     pytanie {i + 1}
                   </p>
                   <p className="mt-0.5 break-words leading-snug">{q.text}</p>
-                  {q.type === "matching" ? (
+                  {q.type === "gaps" ? (
+                    <ul className="mt-1.5 space-y-0.5 text-sm text-muted">
+                      {Array.from({ length: gapsInCode(q.code) }, (_, gi) => (
+                        <li key={gi} className="break-words">
+                          <span className="font-mono">[[{gi + 1}]]</span>{" "}
+                          <span className="text-muted">→</span>{" "}
+                          <span className={ok ? "text-accent" : "text-fg"}>
+                            {(Array.isArray(given) && given[gi]) || "— brak —"}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : q.type === "matching" ? (
                     <ul className="mt-1.5 space-y-0.5 text-sm text-muted">
                       {q.left.map((leftItem, li) => (
                         <li key={leftItem} className="break-words">
@@ -864,6 +879,15 @@ export function Quiz({ testId, title, timeLimitSec, questionCount }: Props) {
               spellCheck={false}
               autoFocus
               aria-label="Twoja odpowiedź"
+            />
+          )}
+
+          {q.type === "gaps" && (
+            <GapsQuestionView
+              question={q}
+              value={Array.isArray(answer) ? answer : []}
+              onChange={(next) => setAnswer(next)}
+              disabled={busy}
             />
           )}
 

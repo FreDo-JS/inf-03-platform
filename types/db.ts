@@ -43,26 +43,36 @@ export type ClassRow = {
   position: number;
 };
 
-export type QuestionType = "closed" | "select" | "input" | "matching";
+export type QuestionType = "closed" | "select" | "input" | "matching" | "gaps";
 
 /** Pytanie w postaci publicznej (bez poprawnej odpowiedzi). */
 export type ChoiceQuestion = { type: "closed" | "select"; text: string; options: string[] };
 export type InputQuestion = { type: "input"; text: string };
 /** Dopasowywanie par. Kolumna "right" jest zapisana w losowej kolejności — nie zdradza par. */
 export type MatchingQuestion = { type: "matching"; text: string; left: string[]; right: string[] };
-export type PublicQuestion = ChoiceQuestion | InputQuestion | MatchingQuestion;
+/**
+ * Uzupełnianie luk w kodzie. `code` to zwykły tekst z markerami [[1]], [[2]]…
+ * numerowanymi od 1 bez przerw — nigdy go nie wykonujemy, tylko renderujemy
+ * w <pre>. Liczbę luk wylicza `gapsInCode` (lustro funkcji gaps_count z bazy).
+ */
+export type GapsQuestion = { type: "gaps"; text: string; code: string };
+export type PublicQuestion = ChoiceQuestion | InputQuestion | MatchingQuestion | GapsQuestion;
 
 /**
- * Odpowiedź ucznia na jedno pytanie: napis (closed/select/input) albo —
- * dla matching — wartości z prawej kolumny w kolejności lewej.
+ * Odpowiedź ucznia na jedno pytanie: napis (closed/select/input) albo tablica —
+ * dla matching wartości z prawej kolumny w kolejności lewej, dla gaps treść
+ * kolejnych luk.
  */
 export type QuizAnswer = string | null | (string | null)[];
 
 /**
- * Klucz odpowiedzi. Dla closed/select/input: lista akceptowanych odpowiedzi.
- * Dla matching: wartości prawej kolumny w kolejności lewej.
+ * Klucz odpowiedzi do jednego pytania:
+ *   closed/select/input — lista akceptowanych odpowiedzi,
+ *   matching            — wartości prawej kolumny w kolejności lewej,
+ *   gaps                — po jednej liście wariantów na każdą lukę.
  */
-export type AnswerKeys = string[][];
+export type AnswerKey = string[] | string[][];
+export type AnswerKeys = AnswerKey[];
 
 export type ProgressRow = {
   class_name: ClassName;
