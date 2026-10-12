@@ -18,6 +18,7 @@ import {
   MonitorPlay,
   Settings,
   Trophy,
+  Users,
   type LucideIcon,
 } from "lucide-react";
 import { Brand } from "@/components/shell/Brand";
@@ -35,6 +36,7 @@ const MAIN: NavItem[] = [
 
 /** Sekcje panelu nauczyciela — w adresie, więc da się je linkować i cofać. */
 export const ADMIN_SECTIONS = [
+  { id: "teachers", label: "Nauczyciele", icon: Users },
   { id: "progress", label: "Postęp klas", icon: BarChart3 },
   { id: "links", label: "Materiały", icon: Link2 },
   { id: "tests", label: "Testy i PIN-y", icon: ListChecks },

@@ -54,6 +54,7 @@ CHECK-i i funkcje. **Każda zmiana w `supabase/*.sql` musi mieć pokrycie w `tes
 | `010_inf04.sql` | druga kwalifikacja: tabela `classes` (FK zamiast list w CHECK-ach), `qualification` w `categories` i `tests`, `create_test` z szóstym argumentem |
 | `011_inf04_seed.sql` | mapa INF.04: 12 kategorii, ponad 50 podtematów, materiały do C# i Reacta |
 | `012_progress_author.sql` | `progress.marked_by` stemplowane triggerem, `admins.display_name`, widok `teachers`, `set_my_display_name()`; naprawia rekurencyjną politykę odczytu `admins` z 008 |
+| `022_przedmioty_nauczyciele.sql` | `subjects` (przedmioty z programu), `categories.subject_id`, `plan_teachers` i `teacher_subjects` — tabela „kto prowadzi który przedmiot” w sekcji *Nauczyciele* |
 | `021_inf03_program_nauczania.sql` | mapa INF.03 zgodna z programem nauczania: działy `bhp`, `podstawy`, `multimedia`, `algorytmy`, `angielski` + 12 podtematów do istniejących działów; przenumerowanie kolejności |
 | `020_gaps_questions.sql` | typ pytania `gaps` — uzupełnianie luk w kodzie; `gaps_count()`, walidacja klucza zagnieżdżonego i ocena zero-jedynkowa |
 | `019_klasy_1a_3a.sql` | klasy 1a (INF.03) i 3a (INF.04) — insert do `classes` plus lustrzany wpis w `CLASS_QUALIFICATION`; `tests/sql/klasy.mjs` pilnuje, żeby tabela i TypeScript się nie rozjechały |
@@ -206,6 +207,27 @@ działania kodu.
 - Kod renderujemy w `<pre>` jako **tekst**, z polami `<input>` w miejscach
   markerów (`components/tests/GapsQuestionView.tsx`). Nigdy jako HTML.
 
+## Przedmioty i przydział nauczycieli
+
+Sekcja **Nauczyciele** w panelu to tabela z kartki: przedmioty u góry, nauczyciele po
+lewej, krzyżyki w środku. Dwie decyzje, które warto znać przed zmianami:
+
+- **`plan_teachers` nie jest powiązane z kontami (`admins`).** Plan układa się dla całego
+  grona, a nie tylko dla osób logujących się do aplikacji — to zwykła lista nazwisk bez
+  żadnych uprawnień. Nie podpinaj jej pod `auth.users`: wtedy w tabeli zobaczysz jedną
+  osobę zamiast czterech.
+- **Cały plan jest tylko dla zalogowanego** (`plan_teachers`, `teacher_subjects` mają
+  wyłącznie politykę `is_admin()`). Publiczna jest sama lista przedmiotów — nazwa
+  przedmiotu to nie tajemnica, a mapa może z niej kiedyś skorzystać.
+
+Dział mapy należy do przedmiotu przez `categories.subject_id` (`on delete set null`, żeby
+skasowanie przedmiotu nie zabrało działów razem z postępem klas). Migracja 022 ustawia to
+przypisanie **tylko tam, gdzie jest puste**, więc przestawienie działu w panelu przeżywa
+ponowne uruchomienie pliku. Okno po kliknięciu w nagłówek kolumny pokazuje właśnie te
+działy — jeśli świeci pustką, znaczy że dział nie ma przedmiotu.
+
+Nowe działy mapy dopisuj z `subject_id` od razu, inaczej wypadną z tego zestawienia.
+
 ## Analiza pytań
 
 Zakładka **Wyniki** ma dwa widoki: listę podejść i analizę pytań. Analiza bierze
@@ -342,7 +364,7 @@ i zegar, żeby usiadł kolejny uczeń. Link do wyniku kopiuje nauczyciel w zakł
 ## Po stronie użytkownika (wciąż otwarte)
 
 1. Wkleić `NEXT_PUBLIC_SUPABASE_ANON_KEY` do `.env.local` (przeze mnie skasowany).
-2. Wykonać migracje **003–021** w Supabase SQL Editor — nic z nich nie było testowane
+2. Wykonać migracje **003–022** w Supabase SQL Editor — nic z nich nie było testowane
    na prawdziwej bazie, tylko na PGlite.
 3. Dopisać konta nauczycieli do tabeli `admins` i wyłączyć publiczną rejestrację.
 

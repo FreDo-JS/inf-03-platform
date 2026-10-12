@@ -38,6 +38,7 @@ Stack: Next.js 15 (App Router) · TypeScript (strict) · Tailwind CSS · Supabas
    - `supabase/019_klasy_1a_3a.sql` — klasy 1a (INF.03) i 3a (INF.04)
    - `supabase/020_gaps_questions.sql` — piąty typ pytania: uzupełnianie luk w kodzie
    - `supabase/021_inf03_program_nauczania.sql` — mapa INF.03 uzupełniona o braki względem programu nauczania (BHP, podstawy zawodu, multimedia, algorytmy, język zawodowy)
+   - `supabase/022_przedmioty_nauczyciele.sql` — przedmioty z programu nauczania i przydział „kto co prowadzi” (sekcja *Nauczyciele*)
 
    Masz już bazę z poprzedniej wersji? Uruchom brakujące migracje (`002…`, `003…`) — nic nie nadpisują,
    a ponowne uruchomienie niczego nie duplikuje.
@@ -223,6 +224,14 @@ drugiego komputera. Pełną kontrolę daje Safe Exam Browser (tu nieintegrowany)
 ## Materiały przy podtematach
 
 Każdy podtemat może mieć dowolną liczbę linków (teoria, zadania, film, arkusz…). Zarządza nimi
+**Admin → Nauczyciele**: tabela „kto prowadzi który przedmiot”. Kolumny to przedmioty
+z programu nauczania (BHP, język angielski zawodowy, przygotowanie do zawodu, bazy danych,
+projektowanie stron, programowanie aplikacji), wiersze to nauczyciele — listę wpisujesz
+ręcznie, bo plan układa się dla całego grona, także dla osób bez konta w aplikacji.
+Kliknięcie w kratkę stawia lub zdejmuje krzyżyk, kliknięcie w nazwę przedmiotu pokazuje
+działy mapy nauki, które się na nim realizuje (same główne tematy, bez podtematów).
+Cały plan widzi wyłącznie zalogowany nauczyciel.
+
 **Admin → Materiały**: wybierasz podtemat, dodajesz, edytujesz, usuwasz i przestawiasz kolejność
 strzałkami. Zmiany widać u uczniów na żywo (Realtime na `subtopic_links`), bez redeployu.
 

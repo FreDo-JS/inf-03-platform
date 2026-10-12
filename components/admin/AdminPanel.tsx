@@ -14,6 +14,7 @@ import { LogTab } from "./LogTab";
 import { NewTestTab } from "./NewTestTab";
 import { ProgressTab } from "./ProgressTab";
 import { ResultsTab } from "./ResultsTab";
+import { TeachersTab } from "./TeachersTab";
 import { TestsTab } from "./TestsTab";
 
 type Props = {
@@ -126,6 +127,7 @@ export function AdminPanel({ email, categories, subtopics, initialProgress, teac
             authorColumn={authorColumn}
           />
         )}
+        {tab === "teachers" && <TeachersTab />}
         {tab === "links" && <LinksTab categories={categories} subtopics={subtopics} />}
         {tab === "tests" && <TestsTab />}
         {tab === "new" && <NewTestTab />}

@@ -106,6 +106,31 @@ export type CategoryRow = {
   qualification: Qualification;
 };
 
+/** Przedmiot z programu nauczania (migracja 022). */
+export type SubjectRow = {
+  id: string;
+  title: string;
+  position: number;
+  qualification: Qualification;
+};
+
+/**
+ * Nauczyciel w planie przedmiotów. Celowo bez powiązania z kontem (`admins`) —
+ * plan układa się dla całego grona, także dla osób bez konta w aplikacji.
+ */
+export type PlanTeacherRow = {
+  id: string;
+  name: string;
+  position: number;
+  created_at: string;
+};
+
+/** Krzyżyk w tabeli: ten nauczyciel prowadzi ten przedmiot. */
+export type TeacherSubjectRow = {
+  teacher_id: string;
+  subject_id: string;
+};
+
 export type SubtopicRow = {
   id: string;
   category_id: string;
@@ -259,7 +284,10 @@ export type Database = {
       classes: Table<ClassRow, ClassRow>;
       // dziennik zapisuje trigger — z API wolno go tylko czytać i kasować
       progress_log: Table<ProgressLogRow, never, never>;
-      categories: Table<CategoryRow, CategoryRow>;
+      // subject_id dochodzi z migracją 022 i jest potrzebne tylko w sekcji
+      // „Nauczyciele" — CategoryRow zostaje bez niego, żeby zapytania reszty
+      // aplikacji (i fallbacki w compat.ts) nie musiały go wybierać.
+      categories: Table<CategoryRow & { subject_id: string | null }, CategoryRow>;
       subtopics: Table<SubtopicRow, SubtopicRow>;
       subtopic_links: Table<
         SubtopicLinkRow,
@@ -293,6 +321,10 @@ export type Database = {
         }
       >;
       test_keys: Table<TestKeysRow, { test_id: string; answers: Json; pin?: string }>;
+      // plan przedmiotów (migracja 022) — tylko dla zalogowanego nauczyciela
+      subjects: Table<SubjectRow, SubjectRow>;
+      plan_teachers: Table<PlanTeacherRow, { id?: string; name: string; position?: number }, { name?: string; position?: number }>;
+      teacher_subjects: Table<TeacherSubjectRow, TeacherSubjectRow, never>;
       // moduł Praktyka — uczeń nie ma do tych tabel dostępu (RLS), admin tak
       practical_tasks: Table<PracticalTaskRowDb, Partial<PracticalTaskRowDb> & { title: string }>;
       practical_sessions: Table<PracticalSessionRowDb, Partial<PracticalSessionRowDb>>;
