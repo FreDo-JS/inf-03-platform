@@ -54,6 +54,7 @@ CHECK-i i funkcje. **Każda zmiana w `supabase/*.sql` musi mieć pokrycie w `tes
 | `010_inf04.sql` | druga kwalifikacja: tabela `classes` (FK zamiast list w CHECK-ach), `qualification` w `categories` i `tests`, `create_test` z szóstym argumentem |
 | `011_inf04_seed.sql` | mapa INF.04: 12 kategorii, ponad 50 podtematów, materiały do C# i Reacta |
 | `012_progress_author.sql` | `progress.marked_by` stemplowane triggerem, `admins.display_name`, widok `teachers`, `set_my_display_name()`; naprawia rekurencyjną politykę odczytu `admins` z 008 |
+| `021_inf03_program_nauczania.sql` | mapa INF.03 zgodna z programem nauczania: działy `bhp`, `podstawy`, `multimedia`, `algorytmy`, `angielski` + 12 podtematów do istniejących działów; przenumerowanie kolejności |
 | `020_gaps_questions.sql` | typ pytania `gaps` — uzupełnianie luk w kodzie; `gaps_count()`, walidacja klucza zagnieżdżonego i ocena zero-jedynkowa |
 | `019_klasy_1a_3a.sql` | klasy 1a (INF.03) i 3a (INF.04) — insert do `classes` plus lustrzany wpis w `CLASS_QUALIFICATION`; `tests/sql/klasy.mjs` pilnuje, żeby tabela i TypeScript się nie rozjechały |
 | `018_attempt_answers.sql` | `attempts.answers` i `attempts.results` — odpowiedzi ucznia zapisywane przy wyniku; podstawa analizy pytań w panelu |
@@ -94,6 +95,35 @@ do `classes` + wpis w tej mapie; CHECK-i z listą klas już nie istnieją, jest 
 Moduł Praktyka celowo **nie** został rozciągnięty na INF.04 — jego IDE uruchamia
 HTML/CSS/JS w iframe, a egzamin INF.04 wymaga kompilacji C#. Nie udawaj, że da się
 to ocenić w przeglądarce; to byłaby ściema, nie funkcja.
+
+## Mapa INF.03 a program nauczania
+
+Źródłem jest `ProgramNaucznia/` — dwa programy nauczania zawodu technik programista
+(warianty „SI" i „Projektowanie gier"). **Część INF.03 jest w obu identyczna**, różnią
+się tylko przedmioty INF.04. Przedmioty INF.03 to: BHP i język angielski (teoretyczne)
+oraz Przygotowanie do zawodu programisty, Bazy danych, Projektowanie stron internetowych
+i Programowanie aplikacji internetowych (praktyczne), plus praktyka zawodowa.
+
+Mapa pokrywa je działami (migracja 021 domknęła braki):
+
+| Jednostka efektów | Dział mapy |
+|---|---|
+| INF.03.1 BHP, INF.03.7–8 kompetencje i praca zespołu | `bhp` |
+| INF.03.2 przygotowanie do zawodu | `podstawy` |
+| INF.03.3 strony internetowe | `html-css`, `multimedia`, `grafika`, `cms`, częściowo `dokumentacja` |
+| INF.03.4 bazy danych | `sql` |
+| INF.03.5 aplikacje internetowe | `algorytmy`, `javascript`, `php`, `serwer` |
+| INF.03.6 język obcy zawodowy | `angielski` |
+
+Dział `cpp` jest ponad program (użytkownik chciał go do części konsolowej), a
+`bezpieczenstwo` to rozwinięcie wątku z INF.03.2 na aplikacje webowe. Dokładając dział,
+sprawdź najpierw w programie, do której jednostki należy — mapa ma odpowiadać na pytanie
+„czy przerobiliśmy podstawę", a nie być luźną listą tematów.
+
+**Kolejność działów** (kolumna `position`) jest unikalna w obrębie kwalifikacji, więc
+wstawienie działu w środek listy wymaga odsunięcia pozostałych do strefy 100+ i dopiero
+potem ustawienia docelowych numerów — tak robi 021. Kategorie dodane ręcznie w panelu
+migracja dopina na koniec zamiast je nadpisywać.
 
 ## Układ i wygląd
 
@@ -312,7 +342,7 @@ i zegar, żeby usiadł kolejny uczeń. Link do wyniku kopiuje nauczyciel w zakł
 ## Po stronie użytkownika (wciąż otwarte)
 
 1. Wkleić `NEXT_PUBLIC_SUPABASE_ANON_KEY` do `.env.local` (przeze mnie skasowany).
-2. Wykonać migracje **003–020** w Supabase SQL Editor — nic z nich nie było testowane
+2. Wykonać migracje **003–021** w Supabase SQL Editor — nic z nich nie było testowane
    na prawdziwej bazie, tylko na PGlite.
 3. Dopisać konta nauczycieli do tabeli `admins` i wyłączyć publiczną rejestrację.
 

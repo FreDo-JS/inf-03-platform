@@ -37,6 +37,7 @@ Stack: Next.js 15 (App Router) · TypeScript (strict) · Tailwind CSS · Supabas
    - `supabase/018_attempt_answers.sql` — odpowiedzi ucznia zapisywane przy wyniku (analiza pytań w panelu)
    - `supabase/019_klasy_1a_3a.sql` — klasy 1a (INF.03) i 3a (INF.04)
    - `supabase/020_gaps_questions.sql` — piąty typ pytania: uzupełnianie luk w kodzie
+   - `supabase/021_inf03_program_nauczania.sql` — mapa INF.03 uzupełniona o braki względem programu nauczania (BHP, podstawy zawodu, multimedia, algorytmy, język zawodowy)
 
    Masz już bazę z poprzedniej wersji? Uruchom brakujące migracje (`002…`, `003…`) — nic nie nadpisują,
    a ponowne uruchomienie niczego nie duplikuje.
