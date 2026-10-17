@@ -54,6 +54,8 @@ CHECK-i i funkcje. **Każda zmiana w `supabase/*.sql` musi mieć pokrycie w `tes
 | `010_inf04.sql` | druga kwalifikacja: tabela `classes` (FK zamiast list w CHECK-ach), `qualification` w `categories` i `tests`, `create_test` z szóstym argumentem |
 | `011_inf04_seed.sql` | mapa INF.04: 12 kategorii, ponad 50 podtematów, materiały do C# i Reacta |
 | `012_progress_author.sql` | `progress.marked_by` stemplowane triggerem, `admins.display_name`, widok `teachers`, `set_my_display_name()`; naprawia rekurencyjną politykę odczytu `admins` z 008 |
+| `024_inf04_ai.sql` | dział `inf04-ai` — przedmiot specjalizacyjny (Python i biblioteki danych, uczenie maszynowe, wizja komputerowa, NLP); dotyczy klas 3a i 4a |
+| `023_inf04_braki.sql` | mapa INF.04 doprowadzona do podstawy: wyjątki i klasy abstrakcyjne w ścieżce C#, wzorce projektowe, Jira/Trello/Gantt, prawo autorskie, dane i publikacja w aplikacjach mobilnych, sesje i logowanie, testy niefunkcjonalne |
 | `022_przedmioty_nauczyciele.sql` | `subjects` (przedmioty z programu), `categories.subject_id`, `plan_teachers` i `teacher_subjects` — tabela „kto prowadzi który przedmiot” w sekcji *Nauczyciele* |
 | `021_inf03_program_nauczania.sql` | mapa INF.03 zgodna z programem nauczania: działy `bhp`, `podstawy`, `multimedia`, `algorytmy`, `angielski` + 12 podtematów do istniejących działów; przenumerowanie kolejności |
 | `020_gaps_questions.sql` | typ pytania `gaps` — uzupełnianie luk w kodzie; `gaps_count()`, walidacja klucza zagnieżdżonego i ocena zero-jedynkowa |
@@ -206,6 +208,29 @@ działania kodu.
   warianty.
 - Kod renderujemy w `<pre>` jako **tekst**, z polami `<input>` w miejscach
   markerów (`components/tests/GapsQuestionView.tsx`). Nigdy jako HTML.
+
+## Mapa INF.04 a program nauczania
+
+Źródłem jest program nauczania w wersji z 2022 r. (wariant ze sztuczną inteligencją,
+konsultowany z Intelem — stąd OpenVINO i NCS2 w treściach). Ma **inną strukturę** niż
+pliki w `ProgramNaucznia/`: nie dzieli się na kwalifikacje, tylko na 13 przedmiotów przez
+cały cykl. Jednostki efektów są te same, więc mapa odpowiada jednostkom INF.04.1–11
+i tak to zostało sprawdzone (migracja 023 domknęła braki).
+
+Dwie rzeczy, o których warto pamiętać przy kolejnych zmianach:
+
+- **Wyjątki, metody wirtualne i klasy abstrakcyjne były w mapie tylko przy C++ i Javie**
+  (migracja 016), a podstawa wymaga ich w INF.04.4 niezależnie od języka — czyli także
+  w ścieżce C#, którą szkoła uczy jako główną. 023 to naprawiło; dokładając temat
+  językowy, sprawdź, czy nie powinien być też w `inf04-oop`.
+- **Prawo autorskie i licencje** mają w INF.04.3 cztery osobne efekty. W mapie istniały
+  wcześniej tylko po stronie INF.03 (dział grafiki) — teraz są w obu kwalifikacjach.
+
+`inf04-ai` to **przedmiot specjalizacyjny klas 3a i 4a**, nie jednostka podstawy. Mapa
+trzyma działy per kwalifikacja, nie per klasa, więc widzi go też 4g (drugi wariant —
+gry) i po prostu go nie odhacza. Gdyby miał znikać z jej widoku, trzeba by dołożyć
+przypisanie działów do klas; dziś model tego nie ma, a informacja o klasach siedzi
+w opisie działu.
 
 ## Przedmioty i przydział nauczycieli
 
@@ -364,7 +389,7 @@ i zegar, żeby usiadł kolejny uczeń. Link do wyniku kopiuje nauczyciel w zakł
 ## Po stronie użytkownika (wciąż otwarte)
 
 1. Wkleić `NEXT_PUBLIC_SUPABASE_ANON_KEY` do `.env.local` (przeze mnie skasowany).
-2. Wykonać migracje **003–022** w Supabase SQL Editor — nic z nich nie było testowane
+2. Wykonać migracje **003–024** w Supabase SQL Editor — nic z nich nie było testowane
    na prawdziwej bazie, tylko na PGlite.
 3. Dopisać konta nauczycieli do tabeli `admins` i wyłączyć publiczną rejestrację.
 
