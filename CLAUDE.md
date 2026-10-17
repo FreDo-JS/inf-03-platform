@@ -312,6 +312,23 @@ w rzadszych konstrukcjach DDL dopisz asercję sprawdzającą sam katalog systemo
 (w `security.mjs` jest taka na `pg_publication_rel`), bo samo „migracja się wykonała”
 niczego nie dowodzi.
 
+**Pozycje przy wstawianiu z listy VALUES licz w CTE, nie w podzapytaniu.** Zapis
+z podzapytaniem w liście SELECT, które sięga do aliasu z FROM:
+
+```sql
+select v.id, (select max(s.position) from subtopics s where s.category_id = v.cat)
+         + row_number() over (partition by v.cat order by v.ord), v.title
+from (values (...)) as v(id, cat, ord, title)
+```
+
+jest poprawnym Postgresem i przechodzi na PGlite, ale **SQL Editor w Supabase odrzucił go**
+komunikatem „missing FROM-clause entry for table v" (migracja 023, przy pierwszym odwołaniu
+do `v`). Nie udało się tego odtworzyć lokalnie, więc nie wiadomo, czy to parser edytora,
+czy wersja serwera — ale to samo liczy zwykłe złączenie z CTE i tak jest czytelniej:
+`with nowe (...) as (values ...), poczatek as (select ... group by ...) insert ... select
+... from nowe n join poczatek p on ...`. Migracje 021, 023 i 024 używają tej postaci;
+trzymaj się jej, dokładając kolejne.
+
 **CSP z nonce.** `middleware.ts` generuje nonce per request (`script-src 'self' 'nonce-…'
 'strict-dynamic'`). Dlatego `app/layout.tsx` ma `export const dynamic = "force-dynamic"` —
 bez tego strony statyczne trafiają do produkcji bez nonce i hydracja pada. Nie usuwaj tego.

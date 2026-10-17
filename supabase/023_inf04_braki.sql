@@ -34,12 +34,8 @@ begin
   end if;
 end $$;
 
-insert into subtopics (id, category_id, position, title)
-select v.id, v.cat,
-       (select coalesce(max(s.position), 0) from subtopics s where s.category_id = v.cat)
-         + row_number() over (partition by v.cat order by v.ord),
-       v.title
-from (values
+with nowe (id, cat, ord, title) as (
+  values
   -- INF.04.3 — projektowanie oprogramowania
   ('inf04-wzorce',      'inf04-projektowanie', 1, 'Wzorce projektowe: metoda szablonowa, fasada, kompozyt'),
   ('inf04-paradygmaty', 'inf04-projektowanie', 2, 'Paradygmaty programowania: strukturalny i obiektowy'),
@@ -80,8 +76,20 @@ from (values
   ('inf04-test-raporty','inf04-testowanie', 6, 'Raportowanie błędów: Jira, Bugzilla'),
   ('inf04-test-instrukcja','inf04-testowanie', 7, 'Instrukcja użytkownika i pomoc programu'),
   ('inf04-test-optymalizacja','inf04-testowanie', 8, 'Optymalizacja kodu źródłowego')
-) as v(id, cat, ord, title)
-where not exists (select 1 from subtopics s2 where s2.id = v.id);
+),
+-- pozycje liczymy od tego, co już jest w dziale: nauczyciel mógł dodać własne
+-- podtematy w panelu, a para (category_id, position) jest unikalna
+poczatek as (
+  select n.cat, coalesce(max(s.position), 0) as od
+  from nowe n
+  left join subtopics s on s.category_id = n.cat
+  group by n.cat
+)
+insert into subtopics (id, category_id, position, title)
+select n.id, n.cat, p.od + row_number() over (partition by n.cat order by n.ord), n.title
+from nowe n
+join poczatek p on p.cat = n.cat
+where not exists (select 1 from subtopics s2 where s2.id = n.id);
 
 -- Materiały tam, gdzie istnieje trwałe źródło.
 insert into subtopic_links (subtopic_id, label, url, sort_order)

@@ -66,12 +66,8 @@ on conflict (id) do nothing;
 -- na sztywno — nauczyciel mógł dodać własne podtematy w panelu, a para
 -- (category_id, position) jest unikalna.
 
-insert into subtopics (id, category_id, position, title)
-select v.id, v.cat,
-       (select coalesce(max(s.position), 0) from subtopics s where s.category_id = v.cat)
-         + row_number() over (partition by v.cat order by v.ord),
-       v.title
-from (values
+with nowe (id, cat, ord, title) as (
+  values
   -- INF.03.1 + INF.03.7 + INF.03.8 — BHP, etyka, praca zespołowa
   ('bhp-przepisy',     'bhp', 1, 'Przepisy BHP, prawo pracy i ochrona przeciwpożarowa w pracowni'),
   ('bhp-ergonomia',    'bhp', 2, 'Ergonomia stanowiska komputerowego i czynniki szkodliwe'),
@@ -132,8 +128,20 @@ from (values
   ('dok-seo',          'dokumentacja', 1, 'Pozycjonowanie i SEO strony internetowej'),
   ('dok-optymalizacja','dokumentacja', 2, 'Optymalizacja strony: wydajność i rozmiar zasobów'),
   ('dok-instrukcja',   'dokumentacja', 3, 'Instrukcja użytkownika i dokumentacja techniczna aplikacji')
-) as v(id, cat, ord, title)
-where not exists (select 1 from subtopics s2 where s2.id = v.id);
+),
+-- pozycje liczymy od tego, co już jest w dziale: nauczyciel mógł dodać własne
+-- podtematy w panelu, a para (category_id, position) jest unikalna
+poczatek as (
+  select n.cat, coalesce(max(s.position), 0) as od
+  from nowe n
+  left join subtopics s on s.category_id = n.cat
+  group by n.cat
+)
+insert into subtopics (id, category_id, position, title)
+select n.id, n.cat, p.od + row_number() over (partition by n.cat order by n.ord), n.title
+from nowe n
+join poczatek p on p.cat = n.cat
+where not exists (select 1 from subtopics s2 where s2.id = n.id);
 
 -- -----------------------------------------------------------------------------
 -- 4. Kolejność działów

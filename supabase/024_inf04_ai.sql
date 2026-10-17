@@ -30,11 +30,8 @@ insert into categories (id, position, title, description, qualification) values
    'inf04')
 on conflict (id) do nothing;
 
-insert into subtopics (id, category_id, position, title)
-select v.id, 'inf04-ai',
-       (select coalesce(max(s.position), 0) from subtopics s where s.category_id = 'inf04-ai') + v.ord,
-       v.title
-from (values
+with nowe (id, ord, title) as (
+  values
   ('ai-czym-jest',    1,  'Czym jest sztuczna inteligencja — zastosowania w życiu i w branżach'),
   ('ai-reguly-ml',    2,  'Podejście oparte na regułach a uczenie maszynowe'),
   ('ai-perceptron',   3,  'Perceptron i sieci neuronowe — jak model podejmuje decyzję'),
@@ -52,8 +49,15 @@ from (values
   ('ai-nlp',          15, 'Przetwarzanie języka naturalnego (NLP)'),
   ('ai-pulpit',       16, 'Wizualizacja danych i pulpit (Tableau Public)'),
   ('ai-zastosowania', 17, 'Komercyjne zastosowania: rekomendacje, konserwacja predykcyjna, wykrywanie oszustw')
-) as v(id, ord, title)
-where not exists (select 1 from subtopics s2 where s2.id = v.id);
+),
+poczatek as (
+  select coalesce(max(position), 0) as od from subtopics where category_id = 'inf04-ai'
+)
+insert into subtopics (id, category_id, position, title)
+select n.id, 'inf04-ai', p.od + n.ord, n.title
+from nowe n
+cross join poczatek p
+where not exists (select 1 from subtopics s2 where s2.id = n.id);
 
 insert into subtopic_links (subtopic_id, label, url, sort_order)
 select v.subtopic_id, v.label, v.url, v.sort_order
