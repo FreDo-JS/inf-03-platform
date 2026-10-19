@@ -1,0 +1,42 @@
+# Bramka przed wdrożeniem: typy, lint i testy bazy.
+#
+# Testy SQL stawiają Postgresa w pamięci (PGlite), więc nie potrzebują ani
+# Supabase, ani sekretów, ani sieci — całość chodzi w zwykłym runnerze.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  sprawdzenie:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalacja zależności
+        run: npm ci
+
+      - name: Typy
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Testy bazy (migracje, RLS, funkcje)
+        run: npm run test:sql
+
+      # Build sprawdza to, czego nie złapią testy: czy strony się kompilują
+      # i czy tryb standalone (obraz na VPS) powstaje poprawnie.
+      - name: Build produkcyjny
+        env:
+          BUILD_STANDALONE: "1"
+          NEXT_PUBLIC_SUPABASE_URL: https://przyklad.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: klucz-do-budowania
+        run: npm run build

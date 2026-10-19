@@ -1,0 +1,22 @@
+# Co NIE trafia do kontekstu budowania.
+node_modules
+.next
+.git
+.github
+.vercel
+
+# sekrety — nigdy do obrazu
+.env
+.env.local
+.env.*.local
+
+# kopiowane przez prebuild, nie z repozytorium
+public/monaco
+
+# materialy i dokumentacja, niepotrzebne w obrazie
+ProgramNaucznia
+docs
+tests
+supabase
+scripts/testy
+tsconfig.tsbuildinfo

@@ -40,6 +40,10 @@ const SANDBOX_CSP = [
 
 const nextConfig: NextConfig = {
   outputFileTracingRoot: process.cwd(),
+  // Tryb standalone pakuje serwer razem z potrzebnymi zależnościami — tego
+  // chce obraz dockerowy na VPS (Dockerfile ustawia BUILD_STANDALONE=1).
+  // Na Vercelu zmiennej nie ma, więc tamto wdrożenie zachowuje się jak dotąd.
+  ...(process.env.BUILD_STANDALONE === "1" ? { output: "standalone" as const } : {}),
   poweredByHeader: false,
   reactStrictMode: true,
   async headers() {

@@ -1,0 +1,38 @@
+# Aplikacja Tebby na VPS.
+#
+# Tu jest WYŁĄCZNIE Next.js. Supabase stawia się osobno, z oficjalnego
+# compose'a (supabase/docker) — nie przepisujemy go tutaj, bo zmienia się
+# z wersji na wersję i źródłem prawdy jest repozytorium Supabase.
+# Całość opisuje docs/wdrozenie-vps.md.
+#
+#   docker compose -f deploy/docker-compose.yml up -d --build
+#
+# Kontener słucha tylko na pętli zwrotnej — na świat wystawia go nginx,
+# który trzyma certyfikat i kończy TLS.
+
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      args:
+        # Wkompilowywane w kod przeglądarki, więc muszą być znane przy budowaniu.
+        # Anon key jest publiczny z definicji — dostępu pilnuje RLS w bazie.
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL:?podaj adres Supabase w deploy/.env}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY:?podaj anon key w deploy/.env}
+    image: tebby:latest
+    container_name: tebby-app
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      # Te same wartości w czasie działania — Server Components czytają je
+      # po stronie serwera (lib/supabase/env.ts wymaga https).
+      NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+    ports:
+      - "127.0.0.1:3000:3000"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
