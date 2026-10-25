@@ -2,18 +2,28 @@
 
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
-/** Kwalifikacje obsługiwane przez aplikację. Klasa decyduje, którą uczeń widzi. */
-export const QUALIFICATIONS = ["inf03", "inf04"] as const;
+/**
+ * Kwalifikacje i przedmioty zawodowe obsługiwane przez aplikację. Klasa wyznacza
+ * domyślną kwalifikację; pozostałe (m.in. przedmioty tsai / adm / psio z migracji
+ * 021) uczeń lub nauczyciel przełącza ręcznie na mapie nauki.
+ */
+export const QUALIFICATIONS = ["inf03", "inf04", "tsai", "adm", "psio"] as const;
 export type Qualification = (typeof QUALIFICATIONS)[number];
 
 export const QUALIFICATION_LABEL: Record<Qualification, string> = {
   inf03: "INF.03",
   inf04: "INF.04",
+  tsai: "Strony i aplikacje",
+  adm: "Desktop i mobile",
+  psio: "Strukturalne i obiektowe",
 };
 
 export const QUALIFICATION_FULL: Record<Qualification, string> = {
   inf03: "Tworzenie i administrowanie stronami i aplikacjami internetowymi oraz bazami danych",
   inf04: "Projektowanie, programowanie i testowanie aplikacji",
+  tsai: "Tworzenie stron i aplikacji internetowych",
+  adm: "Aplikacje desktopowe i mobilne",
+  psio: "Programowanie strukturalne i obiektowe",
 };
 
 export const CLASS_NAMES = ["1a", "2a", "4e", "4d", "3a", "4a", "4g"] as const;

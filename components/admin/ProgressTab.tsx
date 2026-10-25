@@ -9,6 +9,7 @@ import { useSelectedClass } from "@/lib/hooks/useSelectedClass";
 import { getBrowserSupabase } from "@/lib/supabase/client";
 import { isClassName, isSubtopicId } from "@/lib/validation";
 import { ClassPicker } from "@/components/ClassPicker";
+import { QualificationTabs, useQualificationView } from "@/components/QualificationTabs";
 import { TeacherMark, teacherNames } from "@/components/TeacherMark";
 import {
   CLASS_QUALIFICATION,
@@ -57,10 +58,11 @@ export function ProgressTab({
     return m;
   }, [subtopics]);
 
-  // Pokazujemy tylko kategorie kwalifikacji, której uczy się wybrana klasa.
+  // Domyślnie kategorie kwalifikacji wybranej klasy; nauczyciel może przełączyć na inny przedmiot.
+  const [qualification, setQualification] = useQualificationView(cls);
   const shownCategories = useMemo(
-    () => categories.filter((c) => c.qualification === CLASS_QUALIFICATION[cls]),
-    [categories, cls],
+    () => categories.filter((c) => c.qualification === qualification),
+    [categories, qualification],
   );
 
   const toggle = async (c: ClassName, subtopicId: string) => {
@@ -120,7 +122,7 @@ export function ProgressTab({
     });
   };
 
-  // Liczymy w obrębie kwalifikacji wybranej klasy — inaczej 4a miałaby w mianowniku
+  // Liczymy w obrębie pokazanej kwalifikacji — inaczej 4a miałaby w mianowniku
   // także podtematy INF.03, których się nie uczy.
   const shownSubtopics = useMemo(() => {
     const ids = new Set(shownCategories.map((c) => c.id));
@@ -134,6 +136,9 @@ export function ProgressTab({
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <ClassPicker layout="row" />
           <LiveBadge status={status} />
+        </div>
+        <div className="mb-4">
+          <QualificationTabs value={qualification} onChange={setQualification} home={CLASS_QUALIFICATION[cls]} />
         </div>
         <h2 className="section-title mb-2">Postęp klasy {cls}</h2>
         <ProgressBar value={totalDone} max={shownSubtopics.length} label="ukończone podtematy" />

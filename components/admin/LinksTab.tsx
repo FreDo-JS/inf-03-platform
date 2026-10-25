@@ -171,7 +171,7 @@ export function LinksTab({ categories, subtopics }: Props) {
         <label htmlFor="subtopic-pick" className="label">
           Podtemat
         </label>
-        <div className="mb-3 flex gap-2">
+        <div className="mb-3 flex flex-wrap gap-2">
           {QUALIFICATIONS.map((q) => (
             <button
               key={q}

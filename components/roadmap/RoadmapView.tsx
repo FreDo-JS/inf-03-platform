@@ -5,6 +5,7 @@ import { teacherNames } from "@/components/TeacherMark";
 import { ChevronRight } from "lucide-react";
 import { LiveBadge } from "@/components/LiveBadge";
 import { ProgressBar } from "@/components/ProgressBar";
+import { QualificationTabs, useQualificationView } from "@/components/QualificationTabs";
 import { useRealtimeLinks } from "@/lib/hooks/useRealtimeLinks";
 import { progressKey, useRealtimeProgress } from "@/lib/hooks/useRealtimeProgress";
 import { useSelectedClass } from "@/lib/hooks/useSelectedClass";
@@ -36,8 +37,9 @@ export function RoadmapView({ categories, subtopics, initialProgress, initialLin
   const [openId, setOpenId] = useState<string | null>(null);
   const closeModal = useCallback(() => setOpenId(null), []);
 
-  // Klasa wyznacza kwalifikację, a kwalifikacja — zestaw kategorii i podtematów.
-  const qualification = CLASS_QUALIFICATION[cls];
+  // Klasa wyznacza domyślną kwalifikację, ale można przełączyć na inny przedmiot —
+  // postęp i tak jest zapisywany per klasa i podtemat.
+  const [qualification, setQualification] = useQualificationView(cls);
   const shownCategories = useMemo(
     () => categories.filter((c) => c.qualification === qualification),
     [categories, qualification],
@@ -72,6 +74,7 @@ export function RoadmapView({ categories, subtopics, initialProgress, initialLin
             <span className="font-mono">{QUALIFICATION_LABEL[qualification]}</span>
           </p>
         </div>
+        <QualificationTabs value={qualification} onChange={setQualification} home={CLASS_QUALIFICATION[cls]} />
         <p className="max-w-3xl text-sm leading-relaxed text-muted">
           {QUALIFICATION_FULL[qualification]}. Wybierz kategorię, aby zobaczyć podtematy i materiały.
         </p>

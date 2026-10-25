@@ -165,7 +165,7 @@ export function PracticalSessionsTab() {
             Klasa
           </label>
           <select id="sess-class" className="input" value={className} onChange={(e) => setClassName(e.target.value)}>
-            {QUALIFICATIONS.map((q) => (
+            {QUALIFICATIONS.filter((q) => CLASS_NAMES.some((c) => CLASS_QUALIFICATION[c] === q)).map((q) => (
               <optgroup key={q} label={QUALIFICATION_LABEL[q]}>
                 {CLASS_NAMES.filter((c) => CLASS_QUALIFICATION[c] === q).map((c) => (
                   <option key={c} value={c}>

@@ -142,7 +142,7 @@ export function NewTestTab() {
       <div className="card grid gap-4 p-4 sm:grid-cols-[1fr_10rem_13rem] sm:p-6">
         <div className="sm:col-span-3">
           <p className="label">Kwalifikacja</p>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {QUALIFICATIONS.map((q) => (
               <button
                 key={q}

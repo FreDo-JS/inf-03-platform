@@ -54,6 +54,8 @@ CHECK-i i funkcje. **Każda zmiana w `supabase/*.sql` musi mieć pokrycie w `tes
 | `010_inf04.sql` | druga kwalifikacja: tabela `classes` (FK zamiast list w CHECK-ach), `qualification` w `categories` i `tests`, `create_test` z szóstym argumentem |
 | `011_inf04_seed.sql` | mapa INF.04: 12 kategorii, ponad 50 podtematów, materiały do C# i Reacta |
 | `012_progress_author.sql` | `progress.marked_by` stemplowane triggerem, `admins.display_name`, widok `teachers`, `set_my_display_name()`; naprawia rekurencyjną politykę odczytu `admins` z 008 |
+| `022_przedmioty_nauczycieli.sql` | `admins.subjects` (NULL = wszystkie, `'{}'` = podgląd) + `can_manage*()`; polityki zapisu na mapie, materiałach, postępie, testach, kluczach i wynikach sprawdzają przedmiot; `set_test_pin` też; listę ustawia tylko właściciel z SQL Editora. Praktyka i klasy poza zakresem (klasy: tylko konto bez ograniczeń) |
+| `021_przedmioty.sql` | trzy przedmioty jako kolejne kwalifikacje: `tsai` (Tworzenie stron i aplikacji internetowych), `adm` (Aplikacje desktopowe i mobilne), `psio` (Programowanie strukturalne i obiektowe); szersze CHECK-i i `create_test`, treść to **kopie** kategorii INF.03/INF.04 z prefiksem `tsai-`/`adm-`/`psio-`; klas nie dodaje — przedmiot wybiera się zakładkami na mapie nauki |
 | `020_gaps_questions.sql` | typ pytania `gaps` — uzupełnianie luk w kodzie; `gaps_count()`, walidacja klucza zagnieżdżonego i ocena zero-jedynkowa |
 | `019_klasy_1a_3a.sql` | klasy 1a (INF.03) i 3a (INF.04) — insert do `classes` plus lustrzany wpis w `CLASS_QUALIFICATION`; `tests/sql/klasy.mjs` pilnuje, żeby tabela i TypeScript się nie rozjechały |
 | `018_attempt_answers.sql` | `attempts.answers` i `attempts.results` — odpowiedzi ucznia zapisywane przy wyniku; podstawa analizy pytań w panelu |
@@ -312,7 +314,7 @@ i zegar, żeby usiadł kolejny uczeń. Link do wyniku kopiuje nauczyciel w zakł
 ## Po stronie użytkownika (wciąż otwarte)
 
 1. Wkleić `NEXT_PUBLIC_SUPABASE_ANON_KEY` do `.env.local` (przeze mnie skasowany).
-2. Wykonać migracje **003–020** w Supabase SQL Editor — nic z nich nie było testowane
+2. Wykonać migracje **003–022** w Supabase SQL Editor — nic z nich nie było testowane
    na prawdziwej bazie, tylko na PGlite.
 3. Dopisać konta nauczycieli do tabeli `admins` i wyłączyć publiczną rejestrację.
 
