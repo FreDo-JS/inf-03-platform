@@ -1,12 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { TaskEditor } from "@/components/admin/practical/TaskEditor";
 import { IdeWorkspace } from "@/components/practical/IdeWorkspace";
-import { fetchTasks } from "@/lib/practical/tasks";
+import { MAX_IMPORT_BYTES, copyOf, exportFileName, exportTask, importTask } from "@/lib/practical/exchange";
+import { fetchTasks, saveTask } from "@/lib/practical/tasks";
 import { getBrowserSupabase } from "@/lib/supabase/client";
 import type { AttemptState, PracticalTaskRow, ProjectFile } from "@/types/practical";
-import { Eye, Timer, X } from "lucide-react";
+import { Copy, Download, Eye, Timer, Upload, X } from "lucide-react";
 
 /** Sztuczny stan podejścia — podgląd IDE zadania, bez sesji i bez zapisu. */
 function previewState(task: PracticalTaskRow): AttemptState {
@@ -48,6 +49,9 @@ export function PracticalTasksTab() {
   const [creating, setCreating] = useState(false);
   const [previewTask, setPreviewTask] = useState<PracticalTaskRow | null>(null);
   const [previewFiles, setPreviewFiles] = useState<ProjectFile[]>([]);
+  const [info, setInfo] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const fileInput = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
     const { tasks: rows, error: loadError } = await fetchTasks();
@@ -66,6 +70,59 @@ export function PracticalTasksTab() {
       setError("Nie udało się usunąć zadania (może istnieć sesja, która z niego korzysta).");
       return;
     }
+    void load();
+  };
+
+  /** Kopia zadania do własnej edycji — zawsze szkic, oryginał zostaje nietknięty. */
+  const duplicate = async (task: PracticalTaskRow) => {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    const { error: saveError } = await saveTask(null, copyOf(task));
+    setBusy(false);
+    if (saveError) {
+      setError(saveError);
+      return;
+    }
+    setInfo(`Utworzono kopię „${task.title}” jako szkic.`);
+    void load();
+  };
+
+  /** Pobranie zadania jako pliku JSON — do przekazania innemu nauczycielowi. */
+  const download = (task: PracticalTaskRow) => {
+    const blob = new Blob([exportTask(task)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = exportFileName(task.title);
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const importFile = async (file: File | undefined) => {
+    if (!file || busy) return;
+    setError(null);
+    setInfo(null);
+    if (file.size > MAX_IMPORT_BYTES) {
+      setError("Plik jest za duży jak na zadanie.");
+      return;
+    }
+    setBusy(true);
+    const parsed = importTask(await file.text());
+    if (!parsed.ok) {
+      setBusy(false);
+      setError(`Import nie powiódł się: ${parsed.error}`);
+      return;
+    }
+    const { error: saveError } = await saveTask(null, parsed.value);
+    setBusy(false);
+    if (saveError) {
+      setError(saveError);
+      return;
+    }
+    setInfo(`Zaimportowano „${parsed.value.title}” jako szkic — przejrzyj je i oznacz jako gotowe.`);
     void load();
   };
 
@@ -115,12 +172,34 @@ export function PracticalTasksTab() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-muted">Zadania praktyczne — z nich tworzysz sesje egzaminacyjne.</p>
-        <button type="button" className="btn-primary btn-sm" onClick={() => setCreating(true)}>
-          + Nowe zadanie
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <input
+            ref={fileInput}
+            type="file"
+            accept="application/json,.json"
+            className="sr-only"
+            tabIndex={-1}
+            aria-label="Plik zadania do zaimportowania"
+            onChange={(e) => {
+              void importFile(e.target.files?.[0]);
+              e.target.value = "";
+            }}
+          />
+          <button type="button" className="btn-ghost btn-sm" disabled={busy} onClick={() => fileInput.current?.click()}>
+            <Upload size={14} aria-hidden /> Importuj z pliku
+          </button>
+          <button type="button" className="btn-primary btn-sm" onClick={() => setCreating(true)}>
+            + Nowe zadanie
+          </button>
+        </div>
       </div>
 
       {error && <p className="alert-error">{error}</p>}
+      {info && (
+        <p className="card border-accent/30 p-3 text-sm text-accent" role="status">
+          {info}
+        </p>
+      )}
 
       {tasks === null ? (
         <p className="text-sm text-muted">Ładowanie…</p>
@@ -156,6 +235,12 @@ export function PracticalTasksTab() {
                   </button>
                   <button type="button" className="btn-ghost btn-sm" onClick={() => setEditing(t)}>
                     Edytuj
+                  </button>
+                  <button type="button" className="btn-ghost btn-sm" disabled={busy} onClick={() => void duplicate(t)}>
+                    <Copy size={14} aria-hidden /> Kopiuj
+                  </button>
+                  <button type="button" className="btn-ghost btn-sm" onClick={() => download(t)}>
+                    <Download size={14} aria-hidden /> Eksport
                   </button>
                   <button type="button" className="btn-danger btn-sm" onClick={() => void remove(t)}>
                     Usuń
