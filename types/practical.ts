@@ -135,7 +135,8 @@ export type ManualCriterion = { id: string; name: string; description?: string; 
 export type AutoResult = { id: string; passed: boolean; points: number; message: string };
 /** Korekta nauczyciela — oryginalny wynik automatu zostaje nienaruszony. */
 export type TestOverride = { id: string; passed: boolean; points: number; reason: string };
-export type ManualScore = { id: string; points: number };
+/** Ocena jednego kryterium; `comment` widzi uczeń po publikacji wyniku (maks. 300 znaków). */
+export type ManualScore = { id: string; points: number; comment?: string };
 
 export type PracticalTaskRow = {
   id: string;
@@ -238,7 +239,7 @@ export type PublishedResult = {
   teacherComment: string;
   files: ProjectFile[];
   tests: { id: string; name: string; passed: boolean; points: number; maxPoints: number; message: string }[];
-  criteria: { id: string; name: string; description?: string; maxPoints: number; points: number }[];
+  criteria: { id: string; name: string; description?: string; maxPoints: number; points: number; comment: string }[];
 };
 
 export type PendingResult = {

@@ -155,6 +155,7 @@ export function parseResult(v: unknown): ResultPayload | null {
                 description: typeof c.description === "string" ? c.description : undefined,
                 maxPoints: num(c.max_points),
                 points: num(c.points),
+                comment: str(c.comment),
               }]
             : [],
         )
@@ -205,5 +206,9 @@ export function parseOverrides(v: unknown): TestOverride[] {
 
 export function parseManualScores(v: unknown): ManualScore[] {
   if (!Array.isArray(v)) return [];
-  return v.flatMap((r) => (isRecord(r) && typeof r.id === "string" ? [{ id: r.id, points: num(r.points) }] : []));
+  return v.flatMap((r) =>
+    isRecord(r) && typeof r.id === "string"
+      ? [{ id: r.id, points: num(r.points), ...(typeof r.comment === "string" && r.comment !== "" ? { comment: r.comment } : {}) }]
+      : [],
+  );
 }

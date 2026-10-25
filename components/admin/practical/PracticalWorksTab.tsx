@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { WorkReview } from "@/components/admin/practical/WorkReview";
 import { friendlyError } from "@/lib/errors";
 import { downloadCsv, toCsv } from "@/lib/practical/csv";
+import { findSimilar } from "@/lib/practical/similarity";
 import { parseAutoResults, parseFiles, parseManualScores, parseOverrides } from "@/lib/practical/parse";
 import { runAutoTests, type RunProgress } from "@/lib/practical/runner";
 import { fetchTasks } from "@/lib/practical/tasks";
@@ -96,6 +97,18 @@ export function PracticalWorksTab() {
   const session = sessions.find((s) => s.id === sessionId) ?? null;
   const task = useMemo(() => tasks.find((t) => t.id === session?.task_id) ?? null, [tasks, session]);
   const open = attempts.find((a) => a.id === openId) ?? null;
+
+  /** Prace, które można otworzyć (oddane), w kolejności listy — to kolejka sprawdzania. */
+  const queue = useMemo(() => attempts.filter((a) => a.status !== "in_progress"), [attempts]);
+
+  /**
+   * Podobieństwo prac to tylko podpowiedź: liczymy je w przeglądarce nauczyciela
+   * na własnym kodzie uczniów (bez plików startowych), nic nie trafia do bazy.
+   */
+  const similar = useMemo(
+    () => (task ? findSimilar(queue.map((a) => ({ id: a.id, files: a.files })), task.files) : new Map()),
+    [queue, task],
+  );
 
   const maxPoints = useMemo(() => {
     const auto = task?.auto_tests.reduce((s, t) => s + t.points, 0) ?? 0;
@@ -214,8 +227,29 @@ export function PracticalWorksTab() {
   };
 
   if (open && task && session) {
+    const index = queue.findIndex((a) => a.id === open.id);
+    const needsReview = (a: PracticalAttemptRow) => a.status === "submitted" || a.status === "auto_checked";
+    // następna do oceny: pierwsza po bieżącej, a gdy brak — pierwsza od początku kolejki
+    const nextToReview =
+      [...queue.slice(index + 1), ...queue.slice(0, Math.max(index, 0))].find((a) => a.id !== open.id && needsReview(a)) ?? null;
     return (
       <WorkReview
+        key={open.id}
+        queue={{
+          position: index + 1,
+          total: queue.length,
+          onPrev: index > 0 ? () => setOpenId(queue[index - 1]?.id ?? null) : undefined,
+          onNext: index >= 0 && index < queue.length - 1 ? () => setOpenId(queue[index + 1]?.id ?? null) : undefined,
+          onNextToReview: nextToReview ? () => setOpenId(nextToReview.id) : undefined,
+          remainingToReview: queue.filter(needsReview).length,
+        }}
+        similar={(similar.get(open.id) ?? []).map((m: { id: string; percent: number }) => ({
+          id: m.id,
+          percent: m.percent,
+          name: attempts.find((a) => a.id === m.id)?.student_name ?? "?",
+        }))}
+        onOpenOther={(id) => setOpenId(id)}
+        onSaved={() => void loadAttempts(sessionId)}
         attempt={open}
         task={task}
         session={session}
@@ -333,6 +367,11 @@ export function PracticalWorksTab() {
                     {a.tab_switch_count > 0 && (
                       <span className="chip border-danger/40 text-danger">karta: {a.tab_switch_count}</span>
                     )}
+                    {(similar.get(a.id)?.length ?? 0) > 0 && (
+                      <span className="chip border-warn/40 text-warn" title="Podobny kod do innej pracy — sprawdź">
+                        podobna {similar.get(a.id)?.[0]?.percent}%
+                      </span>
+                    )}
                     {a.large_paste_count > 0 && (
                       <span className="chip border-warn/40 text-warn">wklejenia: {a.large_paste_count}</span>
                     )}
@@ -389,7 +428,19 @@ export function PracticalWorksTab() {
                 }, 0);
                 return (
                   <tr key={a.id} className="transition hover:bg-white/[0.03]">
-                    <td className="px-4 py-3 font-medium">{a.student_name}</td>
+                    <td className="px-4 py-3 font-medium">
+                      {a.student_name}
+                      {(similar.get(a.id)?.length ?? 0) > 0 && (
+                        <span
+                          className="chip ml-2 border-warn/40 text-warn"
+                          title={`Podobny kod do: ${(similar.get(a.id) ?? [])
+                            .map((m: { id: string; percent: number }) => `${attempts.find((x) => x.id === m.id)?.student_name ?? "?"} (${m.percent}%)`)
+                            .join(", ")}`}
+                        >
+                          podobna {similar.get(a.id)?.[0]?.percent}%
+                        </span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-muted">
                       {a.status === "in_progress"
                         ? "pracuje"

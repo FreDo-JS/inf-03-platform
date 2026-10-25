@@ -1,15 +1,37 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { PreviewPane } from "@/components/practical/PreviewPane";
+import { ReferenceDiff } from "@/components/practical/ReferenceDiff";
 import { StudentFilesViewer } from "@/components/practical/StudentFilesViewer";
 import { getBrowserSupabase } from "@/lib/supabase/client";
 import type { RunProgress } from "@/lib/practical/runner";
 import type { Json } from "@/types/db";
 import type { ManualScore, PracticalAttemptRow, PracticalSessionRow, PracticalTaskRow, TestOverride } from "@/types/practical";
-import { ArrowLeft, Check, Link2, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, ChevronDown, ChevronRight, Link2, SkipForward, X } from "lucide-react";
+
+/** Miejsce pracy w kolejce sprawdzania i przejścia do sąsiednich prac. */
+export type ReviewQueue = {
+  position: number;
+  total: number;
+  /** ile prac czeka jeszcze na ocenę (oddane, nieocenione) */
+  remainingToReview: number;
+  onPrev?: () => void;
+  onNext?: () => void;
+  onNextToReview?: () => void;
+};
+
+export type SimilarWork = { id: string; name: string; percent: number };
+
+/** Komentarz do kryterium: tyle samo co limit w funkcji practical_result. */
+const CRITERION_COMMENT_MAX = 300;
 
 type Props = {
+  queue: ReviewQueue;
+  similar: SimilarWork[];
+  onOpenOther: (id: string) => void;
+  /** wywoływane po udanym zapisie — lista prac odświeża dane */
+  onSaved: () => void;
   attempt: PracticalAttemptRow;
   task: PracticalTaskRow;
   session: PracticalSessionRow;
@@ -20,7 +42,7 @@ type Props = {
   progress: (RunProgress & { student: string }) | null;
 };
 
-export function WorkReview({ attempt, task, session, onClose, onCheck, onPublish, busy, progress }: Props) {
+export function WorkReview({ queue, similar, onOpenOther, onSaved, attempt, task, session, onClose, onCheck, onPublish, busy, progress }: Props) {
   const [overrides, setOverrides] = useState<TestOverride[]>(attempt.overrides);
   const [scores, setScores] = useState<ManualScore[]>(attempt.manual_scores);
   const [comment, setComment] = useState(attempt.teacher_comment);
@@ -28,6 +50,17 @@ export function WorkReview({ attempt, task, session, onClose, onCheck, onPublish
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [overrideDraft, setOverrideDraft] = useState<Record<string, { points: string; reason: string }>>({});
+  const [showReference, setShowReference] = useState(false);
+  // stan ostatnio zapisany w bazie — z niego wiemy, czy są niezapisane zmiany
+  const saved = useRef(JSON.stringify([attempt.overrides, attempt.manual_scores, attempt.teacher_comment]));
+  const dirty = JSON.stringify([overrides, scores, comment]) !== saved.current;
+
+  /** Przejście do innej pracy; przy niezapisanych zmianach pytamy, żeby ich nie zgubić. */
+  const leave = (go: (() => void) | undefined) => {
+    if (!go) return;
+    if (dirty && !window.confirm("Masz niezapisane zmiany w ocenie tej pracy. Przejść dalej bez zapisu?")) return;
+    go();
+  };
 
   const maxAuto = task.auto_tests.reduce((s, t) => s + t.points, 0);
   const maxManual = task.manual_criteria.reduce((s, c) => s + c.points, 0);
@@ -51,10 +84,14 @@ export function WorkReview({ attempt, task, session, onClose, onCheck, onPublish
   );
   const percent = maxAuto + maxManual > 0 ? Math.round(((autoPoints + manualPoints) / (maxAuto + maxManual)) * 1000) / 10 : 0;
 
-  const setScore = (id: string, points: number) =>
+  const setScore = (id: string, patch: { points?: number; comment?: string }) =>
     setScores((prev) => {
+      const current = prev.find((s) => s.id === id);
       const without = prev.filter((s) => s.id !== id);
-      return [...without, { id, points }];
+      const next: ManualScore = { id, points: patch.points ?? current?.points ?? 0 };
+      const text = (patch.comment ?? current?.comment ?? "").slice(0, CRITERION_COMMENT_MAX);
+      if (text.trim() !== "") next.comment = text;
+      return [...without, next];
     });
 
   const applyOverride = (testId: string) => {
@@ -78,7 +115,8 @@ export function WorkReview({ attempt, task, session, onClose, onCheck, onPublish
     setOverrideDraft((d) => ({ ...d, [testId]: { points: "", reason: "" } }));
   };
 
-  const save = async (publish: boolean) => {
+  /** Zapis oceny; zwraca true, gdy się udał (wtedy można iść do następnej pracy). */
+  const save = async (publish: boolean): Promise<boolean> => {
     setSaving(true);
     setError(null);
     setInfo(null);
@@ -96,16 +134,61 @@ export function WorkReview({ attempt, task, session, onClose, onCheck, onPublish
     if (dbError) {
       setSaving(false);
       setError("Nie udało się zapisać oceny.");
-      return;
+      return false;
     }
     // procent liczy baza — ta sama formuła dla wszystkich
     await supabase.rpc("practical_recalc", { p_attempt_id: attempt.id });
     setSaving(false);
+    saved.current = JSON.stringify([overrides, scores, comment]);
     setInfo(publish ? "Zapisano i opublikowano." : "Zapisano ocenę.");
+    onSaved();
+    return true;
+  };
+
+  const saveAndNext = async () => {
+    const target = queue.onNextToReview ?? queue.onNext;
+    if (await save(false)) target?.();
   };
 
   return (
     <div className="space-y-4">
+      <div className="card flex flex-wrap items-center justify-between gap-3 p-3" role="navigation" aria-label="Kolejka sprawdzania">
+        <div className="flex flex-wrap items-center gap-2">
+          <button type="button" className="btn-ghost btn-sm" onClick={() => leave(queue.onPrev)} disabled={!queue.onPrev}>
+            <ArrowLeft size={14} aria-hidden /> Poprzednia
+          </button>
+          <span className="font-mono text-sm text-muted" aria-live="polite">
+            {queue.position} / {queue.total}
+          </span>
+          <button type="button" className="btn-ghost btn-sm" onClick={() => leave(queue.onNext)} disabled={!queue.onNext}>
+            Następna <ArrowRight size={14} aria-hidden />
+          </button>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs text-muted">
+            {queue.remainingToReview === 0 ? "wszystkie prace ocenione" : `do oceny: ${queue.remainingToReview}`}
+          </span>
+          <button
+            type="button"
+            className="btn-ghost btn-sm"
+            onClick={() => leave(queue.onNextToReview)}
+            disabled={!queue.onNextToReview}
+            title="Przejdź do najbliższej pracy, która czeka na ocenę"
+          >
+            <SkipForward size={14} aria-hidden /> Następna do oceny
+          </button>
+          <button
+            type="button"
+            className="btn-primary btn-sm"
+            onClick={() => void saveAndNext()}
+            disabled={saving || (!queue.onNextToReview && !queue.onNext)}
+            title="Zapisz ocenę tej pracy i otwórz następną do oceny"
+          >
+            Zapisz i następna
+          </button>
+        </div>
+      </div>
+
       <div className="card flex flex-wrap items-center justify-between gap-3 p-4">
         <div>
           <h2 className="text-lg font-semibold">{attempt.student_name}</h2>
@@ -120,10 +203,27 @@ export function WorkReview({ attempt, task, session, onClose, onCheck, onPublish
               duże wklejenia: {attempt.large_paste_count}
             </span>
             {attempt.published_at && <span className="chip border-accent/40 text-accent">opublikowane</span>}
+            {dirty && <span className="chip border-warn/50 text-warn">niezapisane zmiany</span>}
           </div>
+          {similar.length > 0 && (
+            <div className="mt-2 flex flex-wrap items-center gap-2" role="note">
+              <span className="text-xs text-warn">Podobny kod do:</span>
+              {similar.map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  className="chip border-warn/40 text-warn transition hover:bg-warn/10"
+                  onClick={() => leave(() => onOpenOther(s.id))}
+                  title="Otwórz tę pracę. Podobieństwo to podpowiedź, nie dowód — zadanie narzuca wiele elementów."
+                >
+                  {s.name} · {s.percent}%
+                </button>
+              ))}
+            </div>
+          )}
         </div>
         <div className="flex flex-wrap gap-2">
-          <button type="button" className="btn-ghost btn-sm" onClick={onClose}>
+          <button type="button" className="btn-ghost btn-sm" onClick={() => leave(onClose)}>
             <ArrowLeft size={14} aria-hidden /> lista prac
           </button>
           {/* Uczeń nie dostaje linku do wyniku (po oddaniu ekran wraca do wyboru
@@ -188,6 +288,26 @@ export function WorkReview({ attempt, task, session, onClose, onCheck, onPublish
           </div>
         </div>
       </div>
+
+      {task.reference_files.length > 0 && (
+        <div className="card overflow-hidden">
+          <button
+            type="button"
+            className="flex w-full items-center gap-2 px-4 py-2.5 text-left font-semibold transition hover:bg-white/[0.03]"
+            aria-expanded={showReference}
+            onClick={() => setShowReference((v) => !v)}
+          >
+            {showReference ? <ChevronDown size={16} aria-hidden /> : <ChevronRight size={16} aria-hidden />}
+            Porównanie z rozwiązaniem wzorcowym
+            <span className="text-xs font-normal text-muted">różnice plik po pliku</span>
+          </button>
+          {showReference && (
+            <div className="border-t border-white/[0.06]">
+              <ReferenceDiff reference={task.reference_files} student={attempt.files} scope={attempt.id} />
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="card overflow-hidden">
         <h3 className="border-b border-white/[0.06] px-4 py-2.5 font-semibold">Testy automatyczne</h3>
@@ -270,22 +390,32 @@ export function WorkReview({ attempt, task, session, onClose, onCheck, onPublish
           <h3 className="border-b border-white/[0.06] px-4 py-2.5 font-semibold">Kryteria oceniane ręcznie</h3>
           <ul className="divide-y divide-white/[0.06]">
             {task.manual_criteria.map((c) => (
-              <li key={c.id} className="flex flex-wrap items-center gap-3 p-4">
-                <div className="min-w-0 flex-1">
-                  <p className="font-medium">{c.name}</p>
-                  {c.description && <p className="text-sm text-muted">{c.description}</p>}
+              <li key={c.id} className="p-4">
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium">{c.name}</p>
+                    {c.description && <p className="text-sm text-muted">{c.description}</p>}
+                  </div>
+                  <input
+                    className="input w-24 py-1.5 font-mono text-sm"
+                    type="number"
+                    min={0}
+                    max={c.points}
+                    step={0.5}
+                    value={scores.find((s) => s.id === c.id)?.points ?? 0}
+                    onChange={(e) => setScore(c.id, { points: Number(e.target.value) })}
+                    aria-label={`Punkty: ${c.name}`}
+                  />
+                  <span className="text-sm text-muted">/ {c.points}</span>
                 </div>
                 <input
-                  className="input w-24 py-1.5 font-mono text-sm"
-                  type="number"
-                  min={0}
-                  max={c.points}
-                  step={0.5}
-                  value={scores.find((s) => s.id === c.id)?.points ?? 0}
-                  onChange={(e) => setScore(c.id, Number(e.target.value))}
-                  aria-label={`Punkty: ${c.name}`}
+                  className="input mt-2 py-1.5 text-sm"
+                  placeholder="Komentarz do tego kryterium (uczeń zobaczy go po publikacji wyniku)"
+                  value={scores.find((s) => s.id === c.id)?.comment ?? ""}
+                  maxLength={CRITERION_COMMENT_MAX}
+                  onChange={(e) => setScore(c.id, { comment: e.target.value })}
+                  aria-label={`Komentarz: ${c.name}`}
                 />
-                <span className="text-sm text-muted">/ {c.points}</span>
               </li>
             ))}
           </ul>

@@ -112,6 +112,7 @@ export default async function ResultPage({ params }: { params: Promise<{ token: 
                 <div className="min-w-0 flex-1">
                   <p className="font-medium">{c.name}</p>
                   {c.description && <p className="mt-0.5 text-sm text-muted">{c.description}</p>}
+                  {c.comment && <p className="mt-1.5 whitespace-pre-wrap text-sm leading-relaxed">{c.comment}</p>}
                 </div>
                 <span className="shrink-0 font-mono text-sm text-muted">
                   {c.points}/{c.maxPoints}
