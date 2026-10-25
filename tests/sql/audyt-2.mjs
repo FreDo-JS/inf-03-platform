@@ -293,6 +293,12 @@ console.log("\n== 6. PLIKI WDROŻENIOWE I NAGŁÓWKI ==");
   ok("X-Frame-Options: DENY i HSTS w nagłówkach stałych", cfg.includes('"X-Frame-Options", value: "DENY"') && cfg.includes("Strict-Transport-Security"));
   ok("piaskownica kodu ucznia: connect-src 'none'", /SANDBOX_CSP[\s\S]*connect-src 'none'/.test(cfg));
 
+  const edytor = plik("components", "practical", "CodeEditor.tsx");
+  ok("edytor w trybie tylko do odczytu (cudzy kod) ma wyłączone podpowiedzi po najechaniu i klikalne adresy (L8)",
+    /hover:\s*\{\s*enabled:\s*readOnly\s*\?\s*"off"/.test(edytor) && /links:\s*false/.test(edytor));
+  ok("strona wyniku z tokenem w adresie nie jest indeksowana",
+    /robots:\s*\{\s*index:\s*false/.test(plik("app", "praktyka", "wynik", "[token]", "page.tsx")));
+
   ok("sekrety nie wchodzą do repozytorium (.env.local w .gitignore)", /^\.env\.local$/m.test(plik(".gitignore")) || /\.env\*/.test(plik(".gitignore")));
   ok("brak pliku .env.local w repozytorium", !existsSync(join(repo, ".env.local")) || /^\.env/m.test(plik(".gitignore")));
 }

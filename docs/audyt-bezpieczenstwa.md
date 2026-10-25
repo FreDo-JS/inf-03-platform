@@ -241,11 +241,14 @@ audytu nr 1 — piaskownica, XSS w arkuszu — nie została powtórzona; kod tyc
 |---|---|---|---|
 | H3 | **Wysoka** (warunkowa) | Zaproszenie nauczyciela dawało uprawnienia po samym założeniu konta — przy otwartej rejestracji bez potwierdzania mejli obcy mógł zarejestrować się na zaproszony adres i zostać adminem | **Naprawione** (015: uprawnienia dopiero po potwierdzeniu adresu) |
 | H4 | **Wysoka** (przy wdrożeniu na VPS) | nginx przekazywał nagłówki adresu klienta bez nadpisania; baza ufa `cf-connecting-ip`, więc uczeń podając własny nagłówek omijał limity prób PIN-u (6 cyfr = 10⁶ możliwości) | **Naprawione** (`deploy/nginx/tebby.conf` + test statyczny) |
-| H5 | **Wysoka** | Zależności produkcyjne z lukami: Next.js ≤ 15.5.27 (m.in. RCE w optymalizatorze obrazów dla SVG, zatruwanie cache, DoS), DOMPurify ≤ 3.4.16 (przez Monaco; DOM XSS), sharp, source-map-js | **Naprawione** (`npm audit fix`: Next 15.5.28, DOMPurify 3.4.17, sharp 0.35.5; produkcja: 0 podatności) |
+| H5 | **Wysoka** | Zależności produkcyjne z lukami: Next.js ≤ 15.5.27 (m.in. RCE w optymalizatorze obrazów dla SVG, zatruwanie cache, DoS), DOMPurify ≤ 3.4.16 (przez Monaco; DOM XSS), sharp, source-map-js | **Naprawione** poza kopią DOMPurify wbudowaną w Monaco — patrz L8 (`npm audit fix`: Next 15.5.28, sharp 0.35.5; `npm audit --omit=dev`: 0 podatności) |
 | M4 | Średnia | Kopie zapasowe zapisywały się z domyślnym `umask 022` — hasze haseł nauczycieli, klucze testów i prace uczniów czytelne dla każdego konta na serwerze | **Naprawione** (`umask 077`, katalog 700) |
 | L5 | Niska | Token CI bez jawnie ograniczonych uprawnień | **Naprawione** (`permissions: contents: read`) |
 | L6 | Niska | `progress.marked_by` (czytelne publicznie) ujawnia identyfikatory kont nauczycieli; widok `teachers` łączy je z nazwami wyświetlanymi | Zaakceptowane — nazwy są celowo jawne (podpis przy tematach), identyfikator sam w sobie niczego nie daje |
 | L7 | Niska | Każdy, kto zna identyfikator testu (lista testów jest publiczna), może wysłać 300 błędnych PIN-ów w 5 minut i zablokować wejście całej klasie na czas egzaminu | Zaakceptowane — to cena globalnego limitu (obrona przed zgadywaniem z wielu adresów); doraźnie pomaga zmiana PIN-u przez nauczyciela, która zeruje licznik |
+| L8 | Niska | Monaco serwowany z `public/monaco` ma wbudowaną własną kopię DOMPurify 3.4.8 (starszą niż poprawki z 3.4.17). `npm audit` jej nie widzi, bo siedzi w spakowanym pliku, a nie w `node_modules`; najnowszy Monaco (0.57.0) wciąż zależy od 3.4.15 | Złagodzone — hover i klikalne adresy wyłączone w edytorze tylko do odczytu (cudzy kod); CSP z nonce blokuje wykonanie wstrzykniętych skryptów i obsługi zdarzeń; zgłoszone luki dotyczą opcji, których Monaco prawdopodobnie nie używa (niezweryfikowane) |
+| L9 | Niska | `/admin/haslo` przyjmuje `access_token`/`refresh_token` z adresu, więc spreparowany link zaloguje nauczyciela na konto napastnika; formularz „ustaw hasło” trafi wtedy na konto napastnika (ryzyko: nauczyciel wpisze swoje zwykłe hasło) | Zaakceptowane — strona pokazuje adres e-mail konta, którego dotyczy zmiana; wymaga zwabienia nauczyciela na obcy link |
+| L10 | Informacyjna | Strona wyniku pracy (`/praktyka/wynik/[token]`) nie miała `noindex` | **Naprawione** |
 
 ### H3. Przejęcie zaproszenia nauczyciela
 
@@ -277,7 +280,25 @@ build produkcyjny i wszystkie testy przechodzą. Zostają 3 uwagi poziomu *moder
 deweloperskich (`tailwindcss` → `postcss-selector-parser`), które działają wyłącznie podczas budowania
 i nie trafiają do obrazu; poprawka wymaga zmiany wersji głównej Tailwinda, więc została odłożona.
 
+**Uwaga (L8): to nie obejmuje DOMPurify w Monaco.** Edytor kodu jest serwowany z `public/monaco`, a jego
+paczka zawiera własną kopię DOMPurify 3.4.8 — aktualizacja pakietu w `node_modules` jej nie zmienia, a
+`npm audit` jej nie widzi. Zgłoszone luki dotyczą m.in. trybu `IN_PLACE`, `SAFE_FOR_TEMPLATES` i
+`PARSER_MEDIA_TYPE`; nie sprawdzałem, czy Monaco z nich korzysta. Ryzyko jest niewielkie, bo Monaco używa
+DOMPurify do treści podpowiedzi (np. komentarzy JSDoc z cudzego kodu), a CSP aplikacji (nonce, bez
+`unsafe-inline`) uniemożliwia wykonanie wstrzykniętego skryptu lub `onerror=`. Dodatkowo edytor w trybie
+„tylko do odczytu” (nauczyciel czyta kod ucznia) ma wyłączone podpowiedzi po najechaniu i klikalne adresy.
+Warto zajrzeć do nowszych wydań Monaco; wersja 0.57.0 jeszcze nie wnosi poprawionej kopii.
+
 ## Co sprawdzono i wypadło dobrze
+
+**Przegląd kodu aplikacji (dodatkowy, po właściwym audycie).** Aplikacja nie ma własnego kodu serwerowego
+poza Next.js i funkcjami w bazie: nie ma plików PHP, `fs`, `child_process` ani `fetch` po stronie serwera,
+więc nie ma powierzchni dla wstrzyknięcia poleceń, SSRF ani przechodzenia po ścieżkach. Przejrzano: piaskownicę
+kodu ucznia (`sandbox.html`, `preview.ts`, `runner.ts`), filtrowanie adresów (`safeLinkUrl`), renderowanie
+Markdownu, logowanie i ustawianie hasła, middleware, komunikaty błędów, przechowywanie w przeglądarce
+i łańcuch dostaw (wszystkie 531 pakietów z `registry.npmjs.org` z sumami kontrolnymi; skrypty instalacyjne
+tylko `fsevents` i `unrs-resolver`). Nie znaleziono wstrzyknięć, XSS-a ani omijania autoryzacji; zgłoszone
+uwagi to L8–L10.
 
 - **RLS:** wszystkie tabele mają włączone RLS; wszystkie polityki zapisu i kasowania wymagają `is_admin()`;
   żadna polityka nie traktuje „zalogowany” jako „nauczyciel”.

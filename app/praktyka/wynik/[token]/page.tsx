@@ -6,7 +6,8 @@ import { parseResult } from "@/lib/practical/parse";
 import { getServerSupabase } from "@/lib/supabase/server";
 import { ArrowLeft, Check, Hourglass, X } from "lucide-react";
 
-export const metadata: Metadata = { title: "Wynik pracy" };
+// Adres z tokenem jest tajny — wyszukiwarki nie mają go indeksować.
+export const metadata: Metadata = { title: "Wynik pracy", robots: { index: false, follow: false } };
 export const dynamic = "force-dynamic";
 
 const TOKEN_RE = /^[0-9a-f]{32,128}$/i;

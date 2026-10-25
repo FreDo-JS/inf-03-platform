@@ -104,7 +104,15 @@ export function CodeEditor({
       theme="vs-dark"
       onMount={onMount}
       onChange={(v) => onChange?.(v ?? "")}
-      options={{ readOnly, domReadOnly: readOnly }}
+      options={{
+        readOnly,
+        domReadOnly: readOnly,
+        // Nauczyciel czyta cudzy kod. Podpowiedzi po najechaniu renderują treść z komentarzy
+        // (JSDoc) przez sanitizer DOMPurify wbudowany w Monaco (3.4.8, starszy niż 3.4.17, w którym
+        // poprawiono zgłoszone luki) — przy cudzym kodzie wyłączamy je, a adresy w kodzie nie są klikalne.
+        hover: { enabled: readOnly ? "off" : "on" },
+        links: false,
+      }}
       loading={<p className="p-4 font-mono text-sm text-muted">Ładowanie edytora…</p>}
       height="100%"
     />
