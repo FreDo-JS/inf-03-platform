@@ -9,7 +9,7 @@
 
 import { SANDBOX_URL, buildPreviewDocument, writeToSandbox } from "@/lib/practical/preview";
 import { RUNNER_SCRIPT } from "@/lib/practical/runnerScript";
-import type { AutoResult, AutoTest, ProjectFile } from "@/types/practical";
+import { SCRIPT_TEST_TYPES, type AutoResult, type AutoTest, type ProjectFile } from "@/types/practical";
 
 const TEST_TIMEOUT_MS = 5000;
 
@@ -24,14 +24,14 @@ function newFrameId(): string {
 /**
  * Uruchamia jeden test w izolowanym iframe. Zawsze rozwiązuje się (błąd = 0 pkt).
  *
- * Testy strukturalne (wszystkie poza `interaction`) wykonujemy z wyłączonym
+ * Testy strukturalne (wszystkie poza `interaction` i `no_js_errors`) wykonujemy z wyłączonym
  * JavaScriptem ucznia — wtedy nie ma jak podmienić DOM ani podszyć się pod
  * wiadomość z wynikiem. Przy `interaction` skrypt ucznia musi działać, więc
  * tam pilnujemy tylko, czy nie przyszło więcej niż jedno zgłoszenie wyniku.
  */
 async function runInFrame(files: readonly ProjectFile[], test: AutoTest, page: string): Promise<FrameResult> {
   const frameId = newFrameId();
-  const scriptsDisabled = test.type !== "interaction";
+  const scriptsDisabled = !SCRIPT_TEST_TYPES.includes(test.type);
   const built = buildPreviewDocument(files, page, {
     frameId,
     extraScript: RUNNER_SCRIPT,
@@ -41,7 +41,9 @@ async function runInFrame(files: readonly ProjectFile[], test: AutoTest, page: s
   const frame = document.createElement("iframe");
   frame.setAttribute("title", `Sprawdzanie: ${test.name}`);
   frame.setAttribute("aria-hidden", "true");
-  frame.style.cssText = "position:fixed;left:-10000px;top:0;width:1024px;height:768px;border:0;visibility:hidden";
+  // `viewport` pozwala sprawdzić wygląd przy innej szerokości okna (media queries, RWD)
+  const viewport = "viewport" in test && typeof test.viewport === "number" ? Math.round(test.viewport) : 1024;
+  frame.style.cssText = `position:fixed;left:-10000px;top:0;width:${viewport}px;height:768px;border:0;visibility:hidden`;
   // Kod ucznia uruchamia się w /sandbox.html — dokumencie z osobną CSP,
   // dzięki czemu aplikacja może mieć politykę z nonce i bez 'unsafe-inline'.
   frame.src = SANDBOX_URL;
@@ -117,9 +119,35 @@ async function runInFrame(files: readonly ProjectFile[], test: AutoTest, page: s
   });
 }
 
-function runFileTest(files: readonly ProjectFile[], test: Extract<AutoTest, { type: "file_not_empty" }>): FrameResult {
+function textMatches(actual: string, mode: "equals" | "contains" | "regex", expected: string, ignoreCase: boolean): boolean {
+  if (mode === "regex") {
+    try {
+      return new RegExp(expected, ignoreCase ? "i" : "").test(actual);
+    } catch {
+      return false;
+    }
+  }
+  const a = ignoreCase ? actual.toLowerCase() : actual;
+  const b = ignoreCase ? expected.toLowerCase() : expected;
+  return mode === "contains" ? a.includes(b) : a === b;
+}
+
+/** Testy na samym źródle pliku — bez ładowania strony, więc bez żadnego kodu ucznia. */
+function runFileTest(
+  files: readonly ProjectFile[],
+  test: Extract<AutoTest, { type: "file_not_empty" | "file_content" }>,
+): FrameResult {
   const file = files.find((f) => f.name === test.file);
   if (!file) return { passed: false, message: `Brak pliku ${test.file} w pracy.` };
+  if (test.type === "file_content") {
+    const found = textMatches(file.content, test.mode, test.value, test.ignoreCase === true);
+    const passed = test.negate === true ? !found : found;
+    const wanted = test.negate === true ? "nie powinien zawierać" : "powinien zawierać";
+    return {
+      passed,
+      message: `Plik ${test.file} ${wanted} „${test.value}”: ${found ? "znaleziono" : "nie znaleziono"}.`,
+    };
+  }
   const length = file.content.trim().length;
   return length > 0
     ? { passed: true, message: `Plik ${test.file} ma treść (${length} znaków).` }
@@ -141,7 +169,7 @@ export async function runAutoTests(
 
     let outcome: FrameResult;
     try {
-      if (test.type === "file_not_empty") {
+      if (test.type === "file_not_empty" || test.type === "file_content") {
         outcome = runFileTest(files, test);
       } else {
         const page = "page" in test ? test.page : "";

@@ -19,6 +19,13 @@ const TYPE_LABEL: Record<AutoTestType, string> = {
   css_computed: "Styl obliczony (CSS)",
   html_lang_doctype: "DOCTYPE i atrybut lang",
   interaction: "Scenariusz kliknięć i wpisywania",
+  images_alt: "Obrazki mają opis (alt)",
+  form_labels: "Pola formularza mają etykiety",
+  heading_structure: "Struktura nagłówków (jeden h1, bez przeskoków)",
+  css_media: "Media queries (RWD) w stylach",
+  links_valid: "Linki do plików projektu działają",
+  no_js_errors: "Strona działa bez błędów JavaScript",
+  file_content: "Zawartość pliku (źródło)",
 };
 
 const MODE_LABEL: Record<TextMatchMode, string> = {
@@ -50,6 +57,16 @@ function emptyTest(type: AutoTestType, page: string, file: string): AutoTest {
         steps: [{ action: "click", selector: "" }],
         expect: { selector: "", mode: "contains", value: "" },
       };
+    case "images_alt":
+    case "form_labels":
+    case "links_valid":
+    case "css_media":
+      return { ...base, type, page, min: 1 };
+    case "heading_structure":
+    case "no_js_errors":
+      return { ...base, type, page };
+    case "file_content":
+      return { ...base, type, file, mode: "contains", value: "", ignoreCase: false, negate: false };
   }
 }
 
@@ -146,7 +163,7 @@ export function AutoTestsEditor({ tests, onChange, fileNames, pageNames }: Props
                       </select>
                     </label>
                   )}
-                  {test.type === "file_not_empty" && (
+                  {(test.type === "file_not_empty" || test.type === "file_content") && (
                     <label className="text-xs text-muted">
                       Plik
                       <select
@@ -170,6 +187,85 @@ export function AutoTestsEditor({ tests, onChange, fileNames, pageNames }: Props
                         placeholder="np. table tr"
                         value={test.selector}
                         onChange={(e) => update(test.id, { selector: e.target.value } as Partial<AutoTest>)}
+                      />
+                    </label>
+                  )}
+                  {(test.type === "images_alt" ||
+                    test.type === "form_labels" ||
+                    test.type === "links_valid" ||
+                    test.type === "css_media") && (
+                    <label className="text-xs text-muted">
+                      Minimalna liczba ({test.type === "images_alt" ? "obrazków" : test.type === "form_labels" ? "pól" : test.type === "links_valid" ? "linków" : "reguł @media"})
+                      <input
+                        className="input mt-1 py-1.5 font-mono text-sm"
+                        type="number"
+                        min={0}
+                        max={100}
+                        value={test.min ?? ""}
+                        onChange={(e) =>
+                          update(test.id, { min: e.target.value === "" ? undefined : Number(e.target.value) } as Partial<AutoTest>)
+                        }
+                      />
+                    </label>
+                  )}
+                  {test.type === "file_content" && (
+                    <>
+                      <label className="text-xs text-muted">
+                        Porównanie
+                        <select
+                          className="input mt-1 py-1.5 text-sm"
+                          value={test.mode}
+                          onChange={(e) => update(test.id, { mode: e.target.value as TextMatchMode } as Partial<AutoTest>)}
+                        >
+                          {(Object.keys(MODE_LABEL) as TextMatchMode[]).map((m) => (
+                            <option key={m} value={m}>
+                              {MODE_LABEL[m]}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="text-xs text-muted">
+                        Szukany tekst lub wzorzec
+                        <input
+                          className="input mt-1 py-1.5 font-mono text-sm"
+                          placeholder="np. addEventListener"
+                          value={test.value}
+                          onChange={(e) => update(test.id, { value: e.target.value } as Partial<AutoTest>)}
+                        />
+                      </label>
+                      <label className="flex items-center gap-2 text-xs text-muted">
+                        <input
+                          type="checkbox"
+                          className="h-3.5 w-3.5 accent-[#2de2c1]"
+                          checked={test.ignoreCase ?? false}
+                          onChange={(e) => update(test.id, { ignoreCase: e.target.checked } as Partial<AutoTest>)}
+                        />
+                        ignoruj wielkość liter
+                      </label>
+                      <label className="flex items-center gap-2 text-xs text-muted">
+                        <input
+                          type="checkbox"
+                          className="h-3.5 w-3.5 accent-[#2de2c1]"
+                          checked={test.negate ?? false}
+                          onChange={(e) => update(test.id, { negate: e.target.checked } as Partial<AutoTest>)}
+                        />
+                        zalicz, gdy tego NIE MA w pliku
+                      </label>
+                    </>
+                  )}
+                  {(test.type === "selector_count" || test.type === "css_computed") && (
+                    <label className="text-xs text-muted">
+                      Szerokość okna, px (puste = domyślna 1024)
+                      <input
+                        className="input mt-1 py-1.5 font-mono text-sm"
+                        type="number"
+                        min={280}
+                        max={2000}
+                        placeholder="np. 375 dla telefonu"
+                        value={test.viewport ?? ""}
+                        onChange={(e) =>
+                          update(test.id, { viewport: e.target.value === "" ? undefined : Number(e.target.value) } as Partial<AutoTest>)
+                        }
                       />
                     </label>
                   )}

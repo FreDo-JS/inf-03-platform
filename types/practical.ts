@@ -15,6 +15,13 @@ export const AUTO_TEST_TYPES = [
   "css_computed",
   "html_lang_doctype",
   "interaction",
+  "images_alt",
+  "form_labels",
+  "heading_structure",
+  "css_media",
+  "links_valid",
+  "no_js_errors",
+  "file_content",
 ] as const;
 export type AutoTestType = (typeof AUTO_TEST_TYPES)[number];
 
@@ -23,7 +30,15 @@ export type TextMatchMode = "equals" | "contains" | "regex";
 type TestBase = { id: string; name: string; description?: string; points: number };
 
 export type FileNotEmptyTest = TestBase & { type: "file_not_empty"; file: string };
-export type SelectorCountTest = TestBase & { type: "selector_count"; page: string; selector: string; min?: number; max?: number };
+/** `viewport` (px) — sprawdzenie przy podanej szerokości okna, żeby testować RWD i media queries. */
+export type SelectorCountTest = TestBase & {
+  type: "selector_count";
+  page: string;
+  selector: string;
+  min?: number;
+  max?: number;
+  viewport?: number;
+};
 export type SelectorTextTest = TestBase & {
   type: "selector_text";
   page: string;
@@ -41,7 +56,14 @@ export type SelectorAttributeTest = TestBase & {
   value: string;
   ignoreCase?: boolean;
 };
-export type CssComputedTest = TestBase & { type: "css_computed"; page: string; selector: string; property: string; expected: string };
+export type CssComputedTest = TestBase & {
+  type: "css_computed";
+  page: string;
+  selector: string;
+  property: string;
+  expected: string;
+  viewport?: number;
+};
 export type HtmlLangDoctypeTest = TestBase & { type: "html_lang_doctype"; page: string; lang?: string };
 
 export type InteractionStep =
@@ -65,6 +87,29 @@ export type InteractionTest = TestBase & {
   expect: InteractionExpect;
 };
 
+/** Każdy <img> ma niepusty alt (min. `min` obrazków na stronie). */
+export type ImagesAltTest = TestBase & { type: "images_alt"; page: string; min?: number };
+/** Każde pole formularza ma etykietę (label for/wrapper albo aria-label). */
+export type FormLabelsTest = TestBase & { type: "form_labels"; page: string; min?: number };
+/** Dokładnie jeden <h1> i brak przeskoków poziomów nagłówków (h2 → h4). */
+export type HeadingStructureTest = TestBase & { type: "heading_structure"; page: string };
+/** Arkusze stylów zawierają co najmniej `min` reguł @media z warunkiem szerokości. */
+export type CssMediaTest = TestBase & { type: "css_media"; page: string; min?: number };
+/** Wszystkie linki do plików projektu wskazują istniejące pliki (min. `min` takich linków). */
+export type LinksValidTest = TestBase & { type: "links_valid"; page: string; min?: number };
+/** Strona wczytuje się bez błędów JavaScript (uczniowski kod działa). */
+export type NoJsErrorsTest = TestBase & { type: "no_js_errors"; page: string };
+/** Sprawdzenie źródła pliku: zawiera / nie zawiera tekst lub wzorzec. */
+export type FileContentTest = TestBase & {
+  type: "file_content";
+  file: string;
+  mode: TextMatchMode;
+  value: string;
+  ignoreCase?: boolean;
+  /** true = test zalicza się, gdy wzorca NIE ma w pliku (np. brak `innerHTML`). */
+  negate?: boolean;
+};
+
 export type AutoTest =
   | FileNotEmptyTest
   | SelectorCountTest
@@ -72,7 +117,17 @@ export type AutoTest =
   | SelectorAttributeTest
   | CssComputedTest
   | HtmlLangDoctypeTest
-  | InteractionTest;
+  | InteractionTest
+  | ImagesAltTest
+  | FormLabelsTest
+  | HeadingStructureTest
+  | CssMediaTest
+  | LinksValidTest
+  | NoJsErrorsTest
+  | FileContentTest;
+
+/** Typy, dla których kod ucznia musi działać (reszta jest sprawdzana z wyłączonym JS). */
+export const SCRIPT_TEST_TYPES: readonly AutoTestType[] = ["interaction", "no_js_errors"];
 
 export type ManualCriterion = { id: string; name: string; description?: string; points: number };
 

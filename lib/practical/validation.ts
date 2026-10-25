@@ -17,6 +17,7 @@ export const PRACTICAL_LIMITS = {
   threshold: { min: 1, max: 100 },
   testName: { min: 1, max: 200 },
   points: { min: 0, max: 100 },
+  viewport: { min: 280, max: 2000 },
   criteria: { max: 30 },
   tests: { max: 60 },
   pasteLog: 200, // od tylu znaków wklejenie trafia do dziennika
@@ -76,6 +77,15 @@ export function validateAutoTest(test: AutoTest, fileNames: readonly string[]): 
   const requireSelector = (selector: string) => {
     if (!selector?.trim()) errors.push("Podaj selektor CSS.");
   };
+  const checkViewport = (viewport: number | undefined) => {
+    if (viewport === undefined) return;
+    if (!Number.isFinite(viewport) || viewport < PRACTICAL_LIMITS.viewport.min || viewport > PRACTICAL_LIMITS.viewport.max) {
+      errors.push(`Szerokość okna: ${PRACTICAL_LIMITS.viewport.min}–${PRACTICAL_LIMITS.viewport.max} px.`);
+    }
+  };
+  const checkMin = (min: number | undefined) => {
+    if (min !== undefined && (!Number.isInteger(min) || min < 0 || min > 100)) errors.push("Minimum: liczba całkowita 0–100.");
+  };
 
   switch (test.type) {
     case "file_not_empty":
@@ -87,6 +97,7 @@ export function validateAutoTest(test: AutoTest, fileNames: readonly string[]): 
       requireSelector(test.selector);
       if (test.min === undefined && test.max === undefined) errors.push("Podaj min. lub maks. liczbę elementów.");
       if (test.min !== undefined && test.max !== undefined && test.min > test.max) errors.push("Minimum jest większe niż maksimum.");
+      checkViewport(test.viewport);
       break;
     case "selector_text":
     case "selector_attribute":
@@ -107,9 +118,33 @@ export function validateAutoTest(test: AutoTest, fileNames: readonly string[]): 
       requireSelector(test.selector);
       if (!test.property?.trim()) errors.push("Podaj właściwość CSS (np. color).");
       if (!test.expected?.trim()) errors.push("Podaj oczekiwaną wartość właściwości.");
+      checkViewport(test.viewport);
       break;
     case "html_lang_doctype":
       requirePage(test.page);
+      break;
+    case "images_alt":
+    case "form_labels":
+    case "links_valid":
+    case "css_media":
+      requirePage(test.page);
+      checkMin(test.min);
+      break;
+    case "heading_structure":
+    case "no_js_errors":
+      requirePage(test.page);
+      break;
+    case "file_content":
+      if (!test.file) errors.push("Wybierz plik.");
+      else if (!fileNames.includes(test.file)) errors.push(`Plik ${test.file} nie istnieje w zadaniu.`);
+      if (!test.value?.trim()) errors.push("Podaj szukany tekst lub wzorzec.");
+      if (test.mode === "regex") {
+        try {
+          new RegExp(test.value);
+        } catch {
+          errors.push("Nieprawidłowe wyrażenie regularne.");
+        }
+      }
       break;
     case "interaction":
       requirePage(test.page);

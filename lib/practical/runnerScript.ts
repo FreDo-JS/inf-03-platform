@@ -18,6 +18,14 @@ export const RUNNER_SCRIPT = String.raw`
     attr: Element.prototype.getAttribute,
     now: Date.now
   };
+  // błędy skryptów zbieramy od pierwszej chwili — ten skrypt wchodzi przed kodem ucznia
+  var jsErrors = [];
+  window.addEventListener("error", function (e) { jsErrors.push(e && e.message ? String(e.message) : "Błąd skryptu"); });
+  window.addEventListener("unhandledrejection", function (e) {
+    var r = e && e.reason;
+    jsErrors.push("Nieobsłużony błąd Promise: " + (r && r.message ? r.message : String(r)));
+  });
+
   function all(sel) { try { return Array.prototype.slice.call(pristine.qsa.call(D, sel)); } catch (e) { return null; } }
   function one(sel) { var l = all(sel); return l && l.length ? l[0] : null; }
   function text(el) { return (el.textContent || "").replace(/\s+/g, " ").trim(); }
@@ -132,6 +140,91 @@ export const RUNNER_SCRIPT = String.raw`
           passed: hasDoctype && langOk,
           message: (hasDoctype ? "Deklaracja <!DOCTYPE html> jest. " : "Brak deklaracji <!DOCTYPE html>. ") +
             (langOk ? "Atrybut lang: „" + lang + "”." : "Atrybut lang: oczekiwano „" + (wantLang || "dowolny") + "”, znaleziono „" + (lang || "brak") + "”.")
+        };
+      }
+      case "images_alt": {
+        var imgs = all("img") || [];
+        var minImg = test.min == null ? 1 : test.min;
+        var noAlt = imgs.filter(function (im) {
+          var a = pristine.attr.call(im, "alt");
+          return a === null || a.trim() === "";
+        });
+        return {
+          passed: imgs.length >= minImg && noAlt.length === 0,
+          message: "Obrazki: " + imgs.length + " (min. " + minImg + "), bez opisu alt: " + noAlt.length + "."
+        };
+      }
+      case "form_labels": {
+        var skip = { hidden: 1, submit: 1, button: 1, reset: 1, image: 1 };
+        var controls = (all("input, select, textarea") || []).filter(function (c) {
+          return !(c.tagName === "INPUT" && skip[(pristine.attr.call(c, "type") || "text").toLowerCase()]);
+        });
+        var labelFor = {};
+        (all("label[for]") || []).forEach(function (l) { labelFor[pristine.attr.call(l, "for")] = true; });
+        var minCtl = test.min == null ? 1 : test.min;
+        var unlabeled = controls.filter(function (c) {
+          var aria = (pristine.attr.call(c, "aria-label") || "").trim();
+          var id = pristine.attr.call(c, "id");
+          return !(aria || pristine.attr.call(c, "aria-labelledby") || (id && labelFor[id]) || c.closest("label"));
+        });
+        return {
+          passed: controls.length >= minCtl && unlabeled.length === 0,
+          message: "Pola formularza: " + controls.length + " (min. " + minCtl + "), bez etykiety: " + unlabeled.length + "."
+        };
+      }
+      case "heading_structure": {
+        var hs = all("h1, h2, h3, h4, h5, h6") || [];
+        var h1s = hs.filter(function (h) { return h.tagName === "H1"; }).length;
+        var prev = 0, skipped = false;
+        hs.forEach(function (h) {
+          var lvl = Number(h.tagName.charAt(1));
+          if (lvl > prev + 1) skipped = true;
+          prev = lvl;
+        });
+        return {
+          passed: h1s === 1 && !skipped,
+          message: "Nagłówki h1: " + h1s + " (ma być 1). " + (skipped ? "Są przeskoki poziomów (np. h2 → h4)." : "Poziomy nagłówków są po kolei.")
+        };
+      }
+      case "css_media": {
+        var count = 0;
+        function walk(rules) {
+          for (var r = 0; r < rules.length; r++) {
+            var rule = rules[r];
+            if (rule.type === 4) {
+              var cond = String(rule.conditionText || (rule.media && rule.media.mediaText) || "");
+              if (/width/i.test(cond)) count++;
+            }
+            if (rule.cssRules) walk(rule.cssRules);
+          }
+        }
+        for (var s = 0; s < D.styleSheets.length; s++) {
+          try { walk(D.styleSheets[s].cssRules); } catch (e) {}
+        }
+        var minMq = test.min == null ? 1 : test.min;
+        return { passed: count >= minMq, message: "Reguły @media z warunkiem szerokości: " + count + " (min. " + minMq + ")." };
+      }
+      case "links_valid": {
+        var external = /^(https?:|mailto:|tel:|#|javascript:)/i;
+        var anchors = all("a[href]") || [];
+        var okLinks = 0, broken = [];
+        anchors.forEach(function (a) {
+          if (pristine.attr.call(a, "data-inf03-page")) { okLinks++; return; }
+          var href = (pristine.attr.call(a, "href") || "").trim();
+          if (href && !external.test(href)) broken.push(href);
+        });
+        var minLinks = test.min == null ? 1 : test.min;
+        return {
+          passed: okLinks >= minLinks && broken.length === 0,
+          message: "Linki do plików projektu: " + okLinks + " (min. " + minLinks + "), prowadzących donikąd: " + broken.length +
+            (broken.length ? " (" + broken.slice(0, 3).join(", ") + ")" : "") + "."
+        };
+      }
+      case "no_js_errors": {
+        await sleep(300);
+        return {
+          passed: jsErrors.length === 0,
+          message: jsErrors.length === 0 ? "Strona wczytała się bez błędów JavaScript." : "Błędy JavaScript (" + jsErrors.length + "): " + jsErrors[0]
         };
       }
       case "interaction": {
