@@ -150,8 +150,25 @@ export type PracticalTaskRow = {
   default_minutes: number;
   allow_new_files: boolean;
   student_can_run_tests: boolean;
+  /** zadanie dostępne w trybie ćwiczeniowym (bez PIN-u); uczniowie widzą wtedy jego testy */
+  practice: boolean;
   is_ready: boolean;
   created_at: string;
+};
+
+/** Pozycja na liście ćwiczeń dla ucznia. */
+export type PracticeListItem = { id: string; title: string; summary: string; minutes: number; tests: number; points: number };
+
+/** Zadanie ćwiczeniowe: wszystko, co przeglądarka ucznia potrzebuje do pracy i uruchamiania testów. */
+export type PracticeTask = {
+  id: string;
+  title: string;
+  summary: string;
+  contentMd: string;
+  files: ProjectFile[];
+  allowNewFiles: boolean;
+  tests: AutoTest[];
+  criteria: { name: string; description?: string; points: number }[];
 };
 
 /** Obraz zadania widziany przez ucznia — bez wzorca i bez parametrów testów. */

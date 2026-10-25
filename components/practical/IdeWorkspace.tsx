@@ -1,14 +1,33 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { CodeEditor, languageForFile } from "@/components/practical/CodeEditor";
 import { PreviewPane } from "@/components/practical/PreviewPane";
 import { TaskSheet } from "@/components/practical/TaskSheet";
 import { formatClock } from "@/lib/tests";
 import type { AttemptState, ProjectFile } from "@/types/practical";
-import { User } from "lucide-react";
+import { FlaskConical, RotateCcw, User, X } from "lucide-react";
 
 export type SaveStatus = "idle" | "saving" | "saved" | "error";
+
+/**
+ * Tryb ćwiczeniowy: bez licznika czasu i oddawania pracy, za to z przyciskiem
+ * uruchamiającym testy i panelem z wynikami (zob. PracticeWorkspace).
+ */
+export type PracticeControls = {
+  onRunTests: () => void;
+  running: boolean;
+  onReset: () => void;
+  exitHref: string;
+  /** np. „7/12” po uruchomieniu testów */
+  badge: string | null;
+  /** zwiększa się po każdym uruchomieniu testów — przełącza widok na wyniki */
+  runId: number;
+  /** praca wczytana z poprzedniej wizyty */
+  restored: boolean;
+  panel: ReactNode;
+};
 
 type Props = {
   state: AttemptState;
@@ -22,6 +41,7 @@ type Props = {
   submitting: boolean;
   onLargePaste: (length: number, file: string) => void;
   readOnly?: boolean;
+  practice?: PracticeControls;
 };
 
 const SAVE_LABEL: Record<SaveStatus, string> = {
@@ -42,8 +62,10 @@ export function IdeWorkspace({
   submitting,
   onLargePaste,
   readOnly = false,
+  practice,
 }: Props) {
   const [activeFile, setActiveFile] = useState(() => files[0]?.name ?? "");
+  const [leftTab, setLeftTab] = useState<"sheet" | "tests">("sheet");
   const [revision, setRevision] = useState(0);
   const [mobileTab, setMobileTab] = useState<"sheet" | "code" | "preview">("code");
   const [sheetWidth, setSheetWidth] = useState(34); // % szerokości
@@ -91,6 +113,15 @@ export function IdeWorkspace({
     };
   }, []);
 
+  // po uruchomieniu testów pokazujemy wyniki (także na telefonie, gdzie arkusz i wyniki dzielą kartę)
+  const practiceRun = practice?.runId ?? 0;
+  useEffect(() => {
+    if (practiceRun > 0) {
+      setLeftTab("tests");
+      setMobileTab("sheet");
+    }
+  }, [practiceRun]);
+
   // Panel zajmuje cały ekran — zdejmujemy resztę strony także z kolejności Tab.
   useEffect(() => {
     document.body.classList.add("ide-open");
@@ -99,6 +130,34 @@ export function IdeWorkspace({
 
   const lowTime = remainingSec <= 600;
   const veryLowTime = remainingSec <= 60;
+
+  const sheetPanel = practice ? (
+    <div className="flex h-full min-h-0 flex-col">
+      <div role="tablist" aria-label="Arkusz i wyniki" className="flex shrink-0 gap-1 border-b border-white/[0.07] bg-panel/40 p-1">
+        {(["sheet", "tests"] as const).map((t) => (
+          <button
+            key={t}
+            type="button"
+            role="tab"
+            aria-selected={leftTab === t}
+            onClick={() => setLeftTab(t)}
+            className={`flex-1 rounded-lg px-3 py-1.5 text-sm transition ${leftTab === t ? "bg-accent/15 text-accent" : "text-muted hover:text-fg"}`}
+          >
+            {t === "sheet" ? "Arkusz" : `Testy${practice.badge ? ` · ${practice.badge}` : ""}`}
+          </button>
+        ))}
+      </div>
+      <div className="min-h-0 flex-1">
+        {leftTab === "tests" ? (
+          practice.panel
+        ) : (
+          <TaskSheet markdown={state.task.content_md} title={state.task.title} summary={state.task.summary} />
+        )}
+      </div>
+    </div>
+  ) : (
+    <TaskSheet markdown={state.task.content_md} title={state.task.title} summary={state.task.summary} />
+  );
 
   const editorPanel = (
     <div className="flex h-full min-h-0 flex-col">
@@ -140,17 +199,40 @@ export function IdeWorkspace({
       {/* pasek górny */}
       <header className="flex shrink-0 flex-wrap items-center gap-3 border-b border-white/[0.07] bg-panel/80 px-3 py-2 backdrop-blur">
         <span className="text-sm font-semibold">
-          Tebby <span className="text-muted">· praktyka</span>
+          Tebby <span className="text-muted">· {practice ? "ćwiczenie" : "praktyka"}</span>
         </span>
-        <span className="flex items-center gap-1.5 truncate text-sm text-muted">
-          <User size={14} aria-hidden /> {state.studentName}
-        </span>
-        <span
-          className={`chip ${saveStatus === "error" ? "border-danger/60 text-danger" : saveStatus === "saving" ? "border-warn/50 text-warn" : "border-accent/40 text-accent"}`}
-          title={lastSavedAt ? `Ostatni zapis: ${new Date(lastSavedAt).toLocaleTimeString("pl-PL")}` : undefined}
-        >
-          {SAVE_LABEL[saveStatus]}
-        </span>
+        {practice ? (
+          <span className="flex min-w-0 items-center gap-1.5 truncate text-sm text-muted">
+            <FlaskConical size={14} aria-hidden /> <span className="truncate">{state.task.title}</span>
+          </span>
+        ) : (
+          <span className="flex items-center gap-1.5 truncate text-sm text-muted">
+            <User size={14} aria-hidden /> {state.studentName}
+          </span>
+        )}
+        {practice ? (
+          practice.restored && <span className="chip border-accent/40 text-accent">wczytano Twoją pracę z poprzedniej wizyty</span>
+        ) : (
+          <span
+            className={`chip ${saveStatus === "error" ? "border-danger/60 text-danger" : saveStatus === "saving" ? "border-warn/50 text-warn" : "border-accent/40 text-accent"}`}
+            title={lastSavedAt ? `Ostatni zapis: ${new Date(lastSavedAt).toLocaleTimeString("pl-PL")}` : undefined}
+          >
+            {SAVE_LABEL[saveStatus]}
+          </span>
+        )}
+        {practice ? (
+          <div className="ml-auto flex flex-wrap items-center gap-2">
+            <button type="button" className="btn-primary btn-sm" onClick={practice.onRunTests} disabled={practice.running}>
+              {practice.running ? "Sprawdzanie…" : "▶ Uruchom testy"}
+            </button>
+            <button type="button" className="btn-ghost btn-sm" onClick={practice.onReset} title="Wróć do pliku startowego">
+              <RotateCcw size={14} aria-hidden /> Od nowa
+            </button>
+            <Link href={practice.exitHref} className="btn-ghost btn-sm">
+              <X size={14} aria-hidden /> Zamknij
+            </Link>
+          </div>
+        ) : (
         <div
           className={`ml-auto flex items-center gap-2 rounded-xl border px-3 py-1 ${
             veryLowTime
@@ -165,15 +247,18 @@ export function IdeWorkspace({
           <span className="hidden text-[0.7rem] uppercase tracking-wide opacity-70 sm:inline">Pozostały czas</span>
           <span className="font-mono text-lg font-bold tabular-nums">{formatClock(remainingSec)}</span>
         </div>
-        <button
-          type="button"
-          className="btn-primary btn-sm"
-          onClick={onSubmit}
-          disabled={submitting || readOnly}
-          title="Oddaj pracę i zakończ podejście — także wtedy, gdy skończysz przed czasem"
-        >
-          {submitting ? "Oddawanie…" : "Zakończ podejście"}
-        </button>
+        )}
+        {!practice && (
+          <button
+            type="button"
+            className="btn-primary btn-sm"
+            onClick={onSubmit}
+            disabled={submitting || readOnly}
+            title="Oddaj pracę i zakończ podejście — także wtedy, gdy skończysz przed czasem"
+          >
+            {submitting ? "Oddawanie…" : "Zakończ podejście"}
+          </button>
+        )}
       </header>
 
       {/* zakładki na wąskich ekranach */}
@@ -187,7 +272,7 @@ export function IdeWorkspace({
               mobileTab === t ? "bg-accent/15 text-accent" : "text-muted"
             }`}
           >
-            {t === "sheet" ? "Arkusz" : t === "code" ? "Kod" : "Podgląd"}
+            {t === "sheet" ? (practice ? "Arkusz i testy" : "Arkusz") : t === "code" ? "Kod" : "Podgląd"}
           </button>
         ))}
       </div>
@@ -195,7 +280,7 @@ export function IdeWorkspace({
       {/* układ dzielony (desktop) */}
       <div ref={rootRef} className="hidden min-h-0 flex-1 lg:flex">
         <div style={{ width: `${sheetWidth}%` }} className="min-w-0 border-r border-white/[0.07] bg-panel/30">
-          <TaskSheet markdown={state.task.content_md} title={state.task.title} summary={state.task.summary} />
+          {sheetPanel}
         </div>
         <div
           role="separator"
@@ -227,9 +312,7 @@ export function IdeWorkspace({
 
       {/* układ zakładkowy (mobile/tablet) */}
       <div className="min-h-0 flex-1 lg:hidden">
-        {mobileTab === "sheet" && (
-          <TaskSheet markdown={state.task.content_md} title={state.task.title} summary={state.task.summary} />
-        )}
+        {mobileTab === "sheet" && sheetPanel}
         {mobileTab === "code" && editorPanel}
         {mobileTab === "preview" && <PreviewPane files={files} revision={revision} />}
       </div>

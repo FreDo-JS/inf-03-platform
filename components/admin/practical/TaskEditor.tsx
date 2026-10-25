@@ -5,7 +5,7 @@ import { AutoTestsEditor } from "@/components/admin/practical/AutoTestsEditor";
 import { FilesEditor } from "@/components/admin/practical/FilesEditor";
 import { TaskSheet } from "@/components/practical/TaskSheet";
 import { runAutoTests, type RunProgress } from "@/lib/practical/runner";
-import { saveTask } from "@/lib/practical/tasks";
+import { practiceAvailable, saveTask } from "@/lib/practical/tasks";
 import { PRACTICAL_LIMITS, newLocalId, validateAutoTest, validateCriterion, validateFiles } from "@/lib/practical/validation";
 import { previewablePages } from "@/lib/practical/preview";
 import type { AutoResult, ManualCriterion, PracticalTaskRow, ProjectFile } from "@/types/practical";
@@ -34,6 +34,7 @@ const emptyTask = (): PracticalTaskRow => ({
   default_minutes: 150,
   allow_new_files: false,
   student_can_run_tests: false,
+  practice: false,
   is_ready: false,
   created_at: "",
 });
@@ -92,6 +93,7 @@ export function TaskEditor({ task, onSaved, onCancel, onOpenAsStudent }: Props) 
       default_minutes: draft.default_minutes,
       allow_new_files: draft.allow_new_files,
       student_can_run_tests: draft.student_can_run_tests,
+      practice: draft.practice,
       is_ready: markReady,
     });
     setSaving(false);
@@ -238,6 +240,26 @@ export function TaskEditor({ task, onSaved, onCancel, onOpenAsStudent }: Props) 
             />
             uczeń widzi nazwy testów
           </label>
+          {practiceAvailable() && (
+            <div className="mt-3 rounded-lg border border-line p-2.5">
+              <label className="flex items-start gap-2 text-xs text-muted">
+                <input
+                  type="checkbox"
+                  className="mt-0.5 h-4 w-4 shrink-0 accent-[#2de2c1]"
+                  checked={draft.practice}
+                  onChange={(e) => setDraft((d) => ({ ...d, practice: e.target.checked }))}
+                />
+                <span>
+                  <span className="font-medium text-fg">dostępne do ćwiczeń (bez PIN-u)</span>
+                  <br />
+                  Uczeń pracuje sam, bez limitu czasu i oceny, a testy uruchamia we własnej przeglądarce.
+                  <strong className="text-warn"> Zobaczy pełną definicję testów</strong> — nie zaznaczaj tego przy
+                  zadaniu, które ma być jeszcze egzaminem. Rozwiązanie wzorcowe zostaje ukryte. Działa tylko dla
+                  zadań oznaczonych jako gotowe.
+                </span>
+              </label>
+            </div>
+          )}
         </div>
       </div>
 

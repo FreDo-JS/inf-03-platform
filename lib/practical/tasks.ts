@@ -5,8 +5,13 @@ import { getBrowserSupabase } from "@/lib/supabase/client";
 import type { Json } from "@/types/db";
 import type { AutoTest, ManualCriterion, PracticalTaskRow, ProjectFile } from "@/types/practical";
 
-export const TASK_COLUMNS =
+const LEGACY_TASK_COLUMNS =
   "id, title, summary, content_md, files, reference_files, auto_tests, manual_criteria, default_minutes, allow_new_files, student_can_run_tests, is_ready, created_at" as const;
+/** Kolumna `practice` pochodzi z migracji 029; bez niej panel działa jak dotąd. */
+export const TASK_COLUMNS = `${LEGACY_TASK_COLUMNS}, practice` as const;
+
+/** Czy baza zna kolumnę practice — ustalane przy pierwszym pobraniu zadań. */
+let practiceColumn = true;
 
 type TaskRowDb = {
   id: string;
@@ -20,6 +25,7 @@ type TaskRowDb = {
   default_minutes: number;
   allow_new_files: boolean;
   student_can_run_tests: boolean;
+  practice?: boolean;
   is_ready: boolean;
   created_at: string;
 };
@@ -37,19 +43,32 @@ export function parseTaskRow(row: TaskRowDb): PracticalTaskRow {
     default_minutes: row.default_minutes,
     allow_new_files: row.allow_new_files,
     student_can_run_tests: row.student_can_run_tests,
+    practice: row.practice === true,
     is_ready: row.is_ready,
     created_at: row.created_at,
   };
 }
 
 export async function fetchTasks(): Promise<{ tasks: PracticalTaskRow[]; error: string | null }> {
-  const { data, error } = await getBrowserSupabase()
-    .from("practical_tasks")
-    .select(TASK_COLUMNS)
-    .order("created_at", { ascending: false });
-  if (error || !data) return { tasks: [], error: "Nie udało się pobrać zadań." };
-  return { tasks: data.map(parseTaskRow), error: null };
+  const supabase = getBrowserSupabase();
+  const full = await supabase.from("practical_tasks").select(TASK_COLUMNS).order("created_at", { ascending: false });
+  if (!full.error && full.data) {
+    practiceColumn = true;
+    return { tasks: full.data.map(parseTaskRow), error: null };
+  }
+  // baza sprzed migracji 029 — pobieramy stary zestaw kolumn i nie pokazujemy trybu ćwiczeń
+  if (full.error && (full.error.code === "42703" || /practice/.test(full.error.message ?? ""))) {
+    const legacy = await supabase.from("practical_tasks").select(LEGACY_TASK_COLUMNS).order("created_at", { ascending: false });
+    if (!legacy.error && legacy.data) {
+      practiceColumn = false;
+      return { tasks: legacy.data.map(parseTaskRow), error: null };
+    }
+  }
+  return { tasks: [], error: "Nie udało się pobrać zadań." };
 }
+
+/** Czy panel ma pokazywać przełącznik trybu ćwiczeń (migracja 029 wgrana). */
+export const practiceAvailable = (): boolean => practiceColumn;
 
 export type TaskPayload = {
   title: string;
@@ -62,6 +81,7 @@ export type TaskPayload = {
   default_minutes: number;
   allow_new_files: boolean;
   student_can_run_tests: boolean;
+  practice: boolean;
   is_ready: boolean;
 };
 
@@ -79,6 +99,8 @@ export async function saveTask(id: string | null, payload: TaskPayload): Promise
     default_minutes: payload.default_minutes,
     allow_new_files: payload.allow_new_files,
     student_can_run_tests: payload.student_can_run_tests,
+    // bez migracji 029 kolumny nie ma — wtedy jej nie wysyłamy, żeby zwykły zapis zadania działał
+    ...(practiceColumn ? { practice: payload.practice } : {}),
     is_ready: payload.is_ready,
     updated_at: new Date().toISOString(),
   };

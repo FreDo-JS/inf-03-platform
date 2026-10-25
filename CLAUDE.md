@@ -17,6 +17,8 @@ Aplikacja dla nauczyciela INF.03 i klas **1a / 2a / 4e / 4d**, trzy moduły:
    uruchamiane w przeglądarce **nauczyciela**, kryteria ręczne, korekty, publikacja, CSV.
    **Zakres: HTML/CSS/JavaScript.** Bez SQL i PHP — tak zdecydował użytkownik.
    Typy testów `sql_*` / `php_output` dojdą dopiero z etapem PHP.
+   Poza egzaminem jest **tryb ćwiczeniowy** (`/praktyka/cwiczenia`): bez PIN-u, czasu i oceny,
+   uczeń sam uruchamia testy we własnej przeglądarce (szczegóły niżej).
 
 **Żadnego oceniania przez AI.** Ocena jest deklaratywna (testy) + ręczna (nauczyciel).
 
@@ -54,6 +56,10 @@ CHECK-i i funkcje. **Każda zmiana w `supabase/*.sql` musi mieć pokrycie w `tes
 | `010_inf04.sql` | druga kwalifikacja: tabela `classes` (FK zamiast list w CHECK-ach), `qualification` w `categories` i `tests`, `create_test` z szóstym argumentem |
 | `011_inf04_seed.sql` | mapa INF.04: 12 kategorii, ponad 50 podtematów, materiały do C# i Reacta |
 | `012_progress_author.sql` | `progress.marked_by` stemplowane triggerem, `admins.display_name`, widok `teachers`, `set_my_display_name()`; naprawia rekurencyjną politykę odczytu `admins` z 008 |
+| `029_praktyka_cwiczenia.sql` | `practical_tasks.practice` (domyślnie `false`) + `practical_practice_list()` / `practical_practice_task(id)` dla ucznia: arkusz, pliki startowe i **definicje testów** zadań oznaczonych do ćwiczeń, nigdy rozwiązanie wzorcowe |
+| `028_praktyka_komentarze.sql` | komentarz nauczyciela do kryterium (`manual_scores[].comment`, maks. 300 znaków) widoczny w `practical_result` po publikacji |
+| `027_praktyka_zadania.sql` | pięć zadań praktycznych — **plik generowany** z `scripts/praktyka/zadania/*.mjs` przez `node scripts/praktyka/generuj.mjs` (formularz z walidacją, galeria RWD, cennik w tabeli, strona z trzech podstron, licznik z motywem) |
+| `026_praktyka_typy_testow.sql` | siedem nowych typów testów w `practical_tests_valid`: `images_alt`, `form_labels`, `heading_structure`, `css_media`, `links_valid`, `no_js_errors`, `file_content` |
 | `025_przedmioty_inf03.sql` | trzy kolejne przedmioty INF.03 w tabeli Nauczyciele (Tworzenie stron i aplikacji internetowych, Aplikacje desktopowe i mobilne, Programowanie strukturalne i obiektowe) zrobione jak „Programowanie aplikacji internetowych": każdy dostaje **własne kopie** jego sześciu działów (algorytmy, JS, PHP, serwer, bezpieczeństwo, C++) z podtematami i materiałami, prefiksy `i3-tsai-` / `i3-adm-` / `i3-psio-`; w mapie INF.03 działy są więc zdublowane (15 → 33). Sprząta po dawnych podejściach (przedmioty jako INF.04, kwalifikacje tsai/adm/psio) |
 | `024_inf04_ai.sql` | dział `inf04-ai` — przedmiot specjalizacyjny (Python i biblioteki danych, uczenie maszynowe, wizja komputerowa, NLP); dotyczy klas 3a i 4a |
 | `023_inf04_braki.sql` | mapa INF.04 doprowadzona do podstawy: wyjątki i klasy abstrakcyjne w ścieżce C#, wzorce projektowe, Jira/Trello/Gantt, prawo autorskie, dane i publikacja w aplikacjach mobilnych, sesje i logowanie, testy niefunkcjonalne |
@@ -86,6 +92,32 @@ CHECK-i i funkcje. **Każda zmiana w `supabase/*.sql` musi mieć pokrycie w `tes
 - Uczeń nie może sfałszować wyniku testu auto: przy testach strukturalnych skrypty ucznia
   są wyłączone, a wynik przed `run-test` albo drugi wynik tego samego testu = wykryta manipulacja.
 - Walidacja **po obu stronach**, komunikaty błędów po polsku i bez szczegółów technicznych.
+
+## Praktyka: rozbudowa (migracje 026–029)
+
+- **Typy testów** żyją w czterech miejscach, które muszą się zgadzać: `AUTO_TEST_TYPES` w `types/practical.ts`,
+  lista w `practical_tests_valid` (026), silnik w `lib/practical/runnerScript.ts` i formularz w
+  `AutoTestsEditor.tsx`. `tests/sql/praktyka-typy-testow.mjs` porównuje pierwszą z drugą. Nowy typ = dopisz
+  wszędzie i dołóż migrację z listą.
+- `css_computed` i `selector_count` mają `viewport` (px): `runner.ts` ustawia szerokość ramki, więc media queries
+  naprawdę się przełączają — tak sprawdzamy RWD. Typy `interaction` i `no_js_errors` uruchamiają kod ucznia,
+  reszta jest sprawdzana z **wyłączonym JS** (nie da się wtedy podszyć pod wynik). `file_content` działa na
+  samym tekście pliku, bez ramki.
+- **Zadania** pisze się w `scripts/praktyka/zadania/*.mjs` (arkusz, start, wzorzec, testy, kryteria), a
+  `generuj.mjs` robi z nich migrację 027. Test SQL pilnuje, żeby plik SQL był świeży. Wzorzec ma dawać
+  100% testów; sprawdza się to w przeglądarce („Sprawdź na wzorcu" w panelu albo `generuj.mjs --cases`
+  i strona testowa) — w czasie tworzenia zadań wszystkie 112 testów wzorców przeszło, a pliki startowe
+  zaliczały tylko 2–4 trywialne.
+- **Wymiana zadań**: `lib/practical/exchange.ts` (kopia, eksport/import JSON). Import przechodzi tę samą
+  walidację co kreator i **zawsze** trafia jako szkic bez trybu ćwiczeń.
+- **Ocena**: kolejka (`WorkReview` dostaje `queue`), komentarze do kryteriów, porównanie ze wzorcem
+  (`ReferenceDiff`, Monaco DiffEditor — bez `key` i z `keepCurrent*Model`, inaczej Monaco rzuca „TextModel got
+  disposed"), podobieństwo prac (`lib/practical/similarity.ts`: n-gramy z pominięciem kodu startowego,
+  normalizacja nazw zmiennych JS). Podobieństwo to **podpowiedź**, nie dowód — zadanie narzuca wiele elementów.
+- **Tryb ćwiczeniowy**: nauczyciel zaznacza „dostępne do ćwiczeń" przy zadaniu (domyślnie wyłączone).
+  Uczeń widzi wtedy **pełną definicję testów** — nie włączaj tego przy zadaniu, które ma być egzaminem.
+  Praca ucznia i wyniki zostają w jego przeglądarce (`localStorage`), do bazy nic nie idzie. Funkcje
+  `practical_practice_*` są na liście dozwolonych dla ucznia w `tests/sql/audyt-2.mjs`.
 
 Raport z pełnego audytu: `docs/audyt-bezpieczenstwa.md`.
 Drugi audyt (25.10.2026) dodał `tests/sql/audyt-2.mjs`: pilnuje *kształtu* uprawnień. Nowa tabela bez RLS,

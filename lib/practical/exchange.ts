@@ -34,6 +34,7 @@ export function exportTask(task: PracticalTaskRow): string {
       default_minutes: task.default_minutes,
       allow_new_files: task.allow_new_files,
       student_can_run_tests: task.student_can_run_tests,
+      practice: task.practice,
       files: task.files,
       reference_files: task.reference_files,
       auto_tests: task.auto_tests,
@@ -71,6 +72,8 @@ export function copyOf(task: PracticalTaskRow): TaskPayload {
     default_minutes: task.default_minutes,
     allow_new_files: task.allow_new_files,
     student_can_run_tests: task.student_can_run_tests,
+    // kopia nie jest od razu publiczna: tryb ćwiczeń trzeba włączyć świadomie
+    practice: false,
     is_ready: false,
   };
 }
@@ -157,6 +160,8 @@ export function importTask(text: string): Result<TaskPayload> {
       default_minutes: minutes,
       allow_new_files: raw.allow_new_files === true,
       student_can_run_tests: raw.student_can_run_tests === true,
+      // z cudzego pliku nic nie staje się publiczne samo — ćwiczenia włącza nauczyciel po przejrzeniu
+      practice: false,
       // import zawsze trafia jako szkic — nauczyciel przegląda go przed użyciem
       is_ready: false,
     },

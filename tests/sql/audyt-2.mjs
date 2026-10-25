@@ -191,6 +191,8 @@ console.log("\n== 4. FUNKCJE ==");
   const DOZWOLONE_DLA_UCZNIA = [
     "begin_session", "grant_admin_on_signup", "is_admin", "open_test", "practical_attempt_state", "practical_clean_name",
     "practical_criteria_valid", "practical_event", "practical_filename_valid", "practical_files_valid", "practical_join",
+    // tryb ćwiczeniowy (029): lista i zadanie oznaczone flagą practice, bez rozwiązania wzorcowego
+    "practical_practice_list", "practical_practice_task",
     "practical_result", "practical_save", "practical_state", "practical_submit", "practical_task_public",
     "practical_tests_valid", "practical_time", "progress_log_write", "progress_stamp_author", "quiz_time", "submit_attempt",
   ];

@@ -307,7 +307,7 @@ uwagi to L8–L10.
 - **Nowe tabele** (`subjects`, `plan_teachers`, `teacher_subjects`, `admin_invites`, `progress_log`): uczeń
   i zalogowane konto bez uprawnień nie czytają, nie wstawiają, nie zmieniają ani nie kasują; nikt nie nada
   sobie roli ani nie dopisze zaproszenia.
-- **Funkcje:** uczeń widzi dokładnie 22 funkcje z zatwierdzonej listy (nowa funkcja bez przeglądu wywraca test);
+- **Funkcje:** uczeń widzi dokładnie 24 funkcje z zatwierdzonej listy (w tym dwie z trybu ćwiczeń, migracja 029: `practical_practice_list`, `practical_practice_task` — tylko zadania z flagą `practice` i gotowe, bez rozwiązania wzorcowego) (nowa funkcja bez przeglądu wywraca test);
   funkcje administracyjne (`create_test`, `set_test_pin`, `practical_*`, `set_my_display_name`) odrzucają konto
   bez uprawnień nauczyciela; funkcje wyzwalaczy nie wywołają się ręcznie.
 - **Losowość:** PIN-y z `gen_random_uuid()`, tokeny podejść i wyników to dwa UUID v4 (≈244 bity), w bazie

@@ -10,6 +10,8 @@ import type {
   ManualCriterion,
   ManualScore,
   PracticalEndedReason,
+  PracticeListItem,
+  PracticeTask,
   ProjectFile,
   PublishedResult,
   ResultPayload,
@@ -162,6 +164,39 @@ export function parseResult(v: unknown): ResultPayload | null {
       : [],
   };
   return published;
+}
+
+// --- tryb ćwiczeniowy --------------------------------------------------------
+
+export function parsePracticeList(v: unknown): PracticeListItem[] {
+  if (!Array.isArray(v)) return [];
+  return v.flatMap((r) =>
+    isRecord(r) && typeof r.id === "string"
+      ? [{ id: r.id, title: str(r.title), summary: str(r.summary), minutes: num(r.minutes), tests: num(r.tests), points: num(r.points) }]
+      : [],
+  );
+}
+
+export function parsePracticeTask(v: unknown): PracticeTask | null {
+  if (!isRecord(v) || typeof v.id !== "string") return null;
+  const files = parseFiles(v.files);
+  if (files.length === 0) return null;
+  return {
+    id: v.id,
+    title: str(v.title),
+    summary: str(v.summary),
+    contentMd: str(v.content_md),
+    files,
+    allowNewFiles: bool(v.allow_new_files),
+    tests: parseAutoTests(v.auto_tests),
+    criteria: Array.isArray(v.criteria)
+      ? v.criteria.flatMap((c) =>
+          isRecord(c)
+            ? [{ name: str(c.name), description: typeof c.description === "string" ? c.description : undefined, points: num(c.points) }]
+            : [],
+        )
+      : [],
+  };
 }
 
 // --- dane po stronie admina (odczyt prosto z tabel) -------------------------

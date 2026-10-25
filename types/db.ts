@@ -222,6 +222,7 @@ type PracticalTaskRowDb = {
   default_minutes: number;
   allow_new_files: boolean;
   student_can_run_tests: boolean;
+  practice: boolean;
   is_ready: boolean;
   schema_info: string;
   db_sql: string;
@@ -371,6 +372,8 @@ export type Database = {
       practical_event: { Args: { p_token: string; p_type: string; p_details?: Json }; Returns: Json };
       practical_submit: { Args: { p_token: string; p_files: Json; p_reason?: string }; Returns: Json };
       practical_result: { Args: { p_result_token: string }; Returns: Json };
+      practical_practice_list: { Args: Record<string, never>; Returns: Json };
+      practical_practice_task: { Args: { p_task_id: string }; Returns: Json };
       practical_create_session: {
         Args: { p_task_id: string; p_class: string; p_minutes: number; p_allow_paste?: boolean; p_pass_threshold?: number };
         Returns: Json;

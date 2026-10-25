@@ -201,6 +201,20 @@ od razu przyciskiem), więc przy tym komputerze może usiąść kolejny uczeń. 
 wyniku** — praca leży w bazie, a ocenę ogłasza nauczyciel (w zakładce *Prace* jest przycisk kopiujący
 link do wyniku, gdyby chciał go komuś przekazać).
 
+**Wygoda nauczyciela:**
+- *Zadania* — przy każdym zadaniu przyciski **Kopiuj** (kopia jako szkic) oraz **Eksport** do pliku JSON;
+  **Importuj z pliku** wczytuje zadanie od innego nauczyciela (walidacja jak w kreatorze, zawsze jako szkic).
+  Gotowa biblioteka: formularz z walidacją, galeria responsywna, cennik w tabeli, strona z trzech podstron,
+  licznik z przełącznikiem motywu (migracja 027).
+- *Prace* — **kolejka sprawdzania** (poprzednia / następna / następna do oceny / zapisz i następna),
+  komentarz do każdego kryterium (uczeń zobaczy go po publikacji), **porównanie z rozwiązaniem wzorcowym**
+  z podświetlonymi różnicami oraz znacznik **podobnej pracy** (podpowiedź, nie dowód).
+
+**Ćwiczenia (bez PIN-u):** przy zadaniu można zaznaczyć „dostępne do ćwiczeń". Uczeń wchodzi wtedy z
+`/praktyka` → *Ćwicz samodzielnie bez oceny*, pracuje bez limitu czasu, sam uruchamia testy (widzi, co
+przechodzi, a co nie) i może zacząć od nowa. Praca zostaje w jego przeglądarce, nic nie trafia do bazy.
+Uwaga: uczeń widzi wtedy definicję testów, więc nie włączaj tego przy zadaniu, które ma być jeszcze egzaminem.
+
 **Jak to jest uruchamiane i oceniane**
 - Podgląd i testy działają w `<iframe sandbox="allow-scripts allow-forms">` **bez** `allow-same-origin`,
   z treścią w `srcdoc`. Odwołania do `styl.css`, `skrypt.js` i linki do innych stron projektu
@@ -208,7 +222,10 @@ link do wyniku, gdyby chciał go komuś przekazać).
 - Testy automatyczne uruchamia **przeglądarka nauczyciela** (nie uczeń — mógłby podmienić wynik;
   i nie serwer — po co uruchamiać cudzy kod na serwerze). Każdy test dostaje świeży iframe i 5 s limitu.
 - Typy testów w tej wersji: `file_not_empty`, `selector_count`, `selector_text`, `selector_attribute`,
-  `css_computed`, `html_lang_doctype`, `interaction`. Typy `sql_*` i `php_output` dojdą z etapem PHP.
+  `css_computed`, `html_lang_doctype`, `interaction` oraz `images_alt`, `form_labels`, `heading_structure`,
+  `css_media`, `links_valid`, `no_js_errors`, `file_content`. Testy `css_computed` i `selector_count` można
+  wykonać przy podanej szerokości okna (np. 375 px), żeby sprawdzić media queries. Typy `sql_*` i `php_output`
+  dojdą z etapem PHP.
 - Procent liczy baza (`practical_recalc`): punkty automatyczne po korektach + ręczne / maksimum.
 - **Żadnej oceny przez AI.**
 
