@@ -1,6 +1,6 @@
 # Audyt bezpieczeństwa — INF.03 (mapa nauki, testy, praktyka)
 
-Data: 24.09.2026 · Zakres: cała aplikacja (Next.js + Supabase) wraz z modułem Praktyka.
+Data: 24.09.2026 (audyt nr 2: 25.10.2026 — na końcu dokumentu) · Zakres: cała aplikacja (Next.js + Supabase) wraz z modułem Praktyka.
 
 ## 1. Metoda
 
@@ -216,3 +216,93 @@ wstrzyknięcia, limity, spójność danych i lista adminów.
 
 Testy wykonywane w przeglądarce (izolacja piaskownicy, XSS w arkuszu, fałszowanie wyników) były
 jednorazowe i nie są częścią repozytorium — opis przebiegu i wyniki znajdują się w sekcjach 3 i 4.
+
+---
+
+# Audyt nr 2 — 25.10.2026
+
+Zakres: stan repozytorium po migracjach 001–025 (nowe tabele planu nauczycieli i przedmiotów, zaproszenia,
+dziennik, analiza pytań, pytania z lukami) oraz wdrożenie na własny serwer (Dockerfile, nginx, kopie
+zapasowe, CI). Poprzedni audyt dotyczył schematu 001–009.
+
+**Metoda.** Przegląd kodu i plików wdrożeniowych; `npm audit`; wyliczenie z katalogu systemowego
+Postgresa wszystkich tabel, polityk RLS, uprawnień i funkcji dostępnych dla ucznia (`anon`) oraz dla
+zalogowanego konta bez uprawnień nauczyciela; odtworzenie ataków na bazie z PGlite. Wyniki wchodzą do
+repozytorium jako zestaw `tests/sql/audyt-2.mjs` (103 sprawdzenia) i rozszerzony `admin-invites.mjs`
+— dzięki temu kolejna zmiana, która otworzy coś, czego nie powinna, wywróci test.
+
+Nie zostało sprawdzone: działanie nginxa i kopii zapasowych na żywym serwerze (pliki sprawdzone
+statycznie), prawdziwy Supabase (testy chodzą na PGlite), testy w przeglądarce (przeglądarkowa część
+audytu nr 1 — piaskownica, XSS w arkuszu — nie została powtórzona; kod tych elementów nie zmienił się).
+
+## Znaleziska
+
+| # | Waga | Znalezisko | Status |
+|---|---|---|---|
+| H3 | **Wysoka** (warunkowa) | Zaproszenie nauczyciela dawało uprawnienia po samym założeniu konta — przy otwartej rejestracji bez potwierdzania mejli obcy mógł zarejestrować się na zaproszony adres i zostać adminem | **Naprawione** (015: uprawnienia dopiero po potwierdzeniu adresu) |
+| H4 | **Wysoka** (przy wdrożeniu na VPS) | nginx przekazywał nagłówki adresu klienta bez nadpisania; baza ufa `cf-connecting-ip`, więc uczeń podając własny nagłówek omijał limity prób PIN-u (6 cyfr = 10⁶ możliwości) | **Naprawione** (`deploy/nginx/tebby.conf` + test statyczny) |
+| H5 | **Wysoka** | Zależności produkcyjne z lukami: Next.js ≤ 15.5.27 (m.in. RCE w optymalizatorze obrazów dla SVG, zatruwanie cache, DoS), DOMPurify ≤ 3.4.16 (przez Monaco; DOM XSS), sharp, source-map-js | **Naprawione** (`npm audit fix`: Next 15.5.28, DOMPurify 3.4.17, sharp 0.35.5; produkcja: 0 podatności) |
+| M4 | Średnia | Kopie zapasowe zapisywały się z domyślnym `umask 022` — hasze haseł nauczycieli, klucze testów i prace uczniów czytelne dla każdego konta na serwerze | **Naprawione** (`umask 077`, katalog 700) |
+| L5 | Niska | Token CI bez jawnie ograniczonych uprawnień | **Naprawione** (`permissions: contents: read`) |
+| L6 | Niska | `progress.marked_by` (czytelne publicznie) ujawnia identyfikatory kont nauczycieli; widok `teachers` łączy je z nazwami wyświetlanymi | Zaakceptowane — nazwy są celowo jawne (podpis przy tematach), identyfikator sam w sobie niczego nie daje |
+| L7 | Niska | Każdy, kto zna identyfikator testu (lista testów jest publiczna), może wysłać 300 błędnych PIN-ów w 5 minut i zablokować wejście całej klasie na czas egzaminu | Zaakceptowane — to cena globalnego limitu (obrona przed zgadywaniem z wielu adresów); doraźnie pomaga zmiana PIN-u przez nauczyciela, która zeruje licznik |
+
+### H3. Przejęcie zaproszenia nauczyciela
+
+Trigger z migracji 015 uruchamiał się przy `INSERT` do `auth.users` i nadawał rolę każdemu, kto miał adres
+z listy zaproszeń. Przy włączonej publicznej rejestracji i wyłączonym potwierdzaniu adresów wystarczyło
+zarejestrować się na adres nauczyciela, zanim zrobi to on sam. Odtworzone w teście: konto z niepotwierdzonym
+adresem dostawało wiersz w `admins`. Teraz trigger wymaga `email_confirmed_at`, a nasłuchuje także
+na `UPDATE` tej kolumny (zaproszenie z panelu Supabase potwierdza adres dopiero przy ustawianiu hasła).
+Zmiana adresu na zaproszony bez potwierdzenia też nie daje uprawnień. **Do zrobienia po stronie bazy:
+uruchom ponownie `015_admin_invites.sql`** — jest powtarzalna. Niezależnie od tej poprawki
+`DISABLE_SIGNUP=true` (wdrożenie na VPS) i wyłączona rejestracja w Supabase zamykają ten wektor całkowicie.
+
+### H4. Limity PIN-ów za nginxem
+
+Baza liczy próby per adres IP i bierze go z nagłówków w kolejności `cf-connecting-ip`, `x-real-ip`,
+`x-forwarded-for`. Na hostowanym Supabase pierwszy ustawia Cloudflare, więc klient nie może go podrobić.
+Na własnym serwerze przed bazą stoi tylko nginx, a konfiguracja *doklejała* adres do `X-Forwarded-For`
+i nie ruszała `CF-Connecting-IP`: uczeń wysyłający `CF-Connecting-IP: 10.0.0.N` z kolejnym N dostawał
+za każdym razem świeży licznik. Limit 10 prób na minutę (praktyka) znikał, a w quizach został tylko
+globalny limit 300 / 5 min na test. Teraz nginx przy domenie API nadpisuje wszystkie trzy nagłówki adresem
+połączenia, a `docs/wdrozenie-vps.md` zawiera polecenie sprawdzające to po wdrożeniu.
+
+### H5. Zależności
+
+Poprzedni audyt miał 0 podatności w produkcji; od tego czasu pojawiły się nowe zgłoszenia. Najpoważniejsze
+dotyczy Next.js: aplikacja używa `next/image` (logo), więc optymalizator obrazów jest uruchomiony, a na
+własnym serwerze nie chroni go platforma. Po aktualizacji `npm audit --omit=dev` zgłasza 0 podatności,
+build produkcyjny i wszystkie testy przechodzą. Zostają 3 uwagi poziomu *moderate* w narzędziach
+deweloperskich (`tailwindcss` → `postcss-selector-parser`), które działają wyłącznie podczas budowania
+i nie trafiają do obrazu; poprawka wymaga zmiany wersji głównej Tailwinda, więc została odłożona.
+
+## Co sprawdzono i wypadło dobrze
+
+- **RLS:** wszystkie tabele mają włączone RLS; wszystkie polityki zapisu i kasowania wymagają `is_admin()`;
+  żadna polityka nie traktuje „zalogowany” jako „nauczyciel”.
+- **Publiczny odczyt:** tylko `categories`, `classes`, `progress`, `subjects`, `subtopic_links`, `subtopics`,
+  `tests` (z ograniczeniem kolumn: bez `questions` i `created_by`). Zamknięta lista pilnowana testem.
+- **Nowe tabele** (`subjects`, `plan_teachers`, `teacher_subjects`, `admin_invites`, `progress_log`): uczeń
+  i zalogowane konto bez uprawnień nie czytają, nie wstawiają, nie zmieniają ani nie kasują; nikt nie nada
+  sobie roli ani nie dopisze zaproszenia.
+- **Funkcje:** uczeń widzi dokładnie 22 funkcje z zatwierdzonej listy (nowa funkcja bez przeglądu wywraca test);
+  funkcje administracyjne (`create_test`, `set_test_pin`, `practical_*`, `set_my_display_name`) odrzucają konto
+  bez uprawnień nauczyciela; funkcje wyzwalaczy nie wywołają się ręcznie.
+- **Losowość:** PIN-y z `gen_random_uuid()`, tokeny podejść i wyników to dwa UUID v4 (≈244 bity), w bazie
+  tylko skrót SHA-256.
+- **Aplikacja:** brak `dangerouslySetInnerHTML`, `eval`, sklejanego SQL-a i klucza service-role w kodzie;
+  Markdown arkusza bez `rehype-raw` i z filtrowaniem adresów; CSP z nonce i `frame-ancestors 'none'`,
+  `X-Frame-Options: DENY`, HSTS; kontener działa jako zwykły użytkownik i słucha tylko na pętli zwrotnej.
+- **Pozostałe punkty audytu nr 1** (sekcje 3–4a) pozostają w mocy; `security.mjs` nadal przechodzi w całości.
+
+## Zalecenia (poza kodem)
+
+1. Uruchom ponownie **015_admin_invites.sql** w Supabase (naprawa H3).
+2. Po wdrożeniu na VPS wykonaj próbę z `docs/wdrozenie-vps.md` (sekcja 1.4) — upewnij się, że limit PIN-ów
+   działa mimo fałszywego nagłówka (H4).
+3. Zainstaluj zaktualizowane zależności (`npm ci`) i przebuduj obraz (H5).
+4. Skontroluj prawa istniejących kopii zapasowych: `chmod -R go-rwx /var/backups/tebby` (M4).
+5. Pozostają zalecenia z sekcji 5 (wyłączona rejestracja, lista `admins`, Safe Exam Browser na egzaminie).
+6. Po każdej zmianie w bazie: `npm run test:sql` — `audyt-2.mjs` zatrzyma nową tabelę bez RLS, nową
+   funkcję dostępną dla ucznia i poluzowanie nginxa.

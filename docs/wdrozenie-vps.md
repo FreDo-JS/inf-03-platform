@@ -87,6 +87,22 @@ sudo nginx -t && sudo systemctl reload nginx
 sudo certbot --nginx -d twoja-domena.pl -d api.twoja-domena.pl
 ```
 
+**Adres klienta w limitach PIN-ów.** Baza liczy próby wpisania PIN-u per adres IP
+i bierze go z nagłówków `cf-connecting-ip`, `x-real-ip`, `x-forwarded-for`.
+Dostarczony `tebby.conf` nadpisuje wszystkie trzy adresem połączenia — **nie
+zmieniaj tego na `$proxy_add_x_forwarded_for`**. Sprawdzenie po wdrożeniu (z
+zewnątrz, z dowolnego komputera; 12 razy z rzędu inny „adres" w nagłówku):
+
+```bash
+for i in $(seq 1 12); do
+  curl -s -o /dev/null -w "%{http_code} " -X POST https://api.twoja-domena.pl/rest/v1/rpc/practical_join     -H "apikey: $ANON_KEY" -H "Content-Type: application/json"     -H "CF-Connecting-IP: 10.0.0.$i" -d '{"p_pin":"000000","p_name":"test"}'
+done; echo
+```
+
+Wynik ma być 12 razy `200`, ale w odpowiedziach od 11. próby ma być
+`"reason":"rate_limited"` (sprawdź jedną z nich bez `-o /dev/null`). Gdyby
+limit nie zadziałał, nagłówek nie jest nadpisywany i PIN da się zgadywać bez ograniczeń.
+
 Certbot sam dopisze bloki `ssl_*` i założy odnawianie w systemd.
 
 ### 1.5 Zapora

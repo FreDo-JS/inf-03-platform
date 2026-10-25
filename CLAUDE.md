@@ -88,6 +88,10 @@ CHECK-i i funkcje. **Każda zmiana w `supabase/*.sql` musi mieć pokrycie w `tes
 - Walidacja **po obu stronach**, komunikaty błędów po polsku i bez szczegółów technicznych.
 
 Raport z pełnego audytu: `docs/audyt-bezpieczenstwa.md`.
+Drugi audyt (25.10.2026) dodał `tests/sql/audyt-2.mjs`: pilnuje *kształtu* uprawnień. Nowa tabela bez RLS,
+nowa funkcja dostępna dla ucznia albo poluzowanie nginxa wywrócą test — wtedy świadomie dopisz ją do listy
+w teście, nie „naprawiaj" testu. Zaproszenia (015) dają rolę dopiero po **potwierdzeniu adresu** — nie cofaj tego.
+Baza ufa nagłówkom adresu klienta (`client_ip()`), więc nginx musi je nadpisywać (zob. `deploy/nginx/tebby.conf`).
 
 ## Dwie kwalifikacje
 

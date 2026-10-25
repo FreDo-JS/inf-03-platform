@@ -16,7 +16,7 @@ const read = (f) => readFileSync(root + f, "utf8");
 const db = new PGlite();
 await db.exec(`
   create role anon nologin; create role authenticated nologin;
-  create schema auth; create table auth.users (id uuid primary key, email text);
+  create schema auth; create table auth.users (id uuid primary key, email text, email_confirmed_at timestamptz);
   create function auth.role() returns text language sql stable as $$
     select coalesce(nullif(current_setting('request.jwt.claim.role', true), ''), 'anon') $$;
   create function auth.uid() returns uuid language sql stable as $$

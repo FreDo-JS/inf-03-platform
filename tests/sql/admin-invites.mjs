@@ -17,7 +17,7 @@ const SPOZNIONY = "44444444-4444-4444-4444-444444444444";
 const db = new PGlite();
 await db.exec(`
   create role anon nologin; create role authenticated nologin;
-  create schema auth; create table auth.users (id uuid primary key, email text);
+  create schema auth; create table auth.users (id uuid primary key, email text, email_confirmed_at timestamptz);
   create function auth.role() returns text language sql stable as $$
     select coalesce(nullif(current_setting('request.jwt.claim.role', true), ''), 'anon') $$;
   create function auth.uid() returns uuid language sql stable as $$
@@ -62,12 +62,40 @@ await db.exec(`insert into admin_invites (email, note) values ('Nowa.Nauczycielk
 await ok("zaproszenie czeka na liście", `select count(*)::int n from admin_invites`, (r) => r[0].n === 1);
 
 // rejestracja z zaproszonego adresu — pisownia inną wielkością liter
-await db.exec(`insert into auth.users values ('${ZAPROSZONY}', 'nowa.nauczycielka@szkola.pl');`);
-await ok("zaproszona osoba dostaje uprawnienia przy zakładaniu konta",
+await db.exec(`insert into auth.users values ('${ZAPROSZONY}', 'nowa.nauczycielka@szkola.pl', now());`);
+await ok("zaproszona osoba dostaje uprawnienia po założeniu potwierdzonego konta",
   `select count(*)::int n from admins where user_id = '${ZAPROSZONY}'`, (r) => r[0].n === 1);
 await ok("  …wielkość liter w adresie nie ma znaczenia",
   `select note from admins where user_id = '${ZAPROSZONY}'`, (r) => r[0].note === "konto z zaproszenia");
 await ok("  …zaproszenie zostało zużyte", `select count(*)::int n from admin_invites`, (r) => r[0].n === 0);
+
+console.log("\n== PRZEJĘCIE ZAPROSZENIA PRZEZ OBCEGO (audyt H3) ==");
+{
+  await db.exec("reset role;");
+  const NAPASTNIK = "99999999-9999-9999-9999-999999999999";
+  await db.exec(`insert into admin_invites (email) values ('prof.zaproszony@szkola.pl');`);
+  // publiczna rejestracja bez potwierdzania: konto powstaje od razu, ale adres nie jest potwierdzony
+  await db.exec(`insert into auth.users values ('${NAPASTNIK}', 'Prof.Zaproszony@szkola.pl', null);`);
+  await ok("rejestracja na cudzy zaproszony adres NIE daje uprawnień",
+    `select count(*)::int n from admins where user_id = '${NAPASTNIK}'`, (r) => r[0].n === 0);
+  await ok("  …a zaproszenie czeka dalej na prawdziwego właściciela",
+    `select count(*)::int n from admin_invites where email = 'prof.zaproszony@szkola.pl'`, (r) => r[0].n === 1);
+  await db.exec(`update auth.users set email_confirmed_at = now() where id = '${NAPASTNIK}'`);
+  await ok("potwierdzenie adresu (UPDATE) nadaje uprawnienia właścicielowi skrzynki",
+    `select count(*)::int n from admins where user_id = '${NAPASTNIK}'`, (r) => r[0].n === 1);
+  await ok("  …i zużywa zaproszenie",
+    `select count(*)::int n from admin_invites where email = 'prof.zaproszony@szkola.pl'`, (r) => r[0].n === 0);
+  await db.exec(`delete from admins where user_id = '${NAPASTNIK}'`);
+
+  // zmiana adresu na zaproszony, bez potwierdzenia, też nie wystarcza
+  const ZMIENNIK = "88888888-8888-8888-8888-888888888888";
+  await db.exec(`insert into admin_invites (email) values ('inny.zaproszony@szkola.pl');
+    insert into auth.users values ('${ZMIENNIK}', 'ktos@internet.pl', null);
+    update auth.users set email = 'inny.zaproszony@szkola.pl' where id = '${ZMIENNIK}';`);
+  await ok("zmiana adresu na zaproszony bez potwierdzenia nie daje uprawnień",
+    `select count(*)::int n from admins where user_id = '${ZMIENNIK}'`, (r) => r[0].n === 0);
+  await db.exec(`delete from admin_invites where email = 'inny.zaproszony@szkola.pl'; delete from auth.users where id = '${ZMIENNIK}';`);
+}
 
 console.log("\n== KONTO BEZ ZAPROSZENIA ==");
 await db.exec(`insert into auth.users values ('${OBCY}', 'ktos@internet.pl');`);
@@ -103,7 +131,7 @@ await err("uczeń nie dopisze zaproszenia", `insert into admin_invites (email) v
 
 console.log("\n== ZAPROSZENIE PO ZAŁOŻENIU KONTA ==");
 await db.exec("reset role;");
-await db.exec(`insert into auth.users values ('${SPOZNIONY}', 'spozniony@szkola.pl');`);
+await db.exec(`insert into auth.users values ('${SPOZNIONY}', 'spozniony@szkola.pl', now());`);
 await ok("konto założone przed zaproszeniem nie ma uprawnień",
   `select count(*)::int n from admins where user_id='${SPOZNIONY}'`, (r) => r[0].n === 0);
 await db.exec(`insert into admin_invites (email) values ('spozniony@szkola.pl');`);

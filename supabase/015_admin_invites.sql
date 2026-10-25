@@ -14,6 +14,13 @@
 -- został zaproszony, dostaje zwykłe konto bez dostępu do panelu. Wpisy na listę
 -- dodaje się wyłącznie z SQL Editora — przez API nikt nie zaprosi ani siebie,
 -- ani kolegi.
+--
+-- Uprawnienia nadajemy DOPIERO PO POTWIERDZENIU adresu (email_confirmed_at).
+-- Samo założenie konta nie wystarcza: przy włączonej publicznej rejestracji
+-- bez potwierdzania mejli ktoś obcy mógłby zarejestrować się na adres
+-- zaproszonego nauczyciela i zostać adminem (audyt z 25.10.2026, znalezisko H3).
+-- Zaproszenie z panelu Supabase potwierdza adres przy ustawieniu hasła, więc
+-- wyzwala trigger przez UPDATE, nie przez INSERT.
 -- =============================================================================
 
 do $$
@@ -55,7 +62,8 @@ security definer
 set search_path = public
 as $$
 begin
-  if new.email is null then
+  -- bez adresu albo bez potwierdzenia konto nie dostaje nic
+  if new.email is null or new.email_confirmed_at is null then
     return new;
   end if;
 
@@ -73,7 +81,7 @@ $$;
 
 drop trigger if exists grant_admin_on_signup on auth.users;
 create trigger grant_admin_on_signup
-  after insert on auth.users
+  after insert or update of email, email_confirmed_at on auth.users
   for each row execute function public.grant_admin_on_signup();
 
 -- -----------------------------------------------------------------------------
@@ -85,6 +93,7 @@ insert into admins (user_id, note)
 select u.id, 'konto z zaproszenia (dopisane przy migracji)'
 from auth.users u
 join admin_invites i on lower(btrim(i.email)) = lower(btrim(u.email))
+where u.email_confirmed_at is not null
 on conflict (user_id) do nothing;
 
 delete from admin_invites i

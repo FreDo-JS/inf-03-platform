@@ -10,6 +10,11 @@
 
 set -euo pipefail
 
+# Kopia zawiera hasze haseł nauczycieli (schemat auth), klucze testów i prace
+# uczniów. Pliki i katalog tylko dla właściciela — bez tego domyślne umask
+# 022 robi z nich pliki do odczytu dla każdego konta na serwerze.
+umask 077
+
 KATALOG="${TEBBY_BACKUP_DIR:-/var/backups/tebby}"
 KONTENER="${TEBBY_DB_CONTAINER:-supabase-db}"
 BAZA="${TEBBY_DB_NAME:-postgres}"
@@ -17,6 +22,7 @@ UZYTKOWNIK="${TEBBY_DB_USER:-postgres}"
 ILE_DNI="${TEBBY_BACKUP_DAYS:-14}"
 
 mkdir -p "$KATALOG"
+chmod 700 "$KATALOG"
 PLIK="$KATALOG/tebby-$(date +%Y%m%d-%H%M).dump"
 
 # Format custom (-Fc): mniejszy i pozwala odtwarzać wybrane tabele.
