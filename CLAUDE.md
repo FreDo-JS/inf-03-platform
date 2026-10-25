@@ -54,6 +54,7 @@ CHECK-i i funkcje. **Każda zmiana w `supabase/*.sql` musi mieć pokrycie w `tes
 | `010_inf04.sql` | druga kwalifikacja: tabela `classes` (FK zamiast list w CHECK-ach), `qualification` w `categories` i `tests`, `create_test` z szóstym argumentem |
 | `011_inf04_seed.sql` | mapa INF.04: 12 kategorii, ponad 50 podtematów, materiały do C# i Reacta |
 | `012_progress_author.sql` | `progress.marked_by` stemplowane triggerem, `admins.display_name`, widok `teachers`, `set_my_display_name()`; naprawia rekurencyjną politykę odczytu `admins` z 008 |
+| `025_przedmioty_inf04.sql` | trzy przedmioty INF.04 w tabeli Nauczyciele (`subjects`): Tworzenie stron i aplikacji internetowych, Aplikacje desktopowe i mobilne, Programowanie strukturalne i obiektowe; przypisuje im działy INF.04 przez `categories.subject_id`, nic nie kopiuje; działy bez pasującego przedmiotu (BHP, język, zespół, testowanie, egzamin, AI) zostają bez przypisania |
 | `024_inf04_ai.sql` | dział `inf04-ai` — przedmiot specjalizacyjny (Python i biblioteki danych, uczenie maszynowe, wizja komputerowa, NLP); dotyczy klas 3a i 4a |
 | `023_inf04_braki.sql` | mapa INF.04 doprowadzona do podstawy: wyjątki i klasy abstrakcyjne w ścieżce C#, wzorce projektowe, Jira/Trello/Gantt, prawo autorskie, dane i publikacja w aplikacjach mobilnych, sesje i logowanie, testy niefunkcjonalne |
 | `022_przedmioty_nauczyciele.sql` | `subjects` (przedmioty z programu), `categories.subject_id`, `plan_teachers` i `teacher_subjects` — tabela „kto prowadzi który przedmiot” w sekcji *Nauczyciele* |
