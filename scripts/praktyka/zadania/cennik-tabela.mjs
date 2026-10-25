@@ -16,7 +16,7 @@ const wiersze = WIERSZE.map(
       </tr>`,
 ).join("\n");
 
-export default {
+const zadanie = {
   title: "Cennik w tabeli (HTML/CSS)",
   summary: "Tabela z nagłówkiem, podpisem i zebrą w CSS — semantyczna, bez sztuczek z układem.",
   minutes: 60,
@@ -164,3 +164,5 @@ td:last-child {
     { id: "k3", name: "Porządek w kodzie", description: "Wcięcia, brak powtórzeń w CSS.", points: 3 },
   ],
 };
+
+export default zadanie;

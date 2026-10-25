@@ -19,7 +19,7 @@ const figury = OBRAZY.map(
     </figure>`,
 ).join("\n");
 
-export default {
+const zadanie = {
   title: "Galeria responsywna (HTML/CSS)",
   summary: "Galeria sześciu obrazków, która na telefonie ustawia się w jednej kolumnie (media queries).",
   minutes: 60,
@@ -156,3 +156,5 @@ figcaption {
     { id: "k3", name: "Porządek w kodzie", description: "Wcięcia, brak powtórzeń w CSS, sensowna kolejność reguł.", points: 3 },
   ],
 };
+
+export default zadanie;

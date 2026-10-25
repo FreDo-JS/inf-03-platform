@@ -25,7 +25,7 @@ ${tresc}
 </html>
 `;
 
-export default {
+const zadanie = {
   title: "Strona firmowa z trzech podstron (HTML/CSS)",
   summary: "Trzy powiązane pliki HTML, wspólne menu, semantyczny układ i jeden arkusz stylów.",
   minutes: 90,
@@ -176,3 +176,5 @@ footer {
     { id: "k3", name: "Porządek w kodzie", description: "Wcięcia, brak powtórzeń w CSS, jeden arkusz dla wszystkich.", points: 3 },
   ],
 };
+
+export default zadanie;

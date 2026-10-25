@@ -1,5 +1,5 @@
 // Zadanie: formularz rejestracyjny z walidacją po stronie przeglądarki.
-export default {
+const zadanie = {
   title: "Formularz rejestracyjny z walidacją (HTML/CSS/JS)",
   summary: "Formularz z etykietami i skrypt, który sprawdza dane i wyświetla pierwszy napotkany błąd.",
   minutes: 90,
@@ -263,3 +263,5 @@ formularz.addEventListener("submit", function (zdarzenie) {
     { id: "k3", name: "Komunikaty zrozumiałe dla użytkownika", description: "Błąd i sukces widoczne, stare komunikaty znikają przy kolejnym wysłaniu.", points: 3 },
   ],
 };
+
+export default zadanie;

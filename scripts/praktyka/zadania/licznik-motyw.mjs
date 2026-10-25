@@ -1,5 +1,5 @@
 // Zadanie: licznik z przyciskami i przełącznikiem motywu (JavaScript na DOM).
-export default {
+const zadanie = {
   title: "Licznik i przełącznik motywu (HTML/CSS/JS)",
   summary: "Licznik z przyciskami +, − i reset oraz przełączanie jasnego i ciemnego motywu klasą CSS.",
   minutes: 60,
@@ -175,3 +175,5 @@ document.getElementById("motyw").addEventListener("click", function () {
     { id: "k3", name: "Obsługa skrajnych przypadków", description: "Zachowanie przy 0 i 10 jest sensowne i zrozumiałe.", points: 3 },
   ],
 };
+
+export default zadanie;
