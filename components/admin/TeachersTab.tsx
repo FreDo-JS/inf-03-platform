@@ -19,6 +19,7 @@ import { Plus, Trash2, X } from "lucide-react";
  */
 
 type Dzial = { id: string; title: string; subject_id: string | null };
+type Powiazanie = { category_id: string; subject_id: string };
 
 /** Klucz krzyżyka w zbiorze — para nauczyciel + przedmiot. */
 const klucz = (teacherId: string, subjectId: string) => `${teacherId}|${subjectId}`;
@@ -28,6 +29,7 @@ export function TeachersTab() {
   const [teachers, setTeachers] = useState<PlanTeacherRow[]>([]);
   const [krzyzyki, setKrzyzyki] = useState<Set<string>>(new Set());
   const [dzialy, setDzialy] = useState<Dzial[]>([]);
+  const [powiazania, setPowiazania] = useState<Powiazanie[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [brakMigracji, setBrakMigracji] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -35,11 +37,12 @@ export function TeachersTab() {
 
   const load = useCallback(async () => {
     const supabase = getBrowserSupabase();
-    const [przedmioty, nauczyciele, przydzialy, kategorie] = await Promise.all([
+    const [przedmioty, nauczyciele, przydzialy, kategorie, zakresy] = await Promise.all([
       supabase.from("subjects").select("id, title, position, qualification").order("position"),
       supabase.from("plan_teachers").select("id, name, position, created_at").order("position"),
       supabase.from("teacher_subjects").select("teacher_id, subject_id"),
       supabase.from("categories").select("id, title, subject_id").order("position"),
+      supabase.from("category_subjects").select("category_id, subject_id"),
     ]);
 
     // Brak tabel = migracja 022 jeszcze nie wklejona w SQL Editorze.
@@ -63,21 +66,47 @@ export function TeachersTab() {
     setTeachers(nauczyciele.data);
     setKrzyzyki(new Set(przydzialy.data.map((p) => klucz(p.teacher_id, p.subject_id))));
     setDzialy(kategorie.error ? [] : kategorie.data);
+    // Brak tabeli = baza jest jeszcze przed migracją 030. Wtedy null włącza
+    // starą ścieżkę: jeden dział = jeden przedmiot (categories.subject_id).
+    setPowiazania(zakresy.error ? null : zakresy.data);
   }, []);
 
   useEffect(() => {
     void load();
   }, [load]);
 
-  /** Działy mapy przypisane do przedmiotu — treść okna po kliknięciu w nagłówek. */
+/**
+   * Działy mapy przypisane do przedmiotu — treść okna po kliknięciu w nagłówek.
+   *
+   * Źródłem jest tabela `category_subjects` (migracja 030): dział może należeć
+   * do kilku przedmiotów, więc „Programowanie aplikacji internetowych" i trzy
+   * pokrewne przedmioty pokazują te same działy, a mapa pozostaje jedna.
+   * Dopóki migracji nie ma, działa stara ścieżka z `categories.subject_id`.
+   */
   const dzialyPrzedmiotu = useMemo(() => {
     const mapa = new Map<string, Dzial[]>();
-    for (const d of dzialy) {
-      if (d.subject_id === null) continue;
-      mapa.set(d.subject_id, [...(mapa.get(d.subject_id) ?? []), d]);
+    const kolejnosc = new Map(dzialy.map((d, i) => [d.id, i]));
+
+    if (powiazania === null) {
+      for (const d of dzialy) {
+        if (d.subject_id === null) continue;
+        mapa.set(d.subject_id, [...(mapa.get(d.subject_id) ?? []), d]);
+      }
+      return mapa;
+    }
+
+    const poId = new Map(dzialy.map((d) => [d.id, d]));
+    for (const p of powiazania) {
+      const dzial = poId.get(p.category_id);
+      if (dzial === undefined) continue;
+      mapa.set(p.subject_id, [...(mapa.get(p.subject_id) ?? []), dzial]);
+    }
+    // Kolejność jak w mapie nauki, nie jak w tabeli powiązań.
+    for (const [przedmiot, lista] of mapa) {
+      mapa.set(przedmiot, [...lista].sort((a, b) => (kolejnosc.get(a.id) ?? 0) - (kolejnosc.get(b.id) ?? 0)));
     }
     return mapa;
-  }, [dzialy]);
+  }, [dzialy, powiazania]);
 
   /**
    * Krzyżyk stawiamy od razu w interfejsie i cofamy przy błędzie — klikanie

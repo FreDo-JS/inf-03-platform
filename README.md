@@ -40,6 +40,7 @@ Stack: Next.js 15 (App Router) · TypeScript (strict) · Tailwind CSS · Supabas
    - `supabase/021_inf03_program_nauczania.sql` — mapa INF.03 uzupełniona o braki względem programu nauczania (BHP, podstawy zawodu, multimedia, algorytmy, język zawodowy)
    - `supabase/022_przedmioty_nauczyciele.sql` — przedmioty z programu nauczania i przydział „kto co prowadzi” (sekcja *Nauczyciele*)
    - `supabase/023_inf04_braki.sql` — mapa INF.04 uzupełniona o braki z podstawy (wyjątki i klasy abstrakcyjne w C#, wzorce projektowe, prawo autorskie, dane w aplikacjach mobilnych, sesje i logowanie, testy niefunkcjonalne)
+   - `supabase/030_dzial_w_wielu_przedmiotach.sql` — koniec z kopiami działów: dział mapy może należeć do wielu przedmiotów (uruchom po 025)
    - `supabase/024_inf04_ai.sql` — dział „Sztuczna inteligencja” dla klas 3a i 4a (Python, NumPy, Pandas, scikit-learn, OpenCV, OpenVINO, NLP)
 
    Masz już bazę z poprzedniej wersji? Uruchom brakujące migracje (`002…`, `003…`) — nic nie nadpisują,

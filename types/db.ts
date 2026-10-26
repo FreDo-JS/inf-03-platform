@@ -125,6 +125,16 @@ export type PlanTeacherRow = {
   created_at: string;
 };
 
+/**
+ * Dział mapy należy do przedmiotu (migracja 030). Relacja wiele-do-wielu,
+ * bo ten sam dział bywa realizowany na kilku przedmiotach — wcześniejsze
+ * pojedyncze `categories.subject_id` wymuszało kopiowanie działów w mapie.
+ */
+export type CategorySubjectRow = {
+  category_id: string;
+  subject_id: string;
+};
+
 /** Krzyżyk w tabeli: ten nauczyciel prowadzi ten przedmiot. */
 export type TeacherSubjectRow = {
   teacher_id: string;
@@ -326,6 +336,7 @@ export type Database = {
       subjects: Table<SubjectRow, SubjectRow>;
       plan_teachers: Table<PlanTeacherRow, { id?: string; name: string; position?: number }, { name?: string; position?: number }>;
       teacher_subjects: Table<TeacherSubjectRow, TeacherSubjectRow, never>;
+      category_subjects: Table<CategorySubjectRow, CategorySubjectRow, never>;
       // moduł Praktyka — uczeń nie ma do tych tabel dostępu (RLS), admin tak
       practical_tasks: Table<PracticalTaskRowDb, Partial<PracticalTaskRowDb> & { title: string }>;
       practical_sessions: Table<PracticalSessionRowDb, Partial<PracticalSessionRowDb>>;

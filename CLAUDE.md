@@ -60,6 +60,7 @@ CHECK-i i funkcje. **Każda zmiana w `supabase/*.sql` musi mieć pokrycie w `tes
 | `028_praktyka_komentarze.sql` | komentarz nauczyciela do kryterium (`manual_scores[].comment`, maks. 300 znaków) widoczny w `practical_result` po publikacji |
 | `027_praktyka_zadania.sql` | pięć zadań praktycznych — **plik generowany** z `scripts/praktyka/zadania/*.mjs` przez `node scripts/praktyka/generuj.mjs` (formularz z walidacją, galeria RWD, cennik w tabeli, strona z trzech podstron, licznik z motywem) |
 | `026_praktyka_typy_testow.sql` | siedem nowych typów testów w `practical_tests_valid`: `images_alt`, `form_labels`, `heading_structure`, `css_media`, `links_valid`, `no_js_errors`, `file_content` |
+| `030_dzial_w_wielu_przedmiotach.sql` | tabela `category_subjects` (dział mapy może należeć do wielu przedmiotów) — **zastępuje kopiowanie działów z 025** i kasuje 18 kopii, przenosząc wcześniej ewentualny postęp na oryginały |
 | `025_przedmioty_inf03.sql` | trzy kolejne przedmioty INF.03 w tabeli Nauczyciele (Tworzenie stron i aplikacji internetowych, Aplikacje desktopowe i mobilne, Programowanie strukturalne i obiektowe) zrobione jak „Programowanie aplikacji internetowych": każdy dostaje **własne kopie** jego sześciu działów (algorytmy, JS, PHP, serwer, bezpieczeństwo, C++) z podtematami i materiałami, prefiksy `i3-tsai-` / `i3-adm-` / `i3-psio-`; w mapie INF.03 działy są więc zdublowane (15 → 33). Sprząta po dawnych podejściach (przedmioty jako INF.04, kwalifikacje tsai/adm/psio) |
 | `024_inf04_ai.sql` | dział `inf04-ai` — przedmiot specjalizacyjny (Python i biblioteki danych, uczenie maszynowe, wizja komputerowa, NLP); dotyczy klas 3a i 4a |
 | `023_inf04_braki.sql` | mapa INF.04 doprowadzona do podstawy: wyjątki i klasy abstrakcyjne w ścieżce C#, wzorce projektowe, Jira/Trello/Gantt, prawo autorskie, dane i publikacja w aplikacjach mobilnych, sesje i logowanie, testy niefunkcjonalne |
@@ -278,17 +279,27 @@ lewej, krzyżyki w środku. Dwie decyzje, które warto znać przed zmianami:
   grona, a nie tylko dla osób logujących się do aplikacji — to zwykła lista nazwisk bez
   żadnych uprawnień. Nie podpinaj jej pod `auth.users`: wtedy w tabeli zobaczysz jedną
   osobę zamiast czterech.
-- **Cały plan jest tylko dla zalogowanego** (`plan_teachers`, `teacher_subjects` mają
-  wyłącznie politykę `is_admin()`). Publiczna jest sama lista przedmiotów — nazwa
-  przedmiotu to nie tajemnica, a mapa może z niej kiedyś skorzystać.
+- **Cały plan jest tylko dla zalogowanego** (`plan_teachers`, `teacher_subjects`
+  i `category_subjects` mają wyłącznie politykę `is_admin()`). Publiczna jest sama
+  lista przedmiotów — nazwa przedmiotu to nie tajemnica. Dokładając tabelę z odczytem
+  publicznym, pamiętaj, że `tests/sql/audyt-2.mjs` trzyma ich zamkniętą listę i każda
+  nowa musi być świadomą decyzją.
 
-Dział mapy należy do przedmiotu przez `categories.subject_id` (`on delete set null`, żeby
-skasowanie przedmiotu nie zabrało działów razem z postępem klas). Migracja 022 ustawia to
-przypisanie **tylko tam, gdzie jest puste**, więc przestawienie działu w panelu przeżywa
-ponowne uruchomienie pliku. Okno po kliknięciu w nagłówek kolumny pokazuje właśnie te
-działy — jeśli świeci pustką, znaczy że dział nie ma przedmiotu.
+**Dział mapy należy do przedmiotów przez `category_subjects`** (migracja 030) — relacja
+wiele-do-wielu, bo te same treści bywają realizowane na kilku przedmiotach. Tak jest dziś
+z `javascript`, `php`, `serwer`, `algorytmy`, `bezpieczenstwo` i `cpp`: należą naraz do
+„Programowania aplikacji internetowych" i do trzech pokrewnych przedmiotów z 025.
 
-Nowe działy mapy dopisuj z `subject_id` od razu, inaczej wypadną z tego zestawienia.
+Jak do tego doszło i czego nie powtarzać: 022 dało kategorii **jedno** `subject_id`, więc
+025 — chcąc przypisać te same działy do trzech przedmiotów — **skopiowało je** razem
+z podtematami i materiałami. Mapa INF.03 urosła z 15 działów do 33, sześć tytułów
+powtarzało się po cztery razy i uczeń widział wszystkie. Gdy następnym razem „brakuje
+miejsca" w modelu, **popraw model, nie kopiuj danych mapy** — postęp klas jest przypięty
+do identyfikatorów podtematów i kopie rozjeżdżają go bezpowrotnie.
+
+Kolumna `categories.subject_id` została jako ślad po 022 (panel jej już nie czyta);
+dokładając dział, wpisz powiązanie do `category_subjects`, inaczej wypadnie z zestawienia
+w sekcji *Nauczyciele*.
 
 ## Analiza pytań
 

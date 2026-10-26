@@ -4,6 +4,12 @@
 --
 -- Uruchom po 024_inf04_ai.sql.
 --
+-- >>> TEN PLIK ZASTĘPUJE MIGRACJA 030_dzial_w_wielu_przedmiotach.sql <<<
+-- Kopiowanie działów opisane niżej zdublowało mapę INF.03 (15 → 33 działy,
+-- sześć tytułów po cztery razy, wszystkie widoczne dla ucznia). 030 zastępuje
+-- kopie tabelą łączącą `category_subjects` i je kasuje. Jeśli uruchomisz 025,
+-- puść po nim 030 — posprząta.
+--
 -- Do tabeli Nauczyciele (`subjects`) dochodzą trzy przedmioty:
 --
 --   Tworzenie stron i aplikacji internetowych

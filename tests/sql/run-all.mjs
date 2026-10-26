@@ -16,7 +16,14 @@ let failed = 0;
 
 for (const suite of suites) {
   const out = await new Promise((resolve) => {
-    const child = spawn(process.execPath, [join(here, suite)], { encoding: "utf8" });
+    // --experimental-strip-types: czesc zestawow importuje moduly .ts wprost
+    // (np. lib/practical/similarity.ts). Node od 22.18 robi to sam, na starszych
+    // bez tej flagi import konczy sie ERR_UNKNOWN_FILE_EXTENSION.
+    const child = spawn(
+      process.execPath,
+      ["--experimental-strip-types", "--no-warnings=ExperimentalWarning", join(here, suite)],
+      { encoding: "utf8" },
+    );
     let buffer = "";
     child.stdout.on("data", (d) => (buffer += d));
     child.stderr.on("data", (d) => (buffer += d));
