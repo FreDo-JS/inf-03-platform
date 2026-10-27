@@ -230,6 +230,8 @@ export type DraftQuestion = {
   code: string;
   /** gaps: akceptowane warianty dla kolejnych luk */
   gapAnswers: string[][];
+  /** multi: indeksy wszystkich poprawnych opcji */
+  correctIndexes: number[];
 };
 
 export type TestDraft = {
@@ -266,6 +268,7 @@ export function emptyQuestion(type: QuestionType = "closed"): DraftQuestion {
     pairs: type === "matching" ? [emptyPair(), emptyPair()] : [],
     code: "",
     gapAnswers: [],
+    correctIndexes: [],
   };
 }
 
@@ -326,6 +329,33 @@ function validateQuestion(q: DraftQuestion): { errors: string[]; question?: Publ
       question: { type: "matching", text, left: pairs.map((p) => p.left), right: shuffle(pairs.map((p) => p.right)) },
       key: pairs.map((p) => p.right),
     };
+  }
+
+  if (q.type === "multi") {
+    const options = q.options.map(cleanText);
+    if (options.length < LIMITS.options.min || options.length > LIMITS.options.max) {
+      errors.push(`Pytanie musi mieć od ${LIMITS.options.min} do ${LIMITS.options.max} opcji.`);
+    }
+    if (options.some((o) => o.length === 0)) errors.push("Opcje odpowiedzi nie mogą być puste.");
+    if (options.some((o) => !lengthOk(o, LIMITS.option) && o.length > 0)) {
+      errors.push(`Opcja odpowiedzi: maks. ${LIMITS.option.max} znaków.`);
+    }
+    if (new Set(options).size !== options.length) errors.push("Opcje odpowiedzi muszą być unikalne.");
+
+    const poprawne = [...new Set(q.correctIndexes)]
+      .filter((i) => i >= 0 && i < options.length)
+      .sort((a, b) => a - b)
+      .map((i) => options[i] ?? "")
+      .filter((o) => o.length > 0);
+
+    if (poprawne.length === 0) errors.push("Zaznacz co najmniej jedną poprawną odpowiedź.");
+    // Gdyby poprawne były wszystkie, pytanie niczego nie sprawdza.
+    if (poprawne.length > 0 && poprawne.length === options.length) {
+      errors.push("Co najmniej jedna opcja musi być błędna.");
+    }
+
+    if (errors.length > 0) return { errors };
+    return { errors, question: { type: "multi", text, options }, key: poprawne };
   }
 
   if (q.type === "gaps") {
@@ -443,6 +473,10 @@ export function parseQuestions(json: Json | unknown): PublicQuestion[] | null {
       const { left, right } = item;
       if (!isStringArray(left) || !isStringArray(right) || left.length !== right.length || left.length < 2) return null;
       out.push({ type: "matching", text: item.text, left, right });
+    } else if (item.type === "multi") {
+      const opts = item.options;
+      if (!Array.isArray(opts) || !opts.every((o): o is string => typeof o === "string")) return null;
+      out.push({ type: "multi", text: item.text, options: opts });
     } else if (item.type === "gaps") {
       if (typeof item.code !== "string" || gapsInCode(item.code) === 0) return null;
       out.push({ type: "gaps", text: item.text, code: item.code });

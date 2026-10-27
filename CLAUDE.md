@@ -10,7 +10,7 @@ Aplikacja dla nauczyciela INF.03 i klas **1a / 2a / 4e / 4d**, trzy moduły:
 1. **Mapa nauki** (`/roadmap`) — kategorie → podtematy, postęp per klasa, realtime,
    materiały (linki) dodawane przez nauczyciela bez limitu.
 2. **Testy teoretyczne** (`/testy`) — bez logowania, uczeń podaje imię, wchodzi na
-   **PIN**, pytania typu `closed` / `select` / `input` / `matching` / `gaps`, timer, pełny ekran,
+   **PIN**, pytania typu `closed` / `multi` / `select` / `input` / `matching` / `gaps`, timer, pełny ekran,
    wyniki widoczne **tylko** w panelu.
 3. **Egzamin praktyczny** (`/praktyka`) — sesja z PIN-em, IDE w przeglądarce
    (arkusz | Monaco | podgląd na żywo), autozapis, oddanie pracy, testy automatyczne
@@ -60,6 +60,7 @@ CHECK-i i funkcje. **Każda zmiana w `supabase/*.sql` musi mieć pokrycie w `tes
 | `028_praktyka_komentarze.sql` | komentarz nauczyciela do kryterium (`manual_scores[].comment`, maks. 300 znaków) widoczny w `practical_result` po publikacji |
 | `027_praktyka_zadania.sql` | pięć zadań praktycznych — **plik generowany** z `scripts/praktyka/zadania/*.mjs` przez `node scripts/praktyka/generuj.mjs` (formularz z walidacją, galeria RWD, cennik w tabeli, strona z trzech podstron, licznik z motywem) |
 | `026_praktyka_typy_testow.sql` | siedem nowych typów testów w `practical_tests_valid`: `images_alt`, `form_labels`, `heading_structure`, `css_media`, `links_valid`, `no_js_errors`, `file_content` |
+| `031_multi_questions.sql` | typ pytania `multi` — wielokrotny wybór; klucz to podzbiór opcji (nigdy wszystkie), ocena zero-jedynkowa. Plik generowany ze zmian nałożonych na 020 |
 | `030_dzial_w_wielu_przedmiotach.sql` | tabela `category_subjects` (dział mapy może należeć do wielu przedmiotów) — **zastępuje kopiowanie działów z 025** i kasuje 18 kopii, przenosząc wcześniej ewentualny postęp na oryginały |
 | `025_przedmioty_inf03.sql` | trzy kolejne przedmioty INF.03 w tabeli Nauczyciele (Tworzenie stron i aplikacji internetowych, Aplikacje desktopowe i mobilne, Programowanie strukturalne i obiektowe) zrobione jak „Programowanie aplikacji internetowych": każdy dostaje **własne kopie** jego sześciu działów (algorytmy, JS, PHP, serwer, bezpieczeństwo, C++) z podtematami i materiałami, prefiksy `i3-tsai-` / `i3-adm-` / `i3-psio-`; w mapie INF.03 działy są więc zdublowane (15 → 33). Sprząta po dawnych podejściach (przedmioty jako INF.04, kwalifikacje tsai/adm/psio) |
 | `024_inf04_ai.sql` | dział `inf04-ai` — przedmiot specjalizacyjny (Python i biblioteki danych, uczenie maszynowe, wizja komputerowa, NLP); dotyczy klas 3a i 4a |
@@ -215,6 +216,43 @@ Jeden plik = jeden test wkleptany do SQL Editora. **`create_test` tam nie przejd
 `tests/sql/testy-tresc.mjs`: sprawdza reguły kluczy i przechodzi każdy test jako uczeń
 (PIN → pytania → komplet poprawnych odpowiedzi = maksimum). Dokładając test, po prostu
 wrzuć plik do tego katalogu — zestaw sam go znajdzie.
+
+## Pytania wielokrotnego wyboru
+
+Szósty typ (migracja 031). Kształt jak przy jednokrotnym wyborze, różnica jest
+w kluczu i ocenie:
+
+```json
+{"type":"multi","text":"Które selektory wybierają klasę?","options":[".box","#box","div.box","box"]}
+klucz: [".box", "div.box"]
+```
+
+- Klucz to **podzbiór opcji, od jednej do n−1**. Zaznaczenie wszystkich jako poprawnych
+  jest odrzucane przez `create_test` — takie pytanie niczego nie sprawdza.
+- **Ocena zero-jedynkowa**: punkt za komplet, bez punktów cząstkowych (tak samo jak
+  matching i gaps — `attempts.score` to liczba całkowita). Nadmiarowe zaznaczenie liczy
+  się jak brak poprawnego.
+- Kolejność zaznaczeń i powtórzenia w odpowiedzi nie mają znaczenia; porównanie przez
+  `normalize_answer()`.
+
+**Pułapka, na którą już raz wdepnęliśmy.** Ocena porównuje różnicę symetryczną zbiorów:
+
+```sql
+(select … from given except select … from key)
+union all
+(select … from key except select … from given)
+```
+
+Nawiasy są **konieczne**. `EXCEPT` i `UNION` wiążą w SQL-u tak samo mocno i są
+lewostronnie łączne, więc bez nich całość znaczy `((given except key) union all key)
+except given` — a wtedy **zaznaczenie nadmiarowej opcji wychodzi na poprawne**. Złapał to
+dopiero test `wielokrotny-wybor.mjs` („komplet poprawnych + jedna nadmiarowa → zero");
+trzymaj tę asercję przy każdej zmianie oceniania.
+
+Plik 031 jest **generowany** ze zmian nałożonych na 020, żeby niezmienione części
+`questions_valid`, `create_test` i `submit_attempt` zostały co do znaku takie same.
+Dokładając kolejny typ pytania, zrób tak samo — ręczne przepisywanie trzystu linii to
+proszenie się o cichą różnicę w nieruszanej gałęzi.
 
 ## Pytania z lukami w kodzie
 
@@ -470,7 +508,7 @@ i zegar, żeby usiadł kolejny uczeń. Link do wyniku kopiuje nauczyciel w zakł
 ## Po stronie użytkownika (wciąż otwarte)
 
 1. Wkleić `NEXT_PUBLIC_SUPABASE_ANON_KEY` do `.env.local` (przeze mnie skasowany).
-2. Wykonać migracje **003–024** w Supabase SQL Editor — nic z nich nie było testowane
+2. Wykonać migracje **003–031** w Supabase SQL Editor — nic z nich nie było testowane
    na prawdziwej bazie, tylko na PGlite.
 3. Dopisać konta nauczycieli do tabeli `admins` i wyłączyć publiczną rejestrację.
 

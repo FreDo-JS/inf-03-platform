@@ -24,10 +24,13 @@ const ok = (label, warunek, szczegol = "") => {
 
 console.log("== PLIK SQL JEST ŚWIEŻY ==");
 {
+  // Konce linii pomijamy: na Windowsie git oddaje plik z CRLF, a generator
+  // zapisuje LF, wiec dosowne porownanie oblewalo mimo identycznej tresci.
+  const bezCR = (t) => t.replace(/\r\n/g, "\n");
   const przed = read("027_praktyka_zadania.sql");
   execFileSync(process.execPath, [join(repo, "scripts", "praktyka", "generuj.mjs")], { stdio: "pipe" });
   const po = read("027_praktyka_zadania.sql");
-  ok("generator daje ten sam plik co zatwierdzony (027 odpowiada źródłom)", przed === po);
+  ok("generator daje ten sam plik co zatwierdzony (027 odpowiada źródłom)", bezCR(przed) === bezCR(po));
 }
 
 const db = new PGlite();

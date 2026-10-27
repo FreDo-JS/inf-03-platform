@@ -141,10 +141,15 @@ Pozwalała ona wstawić dowolny wynik bezpośrednio przez API, z pominięciem PI
 
 ## Testy — zasady podejścia
 
-- **Pięć typów pytań:** jednokrotny wybór, lista rozwijana, pole tekstowe,
+- **Sześć typów pytań:** jednokrotny wybór, **wielokrotny wybór (checkboxy)**, lista rozwijana, pole tekstowe,
   **dopasowywanie par** (przeciąganie myszą albo dwa dotknięcia: element → pole)
   oraz **uzupełnianie luk w kodzie**. Pytanie z parami i pytanie z lukami zalicza
-  się tylko w komplecie, bez punktów częściowych.
+  się tylko w komplecie, bez punktów częściowych — tak samo pytanie z checkboxami.
+- **Wielokrotny wybór:** poprawna może być więcej niż jedna opcja. W kreatorze
+  zaznaczasz checkboxami wszystkie właściwe (przynajmniej jedną, ale nie wszystkie —
+  takie pytanie niczego nie sprawdza). Uczeń dostaje punkt **za komplet**: brak jednej
+  poprawnej albo jedna zbędna to zero. Kolejność zaznaczeń nie ma znaczenia. W analizie
+  pytań widać, jak często zaznaczano każdą opcję — od razu wiadomo, który dystraktor działa.
 - **Luki w kodzie:** w kreatorze wklejasz fragment kodu i oznaczasz luki jako
   `[[1]]`, `[[2]]`… (numery kolejno od 1, maks. 10). Każda luka ma własną listę
   akceptowanych odpowiedzi — do pięciu wariantów. Uczeń widzi kod z polami do

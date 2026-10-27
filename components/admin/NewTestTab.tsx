@@ -23,6 +23,7 @@ const TYPE_LABEL: Record<QuestionType, string> = {
   input: "pole tekstowe",
   matching: "dopasowywanie (drag & drop)",
   gaps: "uzupełnianie luk w kodzie",
+  multi: "wielokrotny wybór (checkboxy)",
 };
 
 /** Losowy PIN po stronie klienta (crypto) — tylko podpowiedź, baza i tak waliduje format. */
@@ -83,9 +84,26 @@ export function NewTestTab() {
       if (type === "gaps") {
         return { ...q, type, options: [], correctIndex: null, accepted: [], pairs: [] };
       }
+      if (type === "multi") {
+        // Opcje zostają — przejście z jednokrotnego na wielokrotny wybór ma
+        // zachować to, co nauczyciel już wpisał, razem z zaznaczeniem.
+        const options = q.options.length >= 2 ? q.options : ["", ""];
+        const zaznaczone = q.correctIndex !== null ? [q.correctIndex] : q.correctIndexes;
+        return { ...q, type, options, correctIndex: null, accepted: [], pairs: [], correctIndexes: zaznaczone };
+      }
       const options = q.options.length >= 2 ? q.options : ["", ""];
+      // Z wielokrotnego na jednokrotny: zostaje pierwsza zaznaczona opcja.
+      const zMulti = q.type === "multi" ? (q.correctIndexes[0] ?? null) : null;
       const keepCorrect = q.type === "closed" || q.type === "select";
-      return { ...q, type, options, correctIndex: keepCorrect ? q.correctIndex : null, accepted: [], pairs: [] };
+      return {
+        ...q,
+        type,
+        options,
+        correctIndex: keepCorrect ? q.correctIndex : zMulti,
+        accepted: [],
+        pairs: [],
+        correctIndexes: [],
+      };
     });
 
   const save = async (e: React.FormEvent) => {
@@ -350,20 +368,39 @@ function QuestionEditor({ index, count, question: q, errors, onChange, onType, o
         {q.text.length}/{LIMITS.questionText.max}
       </p>
 
-      {q.type === "closed" || q.type === "select" ? (
+      {q.type === "closed" || q.type === "select" || q.type === "multi" ? (
         <fieldset className="mt-2">
-          <legend className="label">Opcje — zaznacz poprawną</legend>
+          <legend className="label">
+            {q.type === "multi" ? "Opcje — zaznacz wszystkie poprawne" : "Opcje — zaznacz poprawną"}
+          </legend>
           <ul className="space-y-2">
             {q.options.map((opt, oi) => (
               <li key={oi} className="flex items-center gap-2">
-                <input
-                  type="radio"
-                  name={name}
-                  className="h-4 w-4 shrink-0 accent-[#2de2c1]"
-                  checked={q.correctIndex === oi}
-                  onChange={() => onChange((x) => ({ ...x, correctIndex: oi }))}
-                  aria-label={`Opcja ${oi + 1} jest poprawna`}
-                />
+                {q.type === "multi" ? (
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 shrink-0 accent-[#2de2c1]"
+                    checked={q.correctIndexes.includes(oi)}
+                    onChange={(e) =>
+                      onChange((x) => ({
+                        ...x,
+                        correctIndexes: e.target.checked
+                          ? [...x.correctIndexes, oi].sort((a, b) => a - b)
+                          : x.correctIndexes.filter((k) => k !== oi),
+                      }))
+                    }
+                    aria-label={`Opcja ${oi + 1} jest poprawna`}
+                  />
+                ) : (
+                  <input
+                    type="radio"
+                    name={name}
+                    className="h-4 w-4 shrink-0 accent-[#2de2c1]"
+                    checked={q.correctIndex === oi}
+                    onChange={() => onChange((x) => ({ ...x, correctIndex: oi }))}
+                    aria-label={`Opcja ${oi + 1} jest poprawna`}
+                  />
+                )}
                 <input
                   className="input py-1.5"
                   value={opt}
@@ -385,7 +422,12 @@ function QuestionEditor({ index, count, question: q, errors, onChange, onType, o
                       let correctIndex = x.correctIndex;
                       if (correctIndex === oi) correctIndex = null;
                       else if (correctIndex !== null && correctIndex > oi) correctIndex -= 1;
-                      return { ...x, options, correctIndex };
+                      // Usunięcie opcji przesuwa numery tych, które są dalej —
+                      // bez tego zaznaczenie wskazywałoby na sąsiada.
+                      const correctIndexes = x.correctIndexes
+                        .filter((k) => k !== oi)
+                        .map((k) => (k > oi ? k - 1 : k));
+                      return { ...x, options, correctIndex, correctIndexes };
                     })
                   }
                 >

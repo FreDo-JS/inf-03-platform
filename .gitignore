@@ -15,3 +15,6 @@ next-env.d.ts
 
 # Monaco kopiowane przy starcie/buildzie (scripts/copy-monaco.mjs)
 public/monaco/
+
+# programy nauczania — materialy zrodlowe nauczyciela, nie kod
+ProgramNaucznia/

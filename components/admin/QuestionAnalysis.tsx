@@ -38,6 +38,7 @@ const TYP: Record<PublicQuestion["type"], string> = {
   input: "otwarte",
   matching: "dopasowanie",
   gaps: "luki w kodzie",
+  multi: "wielokrotny wybór",
 };
 
 /** Pasek udziału — bez etykiety, bo liczby stoją obok w tabeli wariantów. */

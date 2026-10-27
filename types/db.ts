@@ -43,11 +43,17 @@ export type ClassRow = {
   position: number;
 };
 
-export type QuestionType = "closed" | "select" | "input" | "matching" | "gaps";
+export type QuestionType = "closed" | "select" | "input" | "matching" | "gaps" | "multi";
 
 /** Pytanie w postaci publicznej (bez poprawnej odpowiedzi). */
 export type ChoiceQuestion = { type: "closed" | "select"; text: string; options: string[] };
 export type InputQuestion = { type: "input"; text: string };
+/**
+ * Wielokrotny wybór: poprawna może być więcej niż jedna opcja. Kształt taki
+ * sam jak przy jednokrotnym wyborze — różni się klucz (podzbiór opcji)
+ * i ocena: punkt wyłącznie za komplet, bez punktów cząstkowych.
+ */
+export type MultiQuestion = { type: "multi"; text: string; options: string[] };
 /** Dopasowywanie par. Kolumna "right" jest zapisana w losowej kolejności — nie zdradza par. */
 export type MatchingQuestion = { type: "matching"; text: string; left: string[]; right: string[] };
 /**
@@ -56,7 +62,7 @@ export type MatchingQuestion = { type: "matching"; text: string; left: string[];
  * w <pre>. Liczbę luk wylicza `gapsInCode` (lustro funkcji gaps_count z bazy).
  */
 export type GapsQuestion = { type: "gaps"; text: string; code: string };
-export type PublicQuestion = ChoiceQuestion | InputQuestion | MatchingQuestion | GapsQuestion;
+export type PublicQuestion = ChoiceQuestion | InputQuestion | MatchingQuestion | GapsQuestion | MultiQuestion;
 
 /**
  * Odpowiedź ucznia na jedno pytanie: napis (closed/select/input) albo tablica —

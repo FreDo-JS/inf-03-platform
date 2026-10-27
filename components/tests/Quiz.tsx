@@ -66,6 +66,7 @@ const TYPE_HINT: Record<string, string> = {
   input: "wpisz odpowiedź",
   matching: "dopasuj pary",
   gaps: "uzupełnij luki",
+  multi: "zaznacz wszystkie poprawne",
 };
 
 const isAnswered = (a: QuizAnswer | undefined): boolean =>
@@ -650,7 +651,16 @@ export function Quiz({ testId, title, timeLimitSec, questionCount }: Props) {
                     pytanie {i + 1}
                   </p>
                   <p className="mt-0.5 break-words leading-snug">{q.text}</p>
-                  {q.type === "gaps" ? (
+                  {q.type === "multi" ? (
+                    <p className="mt-1.5 break-words text-sm text-muted">
+                      Zaznaczono:{" "}
+                      <span className={ok ? "text-accent" : "text-fg"}>
+                        {Array.isArray(given) && given.length > 0
+                          ? given.filter((g) => g !== null).join(", ")
+                          : "— nic —"}
+                      </span>
+                    </p>
+                  ) : q.type === "gaps" ? (
                     <ul className="mt-1.5 space-y-0.5 text-sm text-muted">
                       {Array.from({ length: gapsInCode(q.code) }, (_, gi) => (
                         <li key={gi} className="break-words">
@@ -880,6 +890,54 @@ export function Quiz({ testId, title, timeLimitSec, questionCount }: Props) {
               autoFocus
               aria-label="Twoja odpowiedź"
             />
+          )}
+
+          {q.type === "multi" && (
+            <>
+              <div className="grid gap-3 sm:grid-cols-2" role="group" aria-label="Odpowiedzi">
+                {q.options.map((opt, i) => {
+                  const wybrane = Array.isArray(answer) ? answer : [];
+                  const selected = wybrane.includes(opt);
+                  const style = OPTION_STYLES[i % OPTION_STYLES.length] ?? OPTION_STYLES[0];
+                  return (
+                    <button
+                      key={i}
+                      type="button"
+                      role="checkbox"
+                      aria-checked={selected}
+                      disabled={busy}
+                      onClick={() =>
+                        setAnswer(
+                          selected
+                            ? wybrane.filter((o) => o !== opt)
+                            : [...wybrane.filter((o): o is string => o !== null), opt],
+                        )
+                      }
+                      className={`group flex min-h-[3.75rem] items-center gap-3 rounded-xl border-2 p-3 text-left transition active:scale-[0.99]
+                        focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/70 ${
+                          selected
+                            ? style.ring
+                            : "border-line bg-bg/50 hover:border-white/20 hover:bg-white/[0.03]"
+                        }`}
+                    >
+                      <span
+                        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border-2 font-mono text-sm font-bold ${
+                          selected ? style.badge + " border-transparent" : "border-line text-muted"
+                        }`}
+                        aria-hidden
+                      >
+                        {selected ? <Check size={16} /> : String.fromCharCode(65 + i)}
+                      </span>
+                      <span className="break-words text-[15px] font-medium">{opt}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="mt-3 text-xs text-muted">
+                Poprawna może być więcej niż jedna odpowiedź. Punkt jest za komplet — zaznacz
+                wszystkie właściwe i żadnej zbędnej.
+              </p>
+            </>
           )}
 
           {q.type === "gaps" && (

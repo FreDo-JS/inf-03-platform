@@ -114,7 +114,10 @@ export function analizuj(
     const trafien = dobre.filter((d) => d.results[i] === true).length;
 
     const odpowiedzi = dobre.map((d) => d.answers[i]);
-    const brakow = odpowiedzi.filter((o) => o === null || o === undefined || o === "").length;
+    // Przy wielokrotnym wyborze brakiem odpowiedzi jest też pusta tablica.
+    const brakow = odpowiedzi.filter(
+      (o) => o === null || o === undefined || o === "" || (Array.isArray(o) && o.length === 0),
+    ).length;
     const kluczNorm = new Set(klucz.map(normalizuj));
 
     const warianty: Wariant[] = [];
@@ -146,6 +149,22 @@ export function analizuj(
         ).length;
         pary.push({ lewa, poprawna, trafien: trafienia, udzial: udzialem(trafienia) });
       });
+    } else if (pytanie.type === "multi") {
+      // Punkt jest za komplet, więc sam procent nie mówi, która opcja myli
+      // klasę — liczymy, ilu uczniów zaznaczyło każdą z nich.
+      for (const opcja of pytanie.options) {
+        const norma = normalizuj(opcja);
+        const liczba = odpowiedzi.filter(
+          (o) => Array.isArray(o) && o.some((x) => typeof x === "string" && normalizuj(x) === norma),
+        ).length;
+        warianty.push({
+          etykieta: opcja,
+          liczba,
+          udzial: udzialem(liczba),
+          poprawna: kluczNorm.has(norma),
+          brak: false,
+        });
+      }
     } else if (pytanie.type === "closed" || pytanie.type === "select") {
       // Opcje w kolejności z testu — nauczyciel widzi je tak, jak widział je uczeń.
       const teksty = odpowiedzi.filter((o): o is string => typeof o === "string" && o !== "");
