@@ -195,6 +195,9 @@ powstaje w dwóch krokach — testy automatyczne, potem weryfikacja nauczyciela.
 
 **Uczeń:** `/praktyka` → PIN i imię → poczekalnia → tryb pełnoekranowy → IDE (arkusz | edytor | podgląd).
 Kod zapisuje się sam (3 s po przerwie w pisaniu i co 30 s), odświeżenie strony wraca do pracy.
+W edytorze działa **Emmet**: `ul>li*3` plus Tab rozwija się w listę, `m10` w `margin: 10px;`
+— tak samo jak w VS Code. Skróty działają w plikach `.html` i `.css`; w JavaScripcie Emmet
+nie ma zastosowania (jego tryb dla JS obsługuje JSX).
 W pasku IDE odlicza zegar serwera (h:mm:ss) i stoi przycisk **Zakończ podejście** — uczeń może
 oddać pracę przed czasem; potwierdzenie pokazuje, ile czasu jeszcze zostawało.
 Kończy przyciskiem **Zakończ i oddaj**; po oddaniu ekran sam wraca do wpisywania PIN-u (po 20 s lub

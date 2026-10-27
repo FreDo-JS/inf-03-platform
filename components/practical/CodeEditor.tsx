@@ -6,6 +6,54 @@ import { useEffect, useRef } from "react";
 // Monaco z naszego origin (public/monaco), nie z CDN — patrz scripts/copy-monaco.mjs.
 loader.config({ paths: { vs: "/monaco/vs" } });
 
+/**
+ * Emmet: skróty w rodzaju `ul>li*3` i `m10` rozwijane Tabem.
+ *
+ * Monaco nie ma Emmeta w środku (w VS Code to osobne rozszerzenie), dokłada go
+ * `emmet-monaco-es` — zwykły moduł npm, więc nie łamie CSP i nie potrzebuje
+ * internetu. Ładujemy go leniwie, przy pierwszym montowaniu edytora, żeby
+ * 95 kB nie leciało na mapę nauki ani do testów teoretycznych.
+ *
+ * Rejestracja jest **globalna dla instancji Monaco**, a edytor montuje się
+ * wielokrotnie (uczeń przełącza pliki, panel otwiera kolejne prace) — stąd
+ * strażnik na poziomie modułu. Bez niego obsługa Taba nakładałaby się przy
+ * każdym montowaniu.
+ *
+ * Tylko HTML i CSS. Emmet dla JavaScriptu oznacza JSX, a nasze `skrypt.js`
+ * to zwykły JS — włączenie tamtego trybu kończyłoby się wstawianiem
+ * `<div></div>` po wpisaniu `div` i naciśnięciu Taba.
+ */
+let emmetWlaczony = false;
+
+/**
+ * Czy w tym języku podpowiadać przy pisaniu.
+ *
+ * Emmet z `emmet-monaco-es` wpina się jako **dostawca podpowiedzi**, nie jako
+ * skrót klawiszowy. Przy wyłączonym `quickSuggestions` skróty CSS (`m10`)
+ * nigdy by się nie pokazały — w HTML ratują je znaki wyzwalające (`>`, `*`),
+ * w CSS takich nie ma. Włączamy więc podpowiadanie dla HTML i CSS, gdzie
+ * podpowiedzi tagów i właściwości i tak były zamierzone, a zostawiamy
+ * wyłączone dla JavaScriptu: tam Emmet nic nie wnosi (jego tryb dla JS to
+ * JSX), a podpowiadanie całych fragmentów kodu wyłączono świadomie.
+ *
+ * Sprawdzone w przeglądarce na naszym Monaco z `public/monaco`:
+ * `ul>li*3` + Tab i `m10` + Tab rozwijają się, zwykły Tab nadal robi wcięcie.
+ */
+const podpowiadacPrzyPisaniu = (language: string) => language === "html" || language === "css";
+
+async function wlaczEmmet(monaco: Parameters<OnMount>[1]): Promise<void> {
+  if (emmetWlaczony) return;
+  emmetWlaczony = true;
+  try {
+    const { emmetHTML, emmetCSS } = await import("emmet-monaco-es");
+    emmetHTML(monaco);
+    emmetCSS(monaco);
+  } catch {
+    // Brak Emmeta to niedogodność, nie awaria — edytor ma działać dalej.
+    emmetWlaczony = false;
+  }
+}
+
 type Props = {
   value: string;
   language: string;
@@ -41,6 +89,7 @@ export function CodeEditor({
   largePasteThreshold = 200,
   onSubmitShortcut,
 }: Props) {
+  const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
   const allowPasteRef = useRef(allowPaste);
   const largePasteRef = useRef(onLargePaste);
   const submitRef = useRef(onSubmitShortcut);
@@ -51,11 +100,21 @@ export function CodeEditor({
     submitRef.current = onSubmitShortcut;
   }, [allowPaste, onLargePaste, onSubmitShortcut]);
 
+  // Przełączenie pliku zmienia język już po zamontowaniu edytora.
+  useEffect(() => {
+    editorRef.current?.updateOptions({
+      quickSuggestions: { other: podpowiadacPrzyPisaniu(language), comments: false, strings: false },
+    });
+  }, [language]);
+
   const onMount: OnMount = (editor, monaco) => {
+    editorRef.current = editor;
+    void wlaczEmmet(monaco);
+
     editor.updateOptions({
       // zostawiamy kolorowanie składni i podpowiedzi tagów/właściwości,
       // wyłączamy natomiast podpowiadanie całych fragmentów kodu
-      quickSuggestions: { other: false, comments: false, strings: false },
+      quickSuggestions: { other: podpowiadacPrzyPisaniu(language), comments: false, strings: false },
       suggestOnTriggerCharacters: true,
       acceptSuggestionOnEnter: "off",
       tabCompletion: "off",

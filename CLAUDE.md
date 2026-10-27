@@ -377,6 +377,22 @@ czy wersja serwera — ale to samo liczy zwykłe złączenie z CTE i tak jest cz
 ... from nowe n join poczatek p on ...`. Migracje 021, 023 i 024 używają tej postaci;
 trzymaj się jej, dokładając kolejne.
 
+**Emmet to dostawca podpowiedzi, nie skrót klawiszowy.** `emmet-monaco-es` rejestruje się
+przez `registerCompletionItemProvider`, więc rozwinięcie skrótu idzie przez listę podpowiedzi,
+a Tab ją tylko zatwierdza. Stąd dwie rzeczy, które łatwo zepsuć w `CodeEditor.tsx`:
+
+- `quickSuggestions.other` **musi zostać włączone dla `html` i `css`**. Przy wyłączonym
+  skróty CSS (`m10`) nigdy się nie pokażą — w HTML ratują je znaki wyzwalające (`>`, `*`),
+  w CSS takich nie ma. Dla `javascript` zostaje wyłączone: Emmet nic tam nie wnosi, a
+  podpowiadanie całych fragmentów kodu wyłączono świadomie.
+- Rejestracja jest **globalna dla instancji Monaco**, a edytor montuje się wielokrotnie —
+  stąd strażnik `emmetWlaczony` na poziomie modułu. Bez niego obsługa nakłada się przy
+  każdym montowaniu.
+
+Nie włączaj `emmetJSX`: jego trybem dla JavaScriptu jest JSX, więc w zwykłym `skrypt.js`
+wpisanie `div` i Tab wstawiałoby `<div></div>`. Pakiet ładujemy leniwie (`import()`
+w `wlaczEmmet`), żeby 95 kB nie leciało na mapę nauki ani do testów teoretycznych.
+
 **CSP z nonce.** `middleware.ts` generuje nonce per request (`script-src 'self' 'nonce-…'
 'strict-dynamic'`). Dlatego `app/layout.tsx` ma `export const dynamic = "force-dynamic"` —
 bez tego strony statyczne trafiają do produkcji bez nonce i hydracja pada. Nie usuwaj tego.
