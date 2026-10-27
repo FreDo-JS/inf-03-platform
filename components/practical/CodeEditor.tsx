@@ -71,6 +71,11 @@ const LANGUAGE_BY_EXT: Record<string, string> = {
   html: "html",
   css: "css",
   js: "javascript",
+  // Monaco nie ma osobnego trybu dla JSX. W „javascript” kolorowane są słowa
+  // kluczowe, napisy i komentarze, a worker nie zgłasza błędów składni na
+  // znacznikach — bez koloru zostają same nazwy znaczników. Bez tego wpisu plik
+  // .jsx szedłby jako „plaintext”, czyli całkiem bez podświetlania.
+  jsx: "javascript",
   txt: "plaintext",
 };
 

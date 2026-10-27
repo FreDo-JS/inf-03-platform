@@ -8,7 +8,8 @@ import {
   previewablePages,
   writeToSandbox,
 } from "@/lib/practical/preview";
-import type { ProjectFile } from "@/types/practical";
+import { prepareReactProject } from "@/lib/practical/jsx";
+import type { PracticalRuntime, ProjectFile } from "@/types/practical";
 
 type ConsoleEntry = { id: number; level: "log" | "info" | "warn" | "error"; text: string; at: string };
 
@@ -16,6 +17,8 @@ type Props = {
   files: ProjectFile[];
   /** wersja plików — zmiana oznacza „jest co odświeżyć” */
   revision: number;
+  /** react = JSX trzeba przepisać i doładować Reacta przed uruchomieniem */
+  runtime?: PracticalRuntime;
 };
 
 const LEVEL_STYLE: Record<ConsoleEntry["level"], string> = {
@@ -25,7 +28,7 @@ const LEVEL_STYLE: Record<ConsoleEntry["level"], string> = {
   error: "text-danger",
 };
 
-export function PreviewPane({ files, revision }: Props) {
+export function PreviewPane({ files, revision, runtime = "html" }: Props) {
   const frameId = useId();
   const frameRef = useRef<HTMLIFrameElement>(null);
   const pages = useMemo(() => previewablePages(files), [files]);
@@ -46,19 +49,51 @@ export function PreviewPane({ files, revision }: Props) {
     if (pages.length > 0 && !pages.includes(page)) setPage(pages[0] ?? "");
   }, [pages, page]);
 
+  // Wpis w panelu konsoli dodany przez nas, nie przez kod ucznia — tak trafia
+  // tu błąd składni JSX-a, zanim cokolwiek pójdzie do piaskownicy.
+  const pushEntry = useCallback((level: ConsoleEntry["level"], text: string) => {
+    setEntries((prev) => [
+      ...prev.slice(-199),
+      { id: nextId.current++, level, text, at: new Date().toLocaleTimeString("pl-PL") },
+    ]);
+    if (level === "error") setConsoleOpen(true);
+  }, []);
+
   const run = useCallback(
     (targetPage?: string) => {
       const p = targetPage ?? page;
       if (!p) return;
       setEntries([]);
-      const built = buildPreviewDocument(files, p, { frameId });
-      pendingHtml.current = built.html;
-      setMissing(built.missing);
-      setHasRun(true);
-      setRunId((n) => n + 1); // nowy iframe → gospodarz piaskownicy zgłosi gotowość
-      setStaleRevision(null);
+
+      const show = (html: string, brakujace: string[]) => {
+        pendingHtml.current = html;
+        setMissing(brakujace);
+        setHasRun(true);
+        setRunId((n) => n + 1); // nowy iframe → gospodarz piaskownicy zgłosi gotowość
+        setStaleRevision(null);
+      };
+
+      if (runtime !== "react") {
+        const built = buildPreviewDocument(files, p, { frameId });
+        show(built.html, built.missing);
+        return;
+      }
+
+      // React: JSX trzeba najpierw przepisać, a to operacja asynchroniczna
+      // (leniwie doładowywany transpilator + paczka Reacta).
+      void prepareReactProject(files).then((prepared) => {
+        if (prepared.error !== null) {
+          // Strona bez skryptów: układ widać, a uczeń dostaje konkretny komunikat.
+          pushEntry("error", prepared.error);
+          const built = buildPreviewDocument(files, p, { frameId, disableStudentScripts: true });
+          show(built.html, built.missing);
+          return;
+        }
+        const built = buildPreviewDocument(prepared.files, p, { frameId, preludeScript: prepared.prelude });
+        show(built.html, built.missing);
+      });
     },
-    [files, page, frameId],
+    [files, page, frameId, runtime, pushEntry],
   );
 
   // automatyczne odświeżanie albo znacznik „są niezapisane zmiany”

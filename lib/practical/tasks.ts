@@ -1,17 +1,28 @@
 "use client";
 
-import { parseAutoTests, parseCriteria, parseFiles } from "@/lib/practical/parse";
+import { parseAutoTests, parseCriteria, parseFiles, practicalRuntime } from "@/lib/practical/parse";
 import { getBrowserSupabase } from "@/lib/supabase/client";
 import type { Json } from "@/types/db";
-import type { AutoTest, ManualCriterion, PracticalTaskRow, ProjectFile } from "@/types/practical";
+import type { AutoTest, ManualCriterion, PracticalRuntime, PracticalTaskRow, ProjectFile } from "@/types/practical";
 
-const LEGACY_TASK_COLUMNS =
+const BASE_TASK_COLUMNS =
   "id, title, summary, content_md, files, reference_files, auto_tests, manual_criteria, default_minutes, allow_new_files, student_can_run_tests, is_ready, created_at" as const;
-/** Kolumna `practice` pochodzi z migracji 029; bez niej panel działa jak dotąd. */
-export const TASK_COLUMNS = `${LEGACY_TASK_COLUMNS}, practice` as const;
 
-/** Czy baza zna kolumnę practice — ustalane przy pierwszym pobraniu zadań. */
-let practiceColumn = true;
+/**
+ * Kolumny dokładane późniejszymi migracjami: `practice` przez 029, `runtime` przez 032.
+ * Każdej może brakować osobno — kod i migracje wdrażają się niezależnie — więc
+ * pobieranie schodzi po kolejnych zestawach, zamiast od razu zrzucać obie.
+ */
+const OPTIONAL_COLUMNS = ["practice", "runtime"] as const;
+type OptionalColumn = (typeof OPTIONAL_COLUMNS)[number];
+
+const columnsFor = (opcjonalne: readonly OptionalColumn[]): string =>
+  opcjonalne.length === 0 ? BASE_TASK_COLUMNS : `${BASE_TASK_COLUMNS}, ${opcjonalne.join(", ")}`;
+
+export const TASK_COLUMNS = columnsFor(OPTIONAL_COLUMNS);
+
+/** Które z tych kolumn baza zna — ustalane przy pierwszym pobraniu zadań. */
+const obecne: Record<OptionalColumn, boolean> = { practice: true, runtime: true };
 
 type TaskRowDb = {
   id: string;
@@ -26,6 +37,7 @@ type TaskRowDb = {
   allow_new_files: boolean;
   student_can_run_tests: boolean;
   practice?: boolean;
+  runtime?: string;
   is_ready: boolean;
   created_at: string;
 };
@@ -44,6 +56,7 @@ export function parseTaskRow(row: TaskRowDb): PracticalTaskRow {
     allow_new_files: row.allow_new_files,
     student_can_run_tests: row.student_can_run_tests,
     practice: row.practice === true,
+    runtime: practicalRuntime(row.runtime),
     is_ready: row.is_ready,
     created_at: row.created_at,
   };
@@ -51,24 +64,33 @@ export function parseTaskRow(row: TaskRowDb): PracticalTaskRow {
 
 export async function fetchTasks(): Promise<{ tasks: PracticalTaskRow[]; error: string | null }> {
   const supabase = getBrowserSupabase();
-  const full = await supabase.from("practical_tasks").select(TASK_COLUMNS).order("created_at", { ascending: false });
-  if (!full.error && full.data) {
-    practiceColumn = true;
-    return { tasks: full.data.map(parseTaskRow), error: null };
-  }
-  // baza sprzed migracji 029 — pobieramy stary zestaw kolumn i nie pokazujemy trybu ćwiczeń
-  if (full.error && (full.error.code === "42703" || /practice/.test(full.error.message ?? ""))) {
-    const legacy = await supabase.from("practical_tasks").select(LEGACY_TASK_COLUMNS).order("created_at", { ascending: false });
-    if (!legacy.error && legacy.data) {
-      practiceColumn = false;
-      return { tasks: legacy.data.map(parseTaskRow), error: null };
+  // od pełnego zestawu w dół: brak jednej kolumny nie może kasować drugiej
+  const proby: readonly (readonly OptionalColumn[])[] = [["practice", "runtime"], ["practice"], ["runtime"], []];
+
+  for (const zestaw of proby) {
+    const { data, error } = await supabase
+      .from("practical_tasks")
+      .select(columnsFor(zestaw))
+      .order("created_at", { ascending: false });
+
+    if (!error && data) {
+      for (const kolumna of OPTIONAL_COLUMNS) obecne[kolumna] = zestaw.includes(kolumna);
+      // lista kolumn składana w czasie działania, więc supabase-js nie wywnioskuje
+      // kształtu wiersza; parseTaskRow i tak sprawdza każde pole z osobna
+      return { tasks: (data as unknown as TaskRowDb[]).map(parseTaskRow), error: null };
     }
+    // 42703 = nie ma takiej kolumny, czyli brakuje migracji. Każdy inny błąd
+    // (sieć, uprawnienia) powtarzanie zapytania tylko zdublowałoby.
+    if (!error || (error.code !== "42703" && !/column .* does not exist/i.test(error.message ?? ""))) break;
   }
   return { tasks: [], error: "Nie udało się pobrać zadań." };
 }
 
 /** Czy panel ma pokazywać przełącznik trybu ćwiczeń (migracja 029 wgrana). */
-export const practiceAvailable = (): boolean => practiceColumn;
+export const practiceAvailable = (): boolean => obecne.practice;
+
+/** Czy panel ma pokazywać wybór środowiska HTML/React (migracja 032 wgrana). */
+export const runtimeAvailable = (): boolean => obecne.runtime;
 
 export type TaskPayload = {
   title: string;
@@ -82,6 +104,7 @@ export type TaskPayload = {
   allow_new_files: boolean;
   student_can_run_tests: boolean;
   practice: boolean;
+  runtime: PracticalRuntime;
   is_ready: boolean;
 };
 
@@ -99,8 +122,9 @@ export async function saveTask(id: string | null, payload: TaskPayload): Promise
     default_minutes: payload.default_minutes,
     allow_new_files: payload.allow_new_files,
     student_can_run_tests: payload.student_can_run_tests,
-    // bez migracji 029 kolumny nie ma — wtedy jej nie wysyłamy, żeby zwykły zapis zadania działał
-    ...(practiceColumn ? { practice: payload.practice } : {}),
+    // brak migracji = brak kolumny; wtedy jej nie wysyłamy, żeby zwykły zapis zadania działał
+    ...(obecne.practice ? { practice: payload.practice } : {}),
+    ...(obecne.runtime ? { runtime: payload.runtime } : {}),
     is_ready: payload.is_ready,
     updated_at: new Date().toISOString(),
   };

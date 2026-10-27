@@ -37,6 +37,7 @@ function previewState(task: PracticalTaskRow): AttemptState {
       files: task.files,
       allow_new_files: task.allow_new_files,
       student_can_run_tests: task.student_can_run_tests,
+      runtime: task.runtime,
       test_names: [],
     },
   };

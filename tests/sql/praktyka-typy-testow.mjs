@@ -46,9 +46,17 @@ const ts = readFileSync(join(here, "..", "..", "types", "practical.ts"), "utf8")
 const lista = ts.match(/AUTO_TEST_TYPES = \[([\s\S]*?)\] as const;/);
 const typy = [...(lista?.[1] ?? "").matchAll(/"([^"]+)"/g)].map((m) => m[1]);
 ok("znaleziono AUTO_TEST_TYPES w types/practical.ts", typy.length >= 14, typy.join());
+// Większość typów baza sprawdza tylko po nazwie, ale source_matches (032) ma
+// własne pola — bez nich jest odrzucany i słusznie, więc dokładamy komplet.
+const POLA_TYPU = {
+  source_matches: { file: "index.html", mode: "contains", value: "x" },
+};
 for (const t of typy) {
-  ok(`baza przyjmuje typ ${t}`, await poprawny([{ id: "t1", name: "x", points: 1, type: t }]));
+  const test = { id: "t1", name: "x", points: 1, type: t, ...(POLA_TYPU[t] ?? {}) };
+  ok(`baza przyjmuje typ ${t}`, await poprawny([test]));
 }
+ok("…a source_matches bez swoich pól odrzuca",
+  !(await poprawny([{ id: "t1", name: "x", points: 1, type: "source_matches" }])));
 ok("baza nie przyjmuje nieznanego typu", !(await poprawny([{ id: "t1", name: "x", points: 1, type: "rm_rf" }])));
 ok("  …ani typów z etapu PHP/SQL", !(await poprawny([{ id: "t1", name: "x", points: 1, type: "php_output" }])));
 ok("nadal odrzuca powtórzone identyfikatory",
@@ -58,7 +66,7 @@ ok("nadal odrzuca punkty spoza 0–100", !(await poprawny([{ id: "a", name: "x",
 console.log("\n== ZAPIS ZADANIA ==");
 {
   await db.exec(`insert into admins(user_id) select id from auth.users on conflict do nothing`);
-  const testy = typy.map((t, i) => ({ id: `t${i}`, name: `Test ${t}`, points: 1, type: t }));
+  const testy = typy.map((t, i) => ({ id: `t${i}`, name: `Test ${t}`, points: 1, type: t, ...(POLA_TYPU[t] ?? {}) }));
   await db.query(
     `insert into practical_tasks (title, files, auto_tests) values ('Wszystkie typy', '[]'::jsonb, $1::jsonb)`,
     [JSON.stringify(testy)],

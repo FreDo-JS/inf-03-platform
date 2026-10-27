@@ -71,12 +71,17 @@ export function PracticeWorkspace({ task }: { task: PracticeTask }) {
     if (running) return;
     setRunning(true);
     setResults(null);
-    const out = await runAutoTests(files, task.tests, (p) => setProgress(p.current ? `${p.done + 1}/${p.total}: ${p.current}` : null));
+    const out = await runAutoTests(
+      files,
+      task.tests,
+      (p) => setProgress(p.current ? `${p.done + 1}/${p.total}: ${p.current}` : null),
+      task.runtime,
+    );
     setResults(out);
     setProgress(null);
     setRunning(false);
     setRunId((n) => n + 1);
-  }, [files, running, task.tests]);
+  }, [files, running, task.tests, task.runtime]);
 
   const reset = useCallback(() => {
     if (!window.confirm("Wrócić do pliku startowego? Twoje zmiany w tym zadaniu zostaną usunięte.")) return;
@@ -110,6 +115,7 @@ export function PracticeWorkspace({ task }: { task: PracticeTask }) {
         files: task.files,
         allow_new_files: task.allowNewFiles,
         student_can_run_tests: true,
+        runtime: task.runtime,
         test_names: [],
       },
     }),

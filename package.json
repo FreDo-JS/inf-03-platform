@@ -9,8 +9,10 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "copy:monaco": "node scripts/copy-monaco.mjs",
-    "predev": "node scripts/copy-monaco.mjs",
-    "prebuild": "node scripts/copy-monaco.mjs",
+    "build:react": "node scripts/build-sandbox-react.mjs",
+    "vendor": "node scripts/copy-monaco.mjs && node scripts/build-sandbox-react.mjs",
+    "predev": "npm run vendor",
+    "prebuild": "npm run vendor",
     "test:sql": "node tests/sql/run-all.mjs"
   },
   "dependencies": {
@@ -34,9 +36,11 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "autoprefixer": "^10.6.1",
+    "esbuild": "^0.28.2",
     "eslint": "^9.39.5",
     "eslint-config-next": "^15.5.25",
     "postcss": "^8.5.28",
+    "sucrase": "^3.35.1",
     "tailwindcss": "^3.4.19",
     "typescript": "^5.9.3"
   },

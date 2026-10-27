@@ -33,7 +33,8 @@ Tailwind 3.4 · Supabase (Postgres + Auth + Realtime) · Vercel.
 npm run dev         # predev kopiuje Monaco do public/monaco
 npm run typecheck   # tsc --noEmit
 npm run lint        # eslint .
-npm run test:sql    # 8 zestawów (~230 asercji) na PGlite, offline, bez Supabase
+npm run test:sql    # 30 zestawów (~970 asercji) na PGlite, offline, bez Supabase
+npm run vendor      # Monaco + paczka Reacta do public/ (robi to predev/prebuild)
 npm run build
 ```
 
@@ -56,6 +57,8 @@ CHECK-i i funkcje. **Każda zmiana w `supabase/*.sql` musi mieć pokrycie w `tes
 | `010_inf04.sql` | druga kwalifikacja: tabela `classes` (FK zamiast list w CHECK-ach), `qualification` w `categories` i `tests`, `create_test` z szóstym argumentem |
 | `011_inf04_seed.sql` | mapa INF.04: 12 kategorii, ponad 50 podtematów, materiały do C# i Reacta |
 | `012_progress_author.sql` | `progress.marked_by` stemplowane triggerem, `admins.display_name`, widok `teachers`, `set_my_display_name()`; naprawia rekurencyjną politykę odczytu `admins` z 008 |
+| `038_praktyka_react_zadanie.sql` | zadanie „Lista zakupow (React)": 20 testów (53 pkt) + 3 kryteria (10 pkt); **plik generowany** z `scripts/praktyka/react-lista.mjs` |
+| `037_praktyka_react.sql` | zadania reactowe: pliki `.jsx`, `practical_tasks.runtime` (`html｜react`), typ testu `source_matches`, `runtime` w obrazie zadania dla ucznia i w trybie ćwiczeń |
 | `029_praktyka_cwiczenia.sql` | `practical_tasks.practice` (domyślnie `false`) + `practical_practice_list()` / `practical_practice_task(id)` dla ucznia: arkusz, pliki startowe i **definicje testów** zadań oznaczonych do ćwiczeń, nigdy rozwiązanie wzorcowe |
 | `028_praktyka_komentarze.sql` | komentarz nauczyciela do kryterium (`manual_scores[].comment`, maks. 300 znaków) widoczny w `practical_result` po publikacji |
 | `027_praktyka_zadania.sql` | pięć zadań praktycznych — **plik generowany** z `scripts/praktyka/zadania/*.mjs` przez `node scripts/praktyka/generuj.mjs` (formularz z walidacją, galeria RWD, cennik w tabeli, strona z trzech podstron, licznik z motywem) |
@@ -392,6 +395,54 @@ Dwie zasady, których nie ruszaj:
 Odpowiedzi otwarte grupujemy funkcją `normalizuj()` — lustrem `normalize_answer()` z bazy.
 Gdy jedno się zmieni, drugie trzeba poprawić razem z nim, inaczej rozkład rozjedzie się z oceną.
 
+## Praktyka w Reakcie
+
+Zadanie ma kolumnę `runtime`: `html` (jak dotąd) albo `react`. Od niej zależy cały potok,
+więc nie zgaduj jej po rozszerzeniach plików.
+
+**Dlaczego to tak wygląda** (nie upraszczaj bez przeczytania):
+
+- **React jest wklejany do dokumentu jako tekst.** CSP piaskownicy to `script-src
+  'unsafe-inline' 'unsafe-eval' blob: data:` — **bez `'self'`** — więc żaden `<script src>`
+  tam nie zadziała. Paczkę buduje `scripts/build-sandbox-react.mjs` do `public/vendor/react.js`
+  (katalog w `.gitignore`, jak `public/monaco`), a panel pobiera ją fetchem z własnego origin
+  (CSP aplikacji ma `connect-src 'self'`, więc pracownia bez internetu działa).
+- **React 19 nie ma builda UMD** — w `node_modules` jest sam CJS. Stąd własny krok z esbuildem,
+  który wystawia globale `React`, `ReactDOM` (z `react-dom/client`) i `ReactJsxRuntime`.
+  Ten ostatni jest potrzebny, bo JSX kompilujemy automatycznym runtime'em — uczeń nie musi
+  importować Reacta, żeby napisać komponent.
+- **JSX przepisujemy w aplikacji, nie w piaskownicy.** Sucrase tylko przepisuje tekst (nie
+  potrzebuje `eval`, mieści się w CSP aplikacji) i jest ładowany leniwie — zadania HTML/CSS/JS
+  nie ciągną go wcale. Transpilacja leci **raz na pracę**, nie w każdej z kilkunastu ramek
+  testowych.
+- **`import` między plikami** obsługuje mały rejestr modułów budowany w `lib/practical/jsx.ts`:
+  sucrase przepisuje ESM na CommonJS, a my dostarczamy `require`. Rozpoznaje pliki projektu
+  (z rozszerzeniem i bez) oraz `react`, `react/jsx-runtime` i `react-dom/client`.
+- **`</script` w kodzie ucznia** zamknęłoby znacznik, do którego ten kod wklejamy — `jsx.ts`
+  escapuje ten ciąg przed wstawieniem. Dokładając własne wstrzykiwanie kodu, zrób to samo.
+- **Testy strukturalne przy `runtime = react` biegną z WŁĄCZONYM skryptem ucznia** (bez niego
+  strona jest pusta). To świadome ustępstwo opisane w migracji 037: dla tych zadań integralność
+  spada do poziomu testów `interaction`. Nie rozciągaj tego trybu na zadania HTML/CSS/JS.
+- **Czekanie na montowanie**: `createRoot().render()` nie rysuje synchronicznie, więc przy
+  `runtime = react` skrypt sprawdzający czeka (do 1,2 s), aż w `#root` coś się pojawi. Limit
+  czasu testu jest tam większy (8 s zamiast 5 s).
+- **Ostrzeżenie o formularzach** z mostka podglądu odzywa się tylko wtedy, gdy nikt nie wywołał
+  `preventDefault` — inaczej każde `onSubmit` w Reakcie zasypywałoby konsolę ucznia komunikatem
+  o PHP.
+
+Typ testu `source_matches` (`contains` / `not_contains` / `regex`) sprawdza **treść pliku**,
+na oryginale, a nie na wersji przepisanej dla piaskownicy. Tryb `not_contains` porównuje
+dosłownie — do wzorca użyj `regex`. To jedyny sposób, żeby sprawdzić technikę („czy jest
+komponent", „czy użyto `useState`"), i trzeba mówić wprost, że dowodzi tylko obecności tekstu.
+
+Zadanie „Lista zakupow (React)" jest **generowane**: poprawiasz `scripts/praktyka/react-lista.mjs`, uruchamiasz
+`node scripts/praktyka/react-lista.mjs` i commitujesz oba pliki. Ten sam moduł zasila
+weryfikację wzorca, więc treść zadania i jego testy nie mogą się rozjechać z bazą.
+
+INF.04 ma w szkole Reacta, więc to tam te zadania trafiają — ale egzamin CKE dla INF.04
+reactowy nie jest. To narzędzie do sprawdzania nauki Reacta, nie symulacja arkusza; C# dalej
+zostaje poza modułem.
+
 ## Dziennik i sprzątanie bazy
 
 Sekcja **Logi** w panelu pokazuje historię oznaczeń z `progress_log` — tabela `progress`
@@ -543,7 +594,7 @@ i zegar, żeby usiadł kolejny uczeń. Link do wyniku kopiuje nauczyciel w zakł
 ## Po stronie użytkownika (wciąż otwarte)
 
 1. Wkleić `NEXT_PUBLIC_SUPABASE_ANON_KEY` do `.env.local` (przeze mnie skasowany).
-2. Wykonać migracje **003–036** w Supabase SQL Editor — nic z nich nie było testowane
+2. Wykonać migracje **003–038** w Supabase SQL Editor — nic z nich nie było testowane
    na prawdziwej bazie, tylko na PGlite.
 3. Dopisać konta nauczycieli do tabeli `admins` i wyłączyć publiczną rejestrację.
 

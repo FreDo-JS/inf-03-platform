@@ -120,8 +120,11 @@ export function PracticalWorksTab() {
   const checkAttempt = useCallback(
     async (attempt: PracticalAttemptRow) => {
       if (!task || task.auto_tests.length === 0) return;
-      const results = await runAutoTests(attempt.files, task.auto_tests, (p) =>
-        setProgress({ ...p, student: attempt.student_name }),
+      const results = await runAutoTests(
+        attempt.files,
+        task.auto_tests,
+        (p) => setProgress({ ...p, student: attempt.student_name }),
+        task.runtime,
       );
       const supabase = getBrowserSupabase();
       const { error: dbError } = await supabase

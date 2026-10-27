@@ -244,6 +244,7 @@ type PracticalTaskRowDb = {
   allow_new_files: boolean;
   student_can_run_tests: boolean;
   practice: boolean;
+  runtime: string;
   is_ready: boolean;
   schema_info: string;
   db_sql: string;

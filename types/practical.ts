@@ -7,6 +7,17 @@ export type SessionStatus = "lobby" | "active" | "finished";
 export type AttemptStatus = "in_progress" | "submitted" | "auto_checked" | "reviewed" | "published";
 export type PracticalEndedReason = "completed" | "time_up" | "tab_switch" | "teacher_ended";
 
+/**
+ * Jak uruchamiamy pracę ucznia (migracja 019).
+ *
+ * html  — strona statyczna; testy strukturalne biegną z WYŁĄCZONYM skryptem ucznia
+ * react — aplikacja montowana skryptem; bez JS-u strona jest pusta, więc testy
+ *         strukturalne muszą działać po zamontowaniu. Świadome ustępstwo:
+ *         integralność spada do poziomu testów interaction.
+ */
+export const PRACTICAL_RUNTIMES = ["html", "react"] as const;
+export type PracticalRuntime = (typeof PRACTICAL_RUNTIMES)[number];
+
 export const AUTO_TEST_TYPES = [
   "file_not_empty",
   "selector_count",
@@ -22,6 +33,7 @@ export const AUTO_TEST_TYPES = [
   "links_valid",
   "no_js_errors",
   "file_content",
+  "source_matches",
 ] as const;
 export type AutoTestType = (typeof AUTO_TEST_TYPES)[number];
 
@@ -110,6 +122,20 @@ export type FileContentTest = TestBase & {
   negate?: boolean;
 };
 
+/**
+ * Sprawdzenie kodu źródłowego. Jedyny sposób, żeby zweryfikować technikę
+ * („czy jest komponent”, „czy użyto useState”, „czy nie grzebano w DOM ręcznie”) —
+ * tego nie widać w wyrenderowanym HTML-u. Dowodzi, że tekst jest w pliku,
+ * nie że jest użyty poprawnie; ocenę techniki zostaw kryterium ręcznemu.
+ */
+export type SourceMatchesTest = TestBase & {
+  type: "source_matches";
+  file: string;
+  mode: "contains" | "not_contains" | "regex";
+  value: string;
+  ignoreCase?: boolean;
+};
+
 export type AutoTest =
   | FileNotEmptyTest
   | SelectorCountTest
@@ -124,7 +150,8 @@ export type AutoTest =
   | CssMediaTest
   | LinksValidTest
   | NoJsErrorsTest
-  | FileContentTest;
+  | FileContentTest
+  | SourceMatchesTest;
 
 /** Typy, dla których kod ucznia musi działać (reszta jest sprawdzana z wyłączonym JS). */
 export const SCRIPT_TEST_TYPES: readonly AutoTestType[] = ["interaction", "no_js_errors"];
@@ -152,6 +179,7 @@ export type PracticalTaskRow = {
   student_can_run_tests: boolean;
   /** zadanie dostępne w trybie ćwiczeniowym (bez PIN-u); uczniowie widzą wtedy jego testy */
   practice: boolean;
+  runtime: PracticalRuntime;
   is_ready: boolean;
   created_at: string;
 };
@@ -167,6 +195,7 @@ export type PracticeTask = {
   contentMd: string;
   files: ProjectFile[];
   allowNewFiles: boolean;
+  runtime: PracticalRuntime;
   tests: AutoTest[];
   criteria: { name: string; description?: string; points: number }[];
 };
@@ -180,6 +209,7 @@ export type PracticalTaskPublic = {
   files: ProjectFile[];
   allow_new_files: boolean;
   student_can_run_tests: boolean;
+  runtime: PracticalRuntime;
   test_names: { id: string; name: string }[];
 };
 

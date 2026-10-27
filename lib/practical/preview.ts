@@ -65,7 +65,10 @@ function bridgeScript(frameId: string): string {
     }
   });
   // Formularze: obsługa POST/GET dojdzie z etapem PHP. Na razie nie przeładowujemy podglądu.
+  // Gdy kod ucznia sam obsłużył zdarzenie (React robi to na kontenerze aplikacji,
+  // czyli zanim submit dojdzie do document), nie zawracamy mu głowy ostrzeżeniem.
   document.addEventListener("submit", function (e) {
+    if (e.defaultPrevented) return;
     e.preventDefault();
     post({ type: "console", level: "warn", text: "Wysłanie formularza zadziała po dodaniu obsługi PHP. Podgląd pokazuje samą stronę." });
   });
@@ -92,7 +95,13 @@ export type BuildResult = { html: string; missing: string[] };
 export function buildPreviewDocument(
   files: readonly ProjectFile[],
   page: string,
-  options: { frameId: string; extraScript?: string; disableStudentScripts?: boolean },
+  options: {
+    frameId: string;
+    extraScript?: string;
+    disableStudentScripts?: boolean;
+    /** React i rejestr modułów dla zadań reactowych (patrz lib/practical/jsx.ts). */
+    preludeScript?: string;
+  },
 ): BuildResult {
   const pageFile = byName(files, page);
   const missing: string[] = [];
@@ -159,17 +168,19 @@ export function buildPreviewDocument(
     }
   });
 
-  // mostek musi być pierwszy, żeby przechwycić błędy i console.log kodu ucznia
+  // Kolejność w <head> ma znaczenie: mostek pierwszy, żeby przechwycić błędy
+  // i console.log kodu ucznia; potem React z rejestrem modułów, bo kod ucznia
+  // od razu po nim woła __inf03_require; na końcu skrypt sprawdzający.
   const head = doc.head ?? doc.createElement("head");
   if (!doc.head) doc.documentElement.prepend(head);
-  const bridge = doc.createElement("script");
-  bridge.textContent = bridgeScript(options.frameId);
-  head.prepend(bridge);
 
-  if (options.extraScript) {
-    const runner = doc.createElement("script");
-    runner.textContent = options.extraScript;
-    head.insertBefore(runner, bridge.nextSibling);
+  const wstepne = [bridgeScript(options.frameId), options.preludeScript, options.extraScript]
+    .filter((src): src is string => typeof src === "string" && src !== "")
+    .reverse(); // prepend odwraca kolejność
+  for (const src of wstepne) {
+    const el = doc.createElement("script");
+    el.textContent = src;
+    head.prepend(el);
   }
 
   return { html: `<!DOCTYPE html>\n${doc.documentElement.outerHTML}`, missing: [...new Set(missing)] };

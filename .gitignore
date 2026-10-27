@@ -18,3 +18,5 @@ public/monaco/
 
 # programy nauczania — materialy zrodlowe nauczyciela, nie kod
 ProgramNaucznia/
+# Paczka Reacta dla piaskownicy (scripts/build-sandbox-react.mjs)
+public/vendor/

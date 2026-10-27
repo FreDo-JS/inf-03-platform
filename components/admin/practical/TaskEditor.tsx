@@ -5,9 +5,10 @@ import { AutoTestsEditor } from "@/components/admin/practical/AutoTestsEditor";
 import { FilesEditor } from "@/components/admin/practical/FilesEditor";
 import { TaskSheet } from "@/components/practical/TaskSheet";
 import { runAutoTests, type RunProgress } from "@/lib/practical/runner";
-import { practiceAvailable, saveTask } from "@/lib/practical/tasks";
+import { practiceAvailable, runtimeAvailable, saveTask } from "@/lib/practical/tasks";
 import { PRACTICAL_LIMITS, newLocalId, validateAutoTest, validateCriterion, validateFiles } from "@/lib/practical/validation";
 import { previewablePages } from "@/lib/practical/preview";
+import type { PracticalRuntime } from "@/types/practical";
 import type { AutoResult, ManualCriterion, PracticalTaskRow, ProjectFile } from "@/types/practical";
 import { ArrowLeft, Check, Eye, X } from "lucide-react";
 
@@ -32,6 +33,7 @@ const emptyTask = (): PracticalTaskRow => ({
   auto_tests: [],
   manual_criteria: [],
   default_minutes: 150,
+  runtime: "html",
   allow_new_files: false,
   student_can_run_tests: false,
   practice: false,
@@ -94,6 +96,7 @@ export function TaskEditor({ task, onSaved, onCancel, onOpenAsStudent }: Props) 
       allow_new_files: draft.allow_new_files,
       student_can_run_tests: draft.student_can_run_tests,
       practice: draft.practice,
+      runtime: draft.runtime,
       is_ready: markReady,
     });
     setSaving(false);
@@ -117,7 +120,7 @@ export function TaskEditor({ task, onSaved, onCancel, onOpenAsStudent }: Props) 
     }
     setError(null);
     setCheckResults(null);
-    const results = await runAutoTests(draft.reference_files, draft.auto_tests, setChecking);
+    const results = await runAutoTests(draft.reference_files, draft.auto_tests, setChecking, draft.runtime);
     setChecking(null);
     setCheckResults(results);
   };
@@ -259,6 +262,35 @@ export function TaskEditor({ task, onSaved, onCancel, onOpenAsStudent }: Props) 
                 </span>
               </label>
             </div>
+          )}
+
+          {runtimeAvailable() && (
+            <>
+              <label className="mt-3 block text-xs text-muted">
+                Technologia
+                <select
+                  className="input mt-1 py-1.5 text-sm"
+                  value={draft.runtime}
+                  onChange={(e) => setDraft((d) => ({ ...d, runtime: e.target.value as PracticalRuntime }))}
+                >
+                  <option value="html">HTML / CSS / JavaScript</option>
+                  <option value="react">React (pliki .jsx)</option>
+                </select>
+              </label>
+              {draft.runtime === "react" && (
+                <div className="mt-2 space-y-1 text-xs text-muted">
+                  <p>
+                    Wejście to plik <code>.jsx</code> wskazany w <code>&lt;script src&gt;</code>, montowany przez{" "}
+                    <code>createRoot</code> w <code>&lt;div id=&quot;root&quot;&gt;</code>. Dostępne importy:{" "}
+                    <code>react</code>, <code>react-dom/client</code> i pozostałe pliki projektu.
+                  </p>
+                  <p className="text-warn">
+                    Uwaga: w zadaniu reactowym testy strukturalne biegną z włączonym skryptem ucznia (bez niego strona
+                    jest pusta), więc są tak samo odporne na manipulację jak testy scenariuszowe — nie bardziej.
+                  </p>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>

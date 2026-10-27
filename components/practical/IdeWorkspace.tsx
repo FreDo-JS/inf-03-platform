@@ -305,7 +305,7 @@ export function IdeWorkspace({
             }}
           />
           <div className="min-h-0 flex-1">
-            <PreviewPane files={files} revision={revision} />
+            <PreviewPane files={files} revision={revision} runtime={state.task.runtime} />
           </div>
         </div>
       </div>
@@ -314,7 +314,7 @@ export function IdeWorkspace({
       <div className="min-h-0 flex-1 lg:hidden">
         {mobileTab === "sheet" && sheetPanel}
         {mobileTab === "code" && editorPanel}
-        {mobileTab === "preview" && <PreviewPane files={files} revision={revision} />}
+        {mobileTab === "preview" && <PreviewPane files={files} revision={revision} runtime={state.task.runtime} />}
       </div>
     </div>
   );

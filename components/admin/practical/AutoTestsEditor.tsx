@@ -1,7 +1,7 @@
 "use client";
 
 import { newLocalId, validateAutoTest } from "@/lib/practical/validation";
-import type { AutoTest, AutoTestType, InteractionStep, TextMatchMode } from "@/types/practical";
+import type { AutoTest, AutoTestType, InteractionStep, SourceMatchesTest, TextMatchMode } from "@/types/practical";
 import { X } from "lucide-react";
 
 type Props = {
@@ -26,6 +26,14 @@ const TYPE_LABEL: Record<AutoTestType, string> = {
   links_valid: "Linki do plików projektu działają",
   no_js_errors: "Strona działa bez błędów JavaScript",
   file_content: "Zawartość pliku (źródło)",
+  source_matches: "Kod źródłowy zawiera / nie zawiera",
+};
+
+/** Tryby testu na kodzie źródłowym — inne niż przy porównywaniu tekstu w DOM. */
+const SOURCE_MODE_LABEL: Record<SourceMatchesTest["mode"], string> = {
+  contains: "zawiera",
+  not_contains: "nie zawiera",
+  regex: "pasuje do wyrażenia",
 };
 
 const MODE_LABEL: Record<TextMatchMode, string> = {
@@ -67,6 +75,8 @@ function emptyTest(type: AutoTestType, page: string, file: string): AutoTest {
       return { ...base, type, page };
     case "file_content":
       return { ...base, type, file, mode: "contains", value: "", ignoreCase: false, negate: false };
+    case "source_matches":
+      return { ...base, type, file, mode: "contains", value: "" };
   }
 }
 
@@ -163,7 +173,7 @@ export function AutoTestsEditor({ tests, onChange, fileNames, pageNames }: Props
                       </select>
                     </label>
                   )}
-                  {(test.type === "file_not_empty" || test.type === "file_content") && (
+                  {(test.type === "file_not_empty" || test.type === "file_content" || test.type === "source_matches") && (
                     <label className="text-xs text-muted">
                       Plik
                       <select
@@ -341,6 +351,48 @@ export function AutoTestsEditor({ tests, onChange, fileNames, pageNames }: Props
                         />
                         ignoruj wielkość liter
                       </label>
+                    </>
+                  )}
+                  {test.type === "source_matches" && (
+                    <>
+                      <label className="text-xs text-muted">
+                        Warunek
+                        <select
+                          className="input mt-1 py-1.5 text-sm"
+                          value={test.mode}
+                          onChange={(e) =>
+                            update(test.id, { mode: e.target.value as SourceMatchesTest["mode"] } as Partial<AutoTest>)
+                          }
+                        >
+                          {(Object.keys(SOURCE_MODE_LABEL) as SourceMatchesTest["mode"][]).map((m) => (
+                            <option key={m} value={m}>
+                              {SOURCE_MODE_LABEL[m]}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="text-xs text-muted">
+                        Szukany fragment kodu
+                        <input
+                          className="input mt-1 py-1.5 font-mono text-sm"
+                          placeholder="np. useState"
+                          value={test.value}
+                          onChange={(e) => update(test.id, { value: e.target.value } as Partial<AutoTest>)}
+                        />
+                      </label>
+                      <label className="flex items-center gap-2 text-xs text-muted">
+                        <input
+                          type="checkbox"
+                          className="h-3.5 w-3.5 accent-[#2de2c1]"
+                          checked={test.ignoreCase ?? false}
+                          onChange={(e) => update(test.id, { ignoreCase: e.target.checked } as Partial<AutoTest>)}
+                        />
+                        ignoruj wielkość liter
+                      </label>
+                      <p className="text-xs text-muted sm:col-span-2">
+                        Sprawdza treść pliku, nie wynik działania. Dowodzi, że dany zapis jest w kodzie — nie że jest
+                        użyty poprawnie. Technikę oceń kryterium ręcznym.
+                      </p>
                     </>
                   )}
                   {test.type === "css_computed" && (

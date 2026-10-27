@@ -1,6 +1,7 @@
 // Parsowanie odpowiedzi funkcji RPC modułu Praktyka.
 // Nie ufamy kształtowi JSON-a z bazy — wszystko sprawdzamy w czasie wykonania.
 
+import { PRACTICAL_RUNTIMES, type PracticalRuntime } from "@/types/practical";
 import type {
   AttemptState,
   AttemptStatus,
@@ -24,6 +25,10 @@ const str = (v: unknown, fallback = ""): string => (typeof v === "string" ? v : 
 const num = (v: unknown, fallback = 0): number => (typeof v === "number" && Number.isFinite(v) ? v : fallback);
 const bool = (v: unknown, fallback = false): boolean => (typeof v === "boolean" ? v : fallback);
 const nullableStr = (v: unknown): string | null => (typeof v === "string" ? v : null);
+
+/** Nieznany tryb traktujemy jak 'html' — tak samo jak domyślna wartość kolumny. */
+export const practicalRuntime = (v: unknown): PracticalRuntime =>
+  PRACTICAL_RUNTIMES.find((r) => r === v) ?? "html";
 
 export function parseFiles(v: unknown): ProjectFile[] {
   if (!Array.isArray(v)) return [];
@@ -79,6 +84,7 @@ export function parseAttemptState(v: unknown): AttemptState | null {
       files: parseFiles(task.files),
       allow_new_files: bool(task.allow_new_files),
       student_can_run_tests: bool(task.student_can_run_tests),
+      runtime: practicalRuntime(task.runtime),
       test_names: Array.isArray(task.test_names)
         ? task.test_names.flatMap((t) => (isRecord(t) ? [{ id: str(t.id), name: str(t.name) }] : []))
         : [],
@@ -188,6 +194,7 @@ export function parsePracticeTask(v: unknown): PracticeTask | null {
     contentMd: str(v.content_md),
     files,
     allowNewFiles: bool(v.allow_new_files),
+    runtime: practicalRuntime(v.runtime),
     tests: parseAutoTests(v.auto_tests),
     criteria: Array.isArray(v.criteria)
       ? v.criteria.flatMap((c) =>

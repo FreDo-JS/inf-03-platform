@@ -59,6 +59,20 @@ export const RUNNER_SCRIPT = String.raw`
 
   function sleep(ms) { return new Promise(function (r) { setTimeout(r, Math.min(2000, Math.max(0, ms || 0))); }); }
 
+  // Zadania reactowe: aplikacja montuje się asynchronicznie (createRoot planuje
+  // pracę, nie rysuje od razu), więc przy DOMContentLoaded kontener bywa jeszcze
+  // pusty. Czekamy, aż coś się w nim pojawi — a gdy nic nie przychodzi, i tak
+  // ruszamy dalej, żeby test skończył się czytelnym „nie znaleziono elementu”.
+  async function settleReact() {
+    var deadline = pristine.now() + 1200;
+    while (pristine.now() < deadline) {
+      var root = one("#root") || one("[data-root]") || D.body;
+      if (root && root.children && root.children.length > 0) break;
+      await sleep(25);
+    }
+    await sleep(40);
+  }
+
   function setValue(el, value) {
     var proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype
       : el instanceof HTMLSelectElement ? HTMLSelectElement.prototype
@@ -87,7 +101,8 @@ export const RUNNER_SCRIPT = String.raw`
     };
   }
 
-  async function runTest(test) {
+  async function runTest(test, runtime) {
+    if (runtime === "react") await settleReact();
     switch (test.type) {
       case "selector_count": {
         var els = all(test.selector);
@@ -250,7 +265,7 @@ export const RUNNER_SCRIPT = String.raw`
     if (!data || data.source !== "inf03-runner" || data.type !== "run-test") return;
     var test = data.test;
     Promise.resolve()
-      .then(function () { return runTest(test); })
+      .then(function () { return runTest(test, data.runtime); })
       .catch(function (e) { return { passed: false, message: "Błąd podczas sprawdzania: " + (e && e.message ? e.message : e) }; })
       .then(function (result) {
         parent.postMessage({

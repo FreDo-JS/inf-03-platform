@@ -23,7 +23,8 @@ export const PRACTICAL_LIMITS = {
   pasteLog: 200, // od tylu znaków wklejenie trafia do dziennika
 } as const;
 
-const FILE_NAME_RE = /^[A-Za-z0-9_-]{1,40}\.(html|css|js|txt)$/;
+// jsx doszło z migracją 019 (zadania reactowe) — wzorzec jak w SQL-u
+const FILE_NAME_RE = /^[A-Za-z0-9_-]{1,40}\.(html|css|js|jsx|txt)$/;
 // te same znaki co practical_clean_name() w SQL
 const NAME_RE = /^[\p{L}][\p{L} '-]*$/u;
 
@@ -135,9 +136,12 @@ export function validateAutoTest(test: AutoTest, fileNames: readonly string[]): 
       requirePage(test.page);
       break;
     case "file_content":
+    case "source_matches":
       if (!test.file) errors.push("Wybierz plik.");
       else if (!fileNames.includes(test.file)) errors.push(`Plik ${test.file} nie istnieje w zadaniu.`);
-      if (!test.value?.trim()) errors.push("Podaj szukany tekst lub wzorzec.");
+      if (!test.value?.trim()) {
+        errors.push(test.type === "source_matches" ? "Podaj szukany fragment kodu." : "Podaj szukany tekst lub wzorzec.");
+      }
       if (test.mode === "regex") {
         try {
           new RegExp(test.value);

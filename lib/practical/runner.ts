@@ -7,11 +7,14 @@
 // wykonywanie cudzego kodu po stronie serwera to niepotrzebne ryzyko.
 // Każdy test dostaje świeży iframe (sandbox bez allow-same-origin) i limit czasu.
 
+import { prepareReactProject } from "@/lib/practical/jsx";
 import { SANDBOX_URL, buildPreviewDocument, writeToSandbox } from "@/lib/practical/preview";
 import { RUNNER_SCRIPT } from "@/lib/practical/runnerScript";
-import { SCRIPT_TEST_TYPES, type AutoResult, type AutoTest, type ProjectFile } from "@/types/practical";
+import { SCRIPT_TEST_TYPES, type AutoResult, type AutoTest, type PracticalRuntime, type ProjectFile } from "@/types/practical";
 
+// Zadania reactowe potrzebują więcej czasu: dochodzi zamontowanie aplikacji.
 const TEST_TIMEOUT_MS = 5000;
+const TEST_TIMEOUT_REACT_MS = 8000;
 
 type FrameResult = { passed: boolean; message: string };
 
@@ -29,13 +32,25 @@ function newFrameId(): string {
  * wiadomość z wynikiem. Przy `interaction` skrypt ucznia musi działać, więc
  * tam pilnujemy tylko, czy nie przyszło więcej niż jedno zgłoszenie wyniku.
  */
-async function runInFrame(files: readonly ProjectFile[], test: AutoTest, page: string): Promise<FrameResult> {
+async function runInFrame(
+  files: readonly ProjectFile[],
+  test: AutoTest,
+  page: string,
+  runtime: PracticalRuntime,
+  preludeScript: string,
+): Promise<FrameResult> {
   const frameId = newFrameId();
-  const scriptsDisabled = !SCRIPT_TEST_TYPES.includes(test.type);
+  // Przy zadaniu reactowym strona bez skryptu ucznia jest pusta (sam <div id="root">),
+  // więc testów strukturalnych nie da się uruchomić z wyłączonym JS-em. Patrz
+  // komentarz w migracji 032: dla tych zadań integralność spada do poziomu
+  // testów interaction i zostaje przy zasadzie „jeden wynik na test”.
+  const scriptsDisabled = !SCRIPT_TEST_TYPES.includes(test.type) && runtime !== "react";
+  const limit = runtime === "react" ? TEST_TIMEOUT_REACT_MS : TEST_TIMEOUT_MS;
   const built = buildPreviewDocument(files, page, {
     frameId,
     extraScript: RUNNER_SCRIPT,
     disableStudentScripts: scriptsDisabled,
+    preludeScript,
   });
 
   const frame = document.createElement("iframe");
@@ -79,7 +94,7 @@ async function runInFrame(files: readonly ProjectFile[], test: AutoTest, page: s
 
       if (msg.type === "ready") {
         requested = true;
-        frame.contentWindow?.postMessage({ source: "inf03-runner", type: "run-test", frameId, test }, "*");
+        frame.contentWindow?.postMessage({ source: "inf03-runner", type: "run-test", frameId, test, runtime }, "*");
       } else if (msg.type === "test-result") {
         // wynik przed wysłaniem zlecenia może pochodzić tylko od kodu ucznia
         if (!requested) {
@@ -110,8 +125,8 @@ async function runInFrame(files: readonly ProjectFile[], test: AutoTest, page: s
     };
 
     const timeout = window.setTimeout(
-      () => finish({ passed: false, message: `Test przekroczył limit czasu (${TEST_TIMEOUT_MS / 1000} s).` }),
-      TEST_TIMEOUT_MS,
+      () => finish({ passed: false, message: `Test przekroczył limit czasu (${limit / 1000} s).` }),
+      limit,
     );
 
     window.addEventListener("message", onMessage);
@@ -154,6 +169,43 @@ function runFileTest(
     : { passed: false, message: `Plik ${test.file} jest pusty.` };
 }
 
+/**
+ * Sprawdzenie kodu źródłowego. Działa na oryginalnej treści pliku — nie na
+ * wersji przepisanej dla piaskownicy — bo pytamy o to, co uczeń napisał.
+ */
+function runSourceTest(
+  files: readonly ProjectFile[],
+  test: Extract<AutoTest, { type: "source_matches" }>,
+): FrameResult {
+  const file = files.find((f) => f.name === test.file);
+  if (!file) return { passed: false, message: `Brak pliku ${test.file} w pracy.` };
+
+  const kod = test.ignoreCase === true ? file.content.toLowerCase() : file.content;
+  const szukane = test.ignoreCase === true ? test.value.toLowerCase() : test.value;
+
+  if (test.mode === "regex") {
+    let re: RegExp;
+    try {
+      re = new RegExp(test.value, test.ignoreCase === true ? "i" : "");
+    } catch {
+      return { passed: false, message: `Nieprawidłowe wyrażenie regularne w definicji testu: ${test.value}` };
+    }
+    return re.test(file.content)
+      ? { passed: true, message: `${test.file}: wzorzec „${test.value}” znaleziony.` }
+      : { passed: false, message: `${test.file}: nie znaleziono wzorca „${test.value}”.` };
+  }
+
+  const jest = kod.includes(szukane);
+  if (test.mode === "not_contains") {
+    return jest
+      ? { passed: false, message: `${test.file}: kod zawiera „${test.value}”, a nie powinien.` }
+      : { passed: true, message: `${test.file}: brak „${test.value}” — zgodnie z wymaganiem.` };
+  }
+  return jest
+    ? { passed: true, message: `${test.file}: znaleziono „${test.value}”.` }
+    : { passed: false, message: `${test.file}: nie znaleziono „${test.value}”.` };
+}
+
 export type RunProgress = { done: number; total: number; current: string };
 
 /** Uruchamia komplet testów po kolei i zwraca wyniki z punktacją. */
@@ -161,8 +213,25 @@ export async function runAutoTests(
   files: readonly ProjectFile[],
   tests: readonly AutoTest[],
   onProgress?: (p: RunProgress) => void,
+  runtime: PracticalRuntime = "html",
 ): Promise<AutoResult[]> {
   const results: AutoResult[] = [];
+
+  // JSX przepisujemy raz na całą pracę, nie w każdej ramce z osobna.
+  // Błąd składni nie przerywa sprawdzania: testy na kodzie źródłowym i na
+  // obecności plików dalej mają sens, a każdy test w ramce dostaje ten błąd
+  // jako komunikat — nauczyciel od razu widzi, dlaczego nic się nie renderuje.
+  let runFiles: readonly ProjectFile[] = files;
+  let prelude = "";
+  let prepareError: string | null = null;
+  if (runtime === "react") {
+    const prepared = await prepareReactProject(files);
+    prepareError = prepared.error;
+    if (prepared.error === null) {
+      runFiles = prepared.files;
+      prelude = prepared.prelude;
+    }
+  }
 
   for (const [index, test] of tests.entries()) {
     onProgress?.({ done: index, total: tests.length, current: test.name });
@@ -171,12 +240,16 @@ export async function runAutoTests(
     try {
       if (test.type === "file_not_empty" || test.type === "file_content") {
         outcome = runFileTest(files, test);
+      } else if (test.type === "source_matches") {
+        outcome = runSourceTest(files, test);
+      } else if (prepareError !== null) {
+        outcome = { passed: false, message: prepareError };
       } else {
         const page = "page" in test ? test.page : "";
         if (!files.some((f) => f.name === page)) {
           outcome = { passed: false, message: `Brak pliku ${page} w pracy.` };
         } else {
-          outcome = await runInFrame(files, test, page);
+          outcome = await runInFrame(runFiles, test, page, runtime, prelude);
         }
       }
     } catch (e) {

@@ -42,6 +42,8 @@ Stack: Next.js 15 (App Router) · TypeScript (strict) · Tailwind CSS · Supabas
    - `supabase/023_inf04_braki.sql` — mapa INF.04 uzupełniona o braki z podstawy (wyjątki i klasy abstrakcyjne w C#, wzorce projektowe, prawo autorskie, dane w aplikacjach mobilnych, sesje i logowanie, testy niefunkcjonalne)
    - `supabase/030_dzial_w_wielu_przedmiotach.sql` — koniec z kopiami działów: dział mapy może należeć do wielu przedmiotów (uruchom po 025)
    - `supabase/024_inf04_ai.sql` — dział „Sztuczna inteligencja” dla klas 3a i 4a (Python, NumPy, Pandas, scikit-learn, OpenCV, OpenVINO, NLP)
+   - `supabase/037_praktyka_react.sql` — zadania praktyczne w Reakcie: pliki `.jsx`, tryb zadania, test na kodzie źródłowym
+   - `supabase/038_praktyka_react_zadanie.sql` — zadanie „Lista zakupow (React)" na 60 minut
 
    Masz już bazę z poprzedniej wersji? Uruchom brakujące migracje (`002…`, `003…`) — nic nie nadpisują,
    a ponowne uruchomienie niczego nie duplikuje.
@@ -110,6 +112,7 @@ supabase/          schema.sql, seed.sql
 | **PIN + sesja** (`open_test`, `begin_session`) | pytania dostępne dopiero po PIN-ie; kolumna `tests.questions` zablokowana dla anon (uprawnienia kolumnowe); limit prób PIN |
 | **`submit_attempt(session)`** (RPC) | ocena i pomiar czasu po stronie serwera, jeden zapis na sesję, sesja wygasa po limicie + 5 min; powód zakończenia spoza listy → `completed`, licznik zmian karty przycięty do 0–1000 |
 | **`create_test()`** (RPC) | atomowy zapis testu + klucza, ponowna walidacja wszystkich pól w bazie |
+| **Kod ucznia w Reakcie** (037) | React wklejany do piaskownicy jako tekst (jej CSP nie dopuszcza skryptów z adresu), JSX przepisywany poza nią; `import` sięga wyłącznie plików zadania oraz `react` i `react-dom/client` |
 | **Odpowiedzi ucznia** (018) | zapisuje je wyłącznie `submit_attempt`, przycięte i o długości równej liczbie pytań (CHECK); czyta je tylko nauczyciel, klucz zostaje w `test_keys` |
 | `lib/validation.ts` | ta sama walidacja w UI i przed każdym wywołaniem Supabase |
 | React JSX | cały tekst użytkownika renderowany jako tekst; brak `dangerouslySetInnerHTML` (reguła ESLint `react/no-danger`) |
@@ -197,6 +200,29 @@ powstaje w dwóch krokach — testy automatyczne, potem weryfikacja nauczyciela.
    korekta wyniku testu (z wymaganym uzasadnieniem; oryginał automatu zostaje), punkty za kryteria
    ręczne, komentarz, publikacja i eksport CSV. Każdą pracę można **usunąć** pojedynczo (kosz
    przy wierszu), gdyby w bazie miała zostać tylko część podejść.
+
+**Technologia zadania:** w kreatorze wybierasz *HTML / CSS / JavaScript* albo *React (pliki .jsx)*.
+Zadanie reactowe uruchamia się tak samo jak każde inne — uczeń nic nie instaluje:
+
+- wejściem jest plik `.jsx` wskazany w `<script src>`, montowany przez `createRoot` w `<div id="root">`,
+- komponenty można rozbić na osobne pliki i łączyć `import`-ami; poza projektem dostępne są
+  `react` i `react-dom/client`,
+- JSX przepisuje przeglądarka nauczyciela (podgląd ucznia robi to u siebie), a React serwujemy
+  z własnego katalogu — **pracownia nie potrzebuje internetu**, ale po `git clone` trzeba raz
+  uruchomić `npm run vendor` (robi to też `npm run dev` i `npm run build`),
+- błąd składni JSX-a widać od razu: uczeń dostaje go w konsoli podglądu, nauczyciel —
+  w komunikacie każdego testu, który tej pracy nie mógł uruchomić.
+
+**Testowanie techniki, nie tylko efektu.** Do testów doszedł typ *Kod źródłowy zawiera /
+nie zawiera*: sprawdza treść pliku (np. `useState`, `export default`, brak `innerHTML`).
+Dowodzi tyle, że dany zapis jest w kodzie — nie że jest użyty poprawnie; podział
+komponentów i pracę ze stanem dalej ocenia nauczyciel kryterium ręcznym.
+
+⚠️ **Czego React kosztuje.** W zadaniach HTML/CSS/JS testy strukturalne biegną z wyłączonym
+skryptem ucznia, więc nie da się ich oszukać podmianą DOM. Strona reactowa bez skryptu to
+pusty `<div>`, więc tam testy muszą działać po zamontowaniu aplikacji — ich odporność spada
+do poziomu testów scenariuszowych (jeden wynik na test, sprawdzanie w przeglądarce
+nauczyciela, uczeń nie widzi rezultatu). Zadania HTML/CSS/JS są bez zmian.
 
 **Uczeń:** `/praktyka` → PIN i imię → poczekalnia → tryb pełnoekranowy → IDE (arkusz | edytor | podgląd).
 Kod zapisuje się sam (3 s po przerwie w pisaniu i co 30 s), odświeżenie strony wraca do pracy.
