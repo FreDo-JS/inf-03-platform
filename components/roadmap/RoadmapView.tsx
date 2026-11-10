@@ -26,9 +26,12 @@ type Props = {
   initialProgress: (Pick<ProgressRow, "class_name" | "subtopic_id"> & { marked_by: string | null })[];
   initialLinks: SubtopicLinkRow[];
   teachers: TeacherRow[];
+  /** podtematy z opracowaną teorią (okno „Teoria”) */
+  noteIds: string[];
 };
 
-export function RoadmapView({ categories, subtopics, initialProgress, initialLinks, teachers }: Props) {
+export function RoadmapView({ categories, subtopics, initialProgress, initialLinks, teachers, noteIds }: Props) {
+  const withNotes = useMemo(() => new Set(noteIds), [noteIds]);
   const [cls] = useSelectedClass();
   const { done, authors, status } = useRealtimeProgress(initialProgress);
   const names = useMemo(() => teacherNames(teachers), [teachers]);
@@ -152,6 +155,7 @@ export function RoadmapView({ categories, subtopics, initialProgress, initialLin
             return who === undefined ? null : (names.get(who) ?? null);
           }}
           linksBySubtopic={bySubtopic}
+          hasTheory={(id) => withNotes.has(id)}
           className={cls}
           onClose={closeModal}
         />

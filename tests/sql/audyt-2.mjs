@@ -102,7 +102,7 @@ console.log("\n== 2. PUBLICZNY ODCZYT: ZAMKNIĘTA LISTA ==");
 {
   const publiczne = (await wiersze(`select distinct tablename from pg_policies
     where schemaname='public' and cmd='SELECT' and qual = 'true' order by 1`)).map((r) => r.tablename);
-  const DOZWOLONE = ["categories", "classes", "progress", "subjects", "subtopic_links", "subtopics", "tests"];
+  const DOZWOLONE = ["categories", "classes", "progress", "subjects", "subtopic_links", "subtopic_notes", "subtopics", "tests"];
   ok("publicznie czytelne tylko: " + DOZWOLONE.join(", "), publiczne.join() === DOZWOLONE.join(), publiczne.join());
 }
 

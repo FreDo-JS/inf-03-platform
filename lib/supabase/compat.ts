@@ -62,6 +62,19 @@ export async function loadProgress(supabase: Server): Promise<ProgressLoad | nul
   return { rows: legacy.data.map((p) => ({ ...p, marked_by: null })), authorColumn: false };
 }
 
+/**
+ * Podtematy, które mają opracowaną teorię (migracja 033). Same identyfikatory —
+ * treść pobiera okno „Teoria” dopiero po kliknięciu. Brak tabeli = brak teorii.
+ */
+export async function loadNoteIds(supabase: Server): Promise<string[]> {
+  const { data, error } = await supabase.from("subtopic_notes").select("subtopic_id");
+  if (error) {
+    if (isMissingInDb(error)) warnMissing("033_subtopic_notes.sql", "tabeli subtopic_notes");
+    return [];
+  }
+  return data.map((r) => r.subtopic_id);
+}
+
 /** Nazwy nauczycieli są ozdobnikiem — ich brak nigdy nie blokuje strony. */
 export async function loadTeachers(supabase: Server): Promise<TeacherRow[]> {
   const { data, error } = await supabase.from("teachers").select("id, display_name");

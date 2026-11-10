@@ -311,6 +311,11 @@ export type Database = {
       // aplikacji (i fallbacki w compat.ts) nie musiały go wybierać.
       categories: Table<CategoryRow & { subject_id: string | null }, CategoryRow>;
       subtopics: Table<SubtopicRow, SubtopicRow>;
+      // teoria podtematu (033) — odczyt publiczny, zapis nauczyciela
+      subtopic_notes: Table<
+        { subtopic_id: string; content_md: string; updated_at: string; updated_by: string | null },
+        { subtopic_id: string; content_md: string; updated_by?: string | null }
+      >;
       subtopic_links: Table<
         SubtopicLinkRow,
         { id?: string; subtopic_id: string; label: string; url: string; sort_order?: number; created_at?: string },

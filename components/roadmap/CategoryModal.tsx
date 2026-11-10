@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ProgressBar } from "@/components/ProgressBar";
 import { Portal } from "@/components/shell/Portal";
 import { TeacherMark } from "@/components/TeacherMark";
+import { TheoryModal } from "@/components/roadmap/TheoryModal";
 import { safeLinkUrl } from "@/lib/validation";
 import type { CategoryRow, ClassName, SubtopicLinkRow, SubtopicRow } from "@/types/db";
-import { Check, ExternalLink, X } from "lucide-react";
+import { BookOpen, Check, ExternalLink, X } from "lucide-react";
 
 type Props = {
   index: number;
@@ -16,22 +17,38 @@ type Props = {
   /** nazwa nauczyciela, który oznaczył podtemat — null, gdy nieoznaczony lub bez nazwy */
   markedBy: (subtopicId: string) => string | null;
   linksBySubtopic: Map<string, SubtopicLinkRow[]>;
+  /** czy podtemat ma opracowaną teorię (otwiera okno „Teoria”) */
+  hasTheory: (subtopicId: string) => boolean;
   className: ClassName;
   onClose: () => void;
 };
 
 /** Materiały podtematu. Etykieta renderowana jako tekst (JSX escapuje), href tylko dla http(s). */
-function SubtopicLinks({ links }: { links: SubtopicLinkRow[] }) {
+function SubtopicLinks({ links, onTheory }: { links: SubtopicLinkRow[]; onTheory?: () => void }) {
   const safe = links
     .map((l) => ({ id: l.id, label: l.label, href: safeLinkUrl(l.url) }))
     .filter((l): l is { id: string; label: string; href: string } => l.href !== null);
 
-  if (safe.length === 0) {
+  const theory = onTheory && (
+    <li className="min-w-0 max-w-full">
+      <button
+        type="button"
+        onClick={onTheory}
+        className="chip max-w-full border-accent/40 text-accent transition hover:bg-accent/10"
+      >
+        <BookOpen size={12} aria-hidden />
+        <span className="min-w-0 truncate">Teoria</span>
+      </button>
+    </li>
+  );
+
+  if (safe.length === 0 && !theory) {
     return <p className="mt-2 text-xs text-muted/70">Brak materiałów — dodaj je w panelu Admin.</p>;
   }
 
   return (
     <ul className="mt-2.5 flex flex-wrap gap-2">
+      {theory}
       {safe.map((l) => (
         // min-w-0 na każdym poziomie: bez tego długa etykieta rozpycha element
         // i na telefonie wychodzi poza okno zamiast się przyciąć.
@@ -51,8 +68,9 @@ function SubtopicLinks({ links }: { links: SubtopicLinkRow[] }) {
   );
 }
 
-export function CategoryModal({ index, category, subtopics, isDone, markedBy, linksBySubtopic, className, onClose }: Props) {
+export function CategoryModal({ index, category, subtopics, isDone, markedBy, linksBySubtopic, hasTheory, className, onClose }: Props) {
   const closeRef = useRef<HTMLButtonElement>(null);
+  const [theoryFor, setTheoryFor] = useState<SubtopicRow | null>(null);
 
   useEffect(() => {
     closeRef.current?.focus();
@@ -124,7 +142,10 @@ export function CategoryModal({ index, category, subtopics, isDone, markedBy, li
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className={`font-medium leading-snug ${done ? "text-fg" : "text-fg/85"}`}>{s.title}</p>
-                    <SubtopicLinks links={linksBySubtopic.get(s.id) ?? []} />
+                    <SubtopicLinks
+                      links={linksBySubtopic.get(s.id) ?? []}
+                      onTheory={hasTheory(s.id) ? () => setTheoryFor(s) : undefined}
+                    />
                   </div>
                   <TeacherMark done={done} name={markedBy(s.id)} size="sm" />
                 </div>
@@ -135,6 +156,9 @@ export function CategoryModal({ index, category, subtopics, isDone, markedBy, li
         <p className="mt-5 text-center text-xs text-muted">Stan ukończenia ustawia nauczyciel — widok tylko do odczytu.</p>
       </div>
       </div>
+      {theoryFor && (
+        <TheoryModal subtopicId={theoryFor.id} title={theoryFor.title} onClose={() => setTheoryFor(null)} />
+      )}
     </Portal>
   );
 }
