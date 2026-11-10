@@ -60,6 +60,7 @@ CHECK-i i funkcje. **Każda zmiana w `supabase/*.sql` musi mieć pokrycie w `tes
 | `028_praktyka_komentarze.sql` | komentarz nauczyciela do kryterium (`manual_scores[].comment`, maks. 300 znaków) widoczny w `practical_result` po publikacji |
 | `027_praktyka_zadania.sql` | pięć zadań praktycznych — **plik generowany** z `scripts/praktyka/zadania/*.mjs` przez `node scripts/praktyka/generuj.mjs` (formularz z walidacją, galeria RWD, cennik w tabeli, strona z trzech podstron, licznik z motywem) |
 | `026_praktyka_typy_testow.sql` | siedem nowych typów testów w `practical_tests_valid`: `images_alt`, `form_labels`, `heading_structure`, `css_media`, `links_valid`, `no_js_errors`, `file_content` |
+| `032_question_images.sql` | obrazek jako ilustracja pytania `closed` i `input`: pole `image` (data URI png/jpeg/webp/gif, bez SVG, maks. 600 tys. znaków) i `alt`; cały test maks. ok. 4 MB. Zmienia tylko `questions_valid` (generowane z 031) |
 | `031_multi_questions.sql` | typ pytania `multi` — wielokrotny wybór; klucz to podzbiór opcji (nigdy wszystkie), ocena zero-jedynkowa. Plik generowany ze zmian nałożonych na 020 |
 | `030_dzial_w_wielu_przedmiotach.sql` | tabela `category_subjects` (dział mapy może należeć do wielu przedmiotów) — **zastępuje kopiowanie działów z 025** i kasuje 18 kopii, przenosząc wcześniej ewentualny postęp na oryginały |
 | `025_przedmioty_inf03.sql` | trzy kolejne przedmioty INF.03 w tabeli Nauczyciele (Tworzenie stron i aplikacji internetowych, Aplikacje desktopowe i mobilne, Programowanie strukturalne i obiektowe) zrobione jak „Programowanie aplikacji internetowych": każdy dostaje **własne kopie** jego sześciu działów (algorytmy, JS, PHP, serwer, bezpieczeństwo, C++) z podtematami i materiałami, prefiksy `i3-tsai-` / `i3-adm-` / `i3-psio-`; w mapie INF.03 działy są więc zdublowane (15 → 33). Sprząta po dawnych podejściach (przedmioty jako INF.04, kwalifikacje tsai/adm/psio) |
@@ -235,6 +236,11 @@ klucz: [".box", "div.box"]
 - Kolejność zaznaczeń i powtórzenia w odpowiedzi nie mają znaczenia; porównanie przez
   `normalize_answer()`.
 
+**Pułapka w kreatorze (naprawiona 10.11.2026).** Lista „Typ pytania” w `NewTestTab` przepuszczała
+tylko `closed/select/input/matching`, więc wybór „wielokrotny wybór” albo „luki” po cichu nic nie
+zmieniał, a `emptyQuestion("multi")` dawało pytanie bez opcji — walidacja nie przechodziła i nie było
+jak tego naprawić. Dokładając typ pytania, sprawdź **oba** miejsca (lista i przyciski „+ typ”).
+
 **Pułapka, na którą już raz wdepnęliśmy.** Ocena porównuje różnicę symetryczną zbiorów:
 
 ```sql
@@ -253,6 +259,15 @@ Plik 031 jest **generowany** ze zmian nałożonych na 020, żeby niezmienione cz
 `questions_valid`, `create_test` i `submit_attempt` zostały co do znaku takie same.
 Dokładając kolejny typ pytania, zrób tak samo — ręczne przepisywanie trzystu linii to
 proszenie się o cichą różnicę w nieruszanej gałęzi.
+
+## Obrazki w pytaniach
+
+Pytania `closed` i `input` mogą mieć ilustrację (migracja 032). Obrazek jest **osadzony** w treści
+pytania jako data URI, nie linkiem: pracownia bywa bez internetu, nie trzeba koszyka w Storage, a uczeń
+dostaje obrazek razem z pytaniami dopiero po PIN-ie (kolumna `questions` jest dla anon zamknięta).
+Panel zmniejsza go w przeglądarce do maks. 1200 px i zapisuje jako WebP (`lib/image.ts`). Wyrażenie
+`IMAGE_DATA_URL_RE` w `lib/validation.ts` jest lustrem tego z `questions_valid` — zmieniasz jedno,
+poprawiasz drugie. SVG jest odrzucane celowo (to dokument, może mieć skrypty i odwołania).
 
 ## Pytania z lukami w kodzie
 
@@ -508,7 +523,7 @@ i zegar, żeby usiadł kolejny uczeń. Link do wyniku kopiuje nauczyciel w zakł
 ## Po stronie użytkownika (wciąż otwarte)
 
 1. Wkleić `NEXT_PUBLIC_SUPABASE_ANON_KEY` do `.env.local` (przeze mnie skasowany).
-2. Wykonać migracje **003–031** w Supabase SQL Editor — nic z nich nie było testowane
+2. Wykonać migracje **003–032** w Supabase SQL Editor — nic z nich nie było testowane
    na prawdziwej bazie, tylko na PGlite.
 3. Dopisać konta nauczycieli do tabeli `admins` i wyłączyć publiczną rejestrację.
 

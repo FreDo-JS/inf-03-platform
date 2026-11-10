@@ -39,7 +39,15 @@ export const LIMITS = {
   linkLabel: { min: 1, max: 120 },
   linkUrl: { min: 1, max: 500 },
   sortOrder: { min: 0, max: 999 },
+  /** obrazek pytania jako data URI — ten sam limit co w questions_valid (032) */
+  image: { max: 600000 },
+  imageAlt: { max: 200 },
+  /** cała treść testu razem z obrazkami */
+  questionsJson: { max: 4000000 },
 } as const;
+
+/** Lustro wyrażenia z questions_valid (032): tylko osadzony obraz rastrowy, bez SVG. */
+export const IMAGE_DATA_URL_RE = /^data:image\/(png|jpeg|webp|gif);base64,[A-Za-z0-9+/]+={0,2}$/;
 
 export type Result<T> = { ok: true; value: T } | { ok: false; error: string };
 
@@ -232,6 +240,10 @@ export type DraftQuestion = {
   gapAnswers: string[][];
   /** multi: indeksy wszystkich poprawnych opcji */
   correctIndexes: number[];
+  /** closed/input: obrazek do pytania (data URI) albo null */
+  image: string | null;
+  /** opis obrazka dla czytników ekranu */
+  alt: string;
 };
 
 export type TestDraft = {
@@ -262,13 +274,15 @@ export function emptyQuestion(type: QuestionType = "closed"): DraftQuestion {
   return {
     type,
     text: "",
-    options: type === "closed" || type === "select" ? ["", ""] : [],
+    options: type === "closed" || type === "select" || type === "multi" ? ["", ""] : [],
     correctIndex: null,
     accepted: type === "input" ? [""] : [],
     pairs: type === "matching" ? [emptyPair(), emptyPair()] : [],
     code: "",
     gapAnswers: [],
     correctIndexes: [],
+    image: null,
+    alt: "",
   };
 }
 
@@ -276,11 +290,24 @@ export function emptyPair(): DraftPair {
   return { left: "", right: "" };
 }
 
+/** Obrazek pytania (tylko closed i input) — pola gotowe do dopisania do pytania. */
+function questionImage(q: DraftQuestion, errors: string[]): { image?: string; alt?: string } {
+  if (q.image === null || (q.type !== "closed" && q.type !== "input")) return {};
+  if (q.image.length > LIMITS.image.max || !IMAGE_DATA_URL_RE.test(q.image)) {
+    errors.push("Obrazek jest za duży albo ma nieobsługiwany format — dodaj go ponownie.");
+    return {};
+  }
+  const alt = cleanText(q.alt);
+  if (alt.length > LIMITS.imageAlt.max) errors.push(`Opis obrazka: maks. ${LIMITS.imageAlt.max} znaków.`);
+  return alt.length > 0 ? { image: q.image, alt } : { image: q.image };
+}
+
 function validateQuestion(q: DraftQuestion): { errors: string[]; question?: PublicQuestion; key?: AnswerKey } {
   const errors: string[] = [];
   const text = cleanText(q.text);
   if (text.length === 0) errors.push("Treść pytania jest wymagana.");
   else if (!lengthOk(text, LIMITS.questionText)) errors.push(`Treść pytania: maks. ${LIMITS.questionText.max} znaków.`);
+  const media = questionImage(q, errors);
 
   if (q.type === "closed" || q.type === "select") {
     const options = q.options.map(cleanText);
@@ -297,7 +324,7 @@ function validateQuestion(q: DraftQuestion): { errors: string[]; question?: Publ
     if (correct === undefined || correct.length === 0) errors.push("Zaznacz dokładnie jedną poprawną odpowiedź.");
 
     if (errors.length > 0 || correct === undefined) return { errors };
-    return { errors, question: { type: q.type, text, options }, key: [correct] };
+    return { errors, question: { type: q.type, text, options, ...media }, key: [correct] };
   }
 
   if (q.type === "matching") {
@@ -398,7 +425,7 @@ function validateQuestion(q: DraftQuestion): { errors: string[]; question?: Publ
   if (unique.some((a) => !lengthOk(a, LIMITS.option))) errors.push(`Wariant odpowiedzi: maks. ${LIMITS.option.max} znaków.`);
 
   if (errors.length > 0) return { errors };
-  return { errors, question: { type: "input", text }, key: unique };
+  return { errors, question: { type: "input", text, ...media }, key: unique };
 }
 
 export function validateTestDraft(draft: TestDraft): { ok: true; value: TestPayload } | { ok: false; errors: DraftErrors } {
@@ -428,6 +455,13 @@ export function validateTestDraft(draft: TestDraft): { ok: true; value: TestPayl
       errors.pin = p.error;
       failed = true;
     }
+  }
+
+  // obrazki siedzą w treści testu — cały test ma limit w bazie (questions_valid, 032)
+  const obrazki = draft.questions.reduce((s, q) => s + (q.image?.length ?? 0), 0);
+  if (obrazki > LIMITS.questionsJson.max - 200000) {
+    errors.general = "Obrazki zajmują za dużo miejsca — usuń część albo dodaj mniejsze.";
+    failed = true;
   }
 
   if (draft.questions.length < LIMITS.questions.min || draft.questions.length > LIMITS.questions.max) {
@@ -467,8 +501,16 @@ export function parseQuestions(json: Json | unknown): PublicQuestion[] | null {
   const out: PublicQuestion[] = [];
   for (const item of json) {
     if (!isRecord(item) || typeof item.text !== "string") return null;
+    // obrazek tylko w poprawnej postaci — cokolwiek innego pomijamy, nie wyświetlamy
+    const media =
+      (item.type === "input" || item.type === "closed") &&
+      typeof item.image === "string" &&
+      item.image.length <= LIMITS.image.max &&
+      IMAGE_DATA_URL_RE.test(item.image)
+        ? { image: item.image, ...(typeof item.alt === "string" ? { alt: item.alt.slice(0, LIMITS.imageAlt.max) } : {}) }
+        : {};
     if (item.type === "input") {
-      out.push({ type: "input", text: item.text });
+      out.push({ type: "input", text: item.text, ...media });
     } else if (item.type === "matching") {
       const { left, right } = item;
       if (!isStringArray(left) || !isStringArray(right) || left.length !== right.length || left.length < 2) return null;
@@ -483,7 +525,7 @@ export function parseQuestions(json: Json | unknown): PublicQuestion[] | null {
     } else if (item.type === "closed" || item.type === "select") {
       const opts = item.options;
       if (!Array.isArray(opts) || !opts.every((o): o is string => typeof o === "string")) return null;
-      out.push({ type: item.type, text: item.text, options: opts });
+      out.push({ type: item.type, text: item.text, options: opts, ...media });
     } else {
       return null;
     }

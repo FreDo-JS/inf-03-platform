@@ -46,8 +46,13 @@ export type ClassRow = {
 export type QuestionType = "closed" | "select" | "input" | "matching" | "gaps" | "multi";
 
 /** Pytanie w postaci publicznej (bez poprawnej odpowiedzi). */
-export type ChoiceQuestion = { type: "closed" | "select"; text: string; options: string[] };
-export type InputQuestion = { type: "input"; text: string };
+/**
+ * Obrazek do pytania (migracja 032): data URI obrazu rastrowego, tylko przy `closed`
+ * i `input`; `alt` to opis dla czytników ekranu.
+ */
+export type QuestionImage = { image?: string; alt?: string };
+export type ChoiceQuestion = { type: "closed" | "select"; text: string; options: string[] } & QuestionImage;
+export type InputQuestion = { type: "input"; text: string } & QuestionImage;
 /**
  * Wielokrotny wybór: poprawna może być więcej niż jedna opcja. Kształt taki
  * sam jak przy jednokrotnym wyborze — różni się klucz (podzbiór opcji)

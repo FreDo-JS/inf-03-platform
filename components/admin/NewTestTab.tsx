@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { friendlyError } from "@/lib/errors";
+import { IMAGE_ACCEPT, compressImage } from "@/lib/image";
 import { getBrowserSupabase } from "@/lib/supabase/client";
 import {
   LIMITS,
@@ -15,7 +16,7 @@ import {
   type TestDraft,
 } from "@/lib/validation";
 import { QUALIFICATIONS, QUALIFICATION_LABEL, type Qualification, type QuestionType } from "@/types/db";
-import { ArrowDown, ArrowLeftRight, ArrowUp, Check, Dices, X } from "lucide-react";
+import { ArrowDown, ArrowLeftRight, ArrowUp, Check, Dices, ImagePlus, X } from "lucide-react";
 
 const TYPE_LABEL: Record<QuestionType, string> = {
   closed: "zamknięte (jednokrotny wybór)",
@@ -73,8 +74,10 @@ export function NewTestTab() {
     );
 
   const changeType = (i: number, type: QuestionType) =>
-    updateQuestion(i, (q) => {
-      if (type === q.type) return q;
+    updateQuestion(i, (prev) => {
+      if (type === prev.type) return prev;
+      // obrazek mają tylko pytania jednokrotnego wyboru i z polem tekstowym
+      const q = type === "closed" || type === "input" ? prev : { ...prev, image: null, alt: "" };
       if (type === "input") {
         return { ...q, type, options: [], correctIndex: null, accepted: q.accepted.length ? q.accepted : [""], pairs: [] };
       }
@@ -132,7 +135,16 @@ export function NewTestTab() {
     setSaving(false);
 
     if (error) {
-      setSaveError(friendlyError(error, "Nie udało się zapisać testu."));
+      // Kod idzie na serwer od razu, migracje ktoś wkleja ręcznie. Gdy baza nie zna
+      // jeszcze nowego typu albo obrazków, mówimy wprost, której migracji brakuje.
+      const zlePytania = typeof error.message === "string" && error.message.includes("invalid_questions");
+      if (zlePytania && draft.questions.some((q) => q.image !== null)) {
+        setSaveError("Baza nie przyjmuje jeszcze obrazków w pytaniach — uruchom migrację 032_question_images.sql.");
+      } else if (zlePytania && draft.questions.some((q) => q.type === "multi")) {
+        setSaveError("Baza nie zna jeszcze pytań wielokrotnego wyboru — uruchom migrację 031_multi_questions.sql.");
+      } else {
+        setSaveError(friendlyError(error, "Nie udało się zapisać testu."));
+      }
       return;
     }
     const res = parseCreateTestResult(data);
@@ -323,7 +335,9 @@ function QuestionEditor({ index, count, question: q, errors, onChange, onType, o
             value={q.type}
             onChange={(e) => {
               const v = e.target.value;
-              if (v === "closed" || v === "select" || v === "input" || v === "matching") onType(v);
+              // każdy typ z listy — wcześniej przechodziły tylko cztery pierwsze i wybór
+              // „wielokrotny wybór" albo „luki w kodzie" po cichu nic nie zmieniał
+              if (v in TYPE_LABEL) onType(v as QuestionType);
             }}
             aria-label="Typ pytania"
           >
@@ -367,6 +381,8 @@ function QuestionEditor({ index, count, question: q, errors, onChange, onType, o
       <p className="mt-1 text-right text-xs text-muted">
         {q.text.length}/{LIMITS.questionText.max}
       </p>
+
+      {(q.type === "closed" || q.type === "input") && <QuestionImagePicker question={q} onChange={onChange} />}
 
       {q.type === "closed" || q.type === "select" || q.type === "multi" ? (
         <fieldset className="mt-2">
@@ -672,5 +688,79 @@ function GapsFields({
         </div>
       )}
     </fieldset>
+  );
+}
+
+/** Obrazek jako ilustracja pytania: wybór pliku, kompresja w przeglądarce, podgląd i opis. */
+function QuestionImagePicker({
+  question: q,
+  onChange,
+}: {
+  question: DraftQuestion;
+  onChange: (fn: (q: DraftQuestion) => DraftQuestion) => void;
+}) {
+  const fileInput = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const pick = async (file: File | undefined) => {
+    if (!file) return;
+    setBusy(true);
+    setError(null);
+    const r = await compressImage(file);
+    setBusy(false);
+    if (!r.ok) {
+      setError(r.error);
+      return;
+    }
+    onChange((x) => ({ ...x, image: r.dataUrl }));
+  };
+
+  return (
+    <div className="mt-3">
+      <input
+        ref={fileInput}
+        type="file"
+        accept={IMAGE_ACCEPT}
+        className="sr-only"
+        tabIndex={-1}
+        aria-label="Plik obrazka do pytania"
+        onChange={(e) => {
+          void pick(e.target.files?.[0]);
+          e.target.value = "";
+        }}
+      />
+      {q.image === null ? (
+        <button type="button" className="btn-ghost px-3 py-1 text-xs" disabled={busy} onClick={() => fileInput.current?.click()}>
+          <ImagePlus size={14} aria-hidden /> {busy ? "Przygotowywanie obrazka…" : "Dodaj obrazek do pytania"}
+        </button>
+      ) : (
+        <div className="rounded-xl border border-line p-3">
+          {/* eslint-disable-next-line @next/next/no-img-element -- data URI z pamięci, next/image nic tu nie wnosi */}
+          <img src={q.image} alt={q.alt || "Obrazek do pytania"} className="max-h-56 max-w-full rounded-lg border border-line" />
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <input
+              className="input min-w-[12rem] flex-1 py-1.5 text-sm"
+              placeholder="Opis obrazka dla czytnika ekranu (opcjonalnie)"
+              value={q.alt}
+              maxLength={LIMITS.imageAlt.max}
+              onChange={(e) => {
+                const v = e.target.value;
+                onChange((x) => ({ ...x, alt: v }));
+              }}
+              aria-label="Opis obrazka"
+            />
+            <button type="button" className="btn-ghost px-3 py-1 text-xs" disabled={busy} onClick={() => fileInput.current?.click()}>
+              Zmień
+            </button>
+            <button type="button" className="btn-danger px-3 py-1 text-xs" onClick={() => onChange((x) => ({ ...x, image: null, alt: "" }))}>
+              Usuń obrazek
+            </button>
+          </div>
+          <p className="mt-1 text-xs text-muted">Obrazek zobaczy uczeń dopiero po wpisaniu PIN-u, razem z pytaniem.</p>
+        </div>
+      )}
+      {error && <p className="mt-1 text-xs text-danger">{error}</p>}
+    </div>
   );
 }

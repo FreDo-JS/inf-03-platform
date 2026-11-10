@@ -807,6 +807,14 @@ export function Quiz({ testId, title, timeLimitSec, questionCount }: Props) {
         <h2 className="mt-4 break-words text-xl font-semibold leading-snug sm:text-2xl">
           {q.text}
         </h2>
+        {(q.type === "closed" || q.type === "input") && q.image && (
+          // eslint-disable-next-line @next/next/no-img-element -- obrazek przychodzi jako data URI w treści pytania
+          <img
+            src={q.image}
+            alt={q.alt || "Ilustracja do pytania"}
+            className="mt-4 max-h-[22rem] max-w-full rounded-xl border border-line bg-white/[0.02]"
+          />
+        )}
 
         <div className="mt-6">
           {q.type === "closed" && (
