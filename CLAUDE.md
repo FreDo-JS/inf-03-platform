@@ -60,6 +60,7 @@ CHECK-i i funkcje. **Każda zmiana w `supabase/*.sql` musi mieć pokrycie w `tes
 | `028_praktyka_komentarze.sql` | komentarz nauczyciela do kryterium (`manual_scores[].comment`, maks. 300 znaków) widoczny w `practical_result` po publikacji |
 | `027_praktyka_zadania.sql` | pięć zadań praktycznych — **plik generowany** z `scripts/praktyka/zadania/*.mjs` przez `node scripts/praktyka/generuj.mjs` (formularz z walidacją, galeria RWD, cennik w tabeli, strona z trzech podstron, licznik z motywem) |
 | `026_praktyka_typy_testow.sql` | siedem nowych typów testów w `practical_tests_valid`: `images_alt`, `form_labels`, `heading_structure`, `css_media`, `links_valid`, `no_js_errors`, `file_content` |
+| `035_teoria_multimedia_algorytmy_cpp_php.sql` | teoria do 31 podtematów działów `multimedia`, `algorytmy`, `cpp`, `php` — plik generowany: `node scripts/teoria/generuj.mjs multimedia,algorytmy,cpp,php 035` |
 | `034_teoria_podstawy.sql` | teoria do 10 podtematów działu `podstawy` (INF.03.2) — **plik generowany** z `scripts/teoria/podstawy/*.md` przez `node scripts/teoria/generuj.mjs podstawy 034`; nie nadpisuje notatek poprawionych w bazie |
 | `033_subtopic_notes.sql` | tabela `subtopic_notes` (teoria przy podtemacie, Markdown, maks. 20 tys. znaków), odczyt publiczny, zapis nauczyciela; na mapie przycisk **Teoria** otwiera okno z treścią |
 | `032_question_images.sql` | obrazek jako ilustracja pytania `closed` i `input`: pole `image` (data URI png/jpeg/webp/gif, bez SVG, maks. 600 tys. znaków) i `alt`; cały test maks. ok. 4 MB. Zmienia tylko `questions_valid` (generowane z 031) |
@@ -281,8 +282,11 @@ teorii, strona działa dalej). Markdown bez surowego HTML-a, linki przez `safeLi
 Treści pisze się w `scripts/teoria/<dział>/<id-podtematu>.md` i generuje migrację:
 `node scripts/teoria/generuj.mjs <dział> <numer>`. Każda notatka ma ten sam układ: **W skrócie** →
 pojęcia (tabela) → jak to rozumieć / przykład → **Na egzaminie** → **Sprawdź się** z odpowiedziami.
-`tests/sql/teoria.mjs` pilnuje świeżości pliku SQL i tego układu. Gotowy jest dział `podstawy`;
-kolejne działy robi się tak samo, kolejnym numerem migracji.
+Pierwsza linia każdego pliku `*_teoria_*.sql` zapisuje polecenie, którym powstał (`-- generuj: …`);
+`tests/sql/teoria.mjs` odtwarza z niej **wszystkie** pliki, sprawdza ich świeżość, kompletność działów,
+układ notatek i brak surowego HTML-a poza blokami kodu. Gotowe działy: `podstawy` (034) oraz
+`multimedia`, `algorytmy`, `cpp`, `php` (035). Kolejne — nowym numerem migracji, kilka działów naraz
+rozdzielasz przecinkiem. Nie zmieniaj już wgranych plików inaczej niż przez generator.
 
 ## Pytania z lukami w kodzie
 
@@ -538,7 +542,7 @@ i zegar, żeby usiadł kolejny uczeń. Link do wyniku kopiuje nauczyciel w zakł
 ## Po stronie użytkownika (wciąż otwarte)
 
 1. Wkleić `NEXT_PUBLIC_SUPABASE_ANON_KEY` do `.env.local` (przeze mnie skasowany).
-2. Wykonać migracje **003–034** w Supabase SQL Editor — nic z nich nie było testowane
+2. Wykonać migracje **003–035** w Supabase SQL Editor — nic z nich nie było testowane
    na prawdziwej bazie, tylko na PGlite.
 3. Dopisać konta nauczycieli do tabeli `admins` i wyłączyć publiczną rejestrację.
 

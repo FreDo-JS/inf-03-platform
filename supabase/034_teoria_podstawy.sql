@@ -1,22 +1,14 @@
+-- generuj: podstawy 034
 -- =============================================================================
--- 034_teoria_podstawy.sql — teoria do podtematów działu „podstawy"
+-- 034_teoria_podstawy.sql — teoria do podtematów: podstawy
 --
 -- Uruchom po 033_subtopic_notes.sql.
 --
--- PLIK GENEROWANY: źródła w scripts/teoria/podstawy/*.md, generator
+-- PLIK GENEROWANY: źródła w scripts/teoria/<dział>/*.md, generator
 -- scripts/teoria/generuj.mjs. Poprawiasz treść w pliku .md i generujesz od nowa.
 -- Istniejących notatek nie nadpisuje (on conflict do nothing).
 --
---   pod-adresacja
---   pod-architektura
---   pod-binarne
---   pod-cyber
---   pod-dane-osobowe
---   pod-liczby
---   pod-normy
---   pod-sieci
---   pod-sprzet
---   pod-systemy
+--   podstawy: pod-adresacja, pod-architektura, pod-binarne, pod-cyber, pod-dane-osobowe, pod-liczby, pod-normy, pod-sieci, pod-sprzet, pod-systemy
 -- =============================================================================
 
 do $$

@@ -1,4 +1,4 @@
-// Migracje 033–034 — teoria przy podtematach mapy nauki.
+// Migracje 033 i kolejne *_teoria_*.sql — teoria przy podtematach mapy nauki.
 import { PGlite } from "@electric-sql/pglite";
 import { execFileSync } from "node:child_process";
 import { readFileSync, readdirSync } from "node:fs";
@@ -18,12 +18,23 @@ const ok = (label, warunek, szczegol = "") => {
   else { fail++; console.log("  FAIL ", label, szczegol ? "→ " + szczegol : ""); }
 };
 
-console.log("== PLIK SQL JEST ŚWIEŻY ==");
+// Pliki z teorią i działy, z których powstały (pierwsza linia: „-- generuj: <działy> <numer>”)
+const plikiTeorii = readdirSync(root).filter((f) => /^\d{3}_teoria_.*\.sql$/.test(f)).sort();
+const zrodla = plikiTeorii.map((f) => {
+  const m = read(f).match(/^-- generuj: (\S+) (\d{3})/);
+  return { plik: f, dzialy: m ? m[1].split(",") : [], numer: m?.[2] };
+});
+
+console.log("== PLIKI SQL SĄ ŚWIEŻE ==");
 {
   const norm = (s) => s.replace(/\r\n/g, "\n");
-  const przed = norm(read("034_teoria_podstawy.sql"));
-  execFileSync(process.execPath, [join(repo, "scripts", "teoria", "generuj.mjs"), "podstawy", "034"], { stdio: "pipe" });
-  ok("generator daje ten sam plik co zatwierdzony (034 odpowiada scripts/teoria/podstawy)", przed === norm(read("034_teoria_podstawy.sql")));
+  ok("są pliki z teorią i każdy pamięta, z czego powstał", zrodla.length >= 2 && zrodla.every((z) => z.numer && z.dzialy.length > 0),
+    JSON.stringify(zrodla.map((z) => z.plik)));
+  for (const z of zrodla) {
+    const przed = norm(read(z.plik));
+    execFileSync(process.execPath, [join(repo, "scripts", "teoria", "generuj.mjs"), z.dzialy.join(","), z.numer], { stdio: "pipe" });
+    ok(`${z.plik} odpowiada scripts/teoria/{${z.dzialy.join(",")}}`, przed === norm(read(z.plik)));
+  }
 }
 
 const db = new PGlite();
@@ -53,14 +64,25 @@ const jako = (kto) => db.exec(kto === "anon"
   ? `reset role; select set_config('request.jwt.claim.role','anon',false); select set_config('request.jwt.claim.sub','',false); set role anon;`
   : `reset role; select set_config('request.jwt.claim.role','authenticated',false); select set_config('request.jwt.claim.sub','${kto}',false); set role authenticated;`);
 
-console.log("\n== TREŚĆ DZIAŁU PODSTAWY ==");
+console.log("\n== TREŚĆ DZIAŁÓW ==");
+// kod w blokach i w `…` jest wyświetlany jako tekst — surowego HTML-a szukamy tylko poza nim
+const bezKodu = (md) => md.replace(/```[\s\S]*?```/g, "").replace(/`[^`\n]*`/g, "");
+for (const dzial of [...new Set(zrodla.flatMap((z) => z.dzialy))]) {
+  const podt = await q(`select s.id, n.content_md from subtopics s left join subtopic_notes n on n.subtopic_id = s.id
+                        where s.category_id = $1 order by s.position`, [dzial]);
+  ok(`${dzial}: każdy z ${podt.length} podtematów ma teorię`, podt.length > 0 && podt.every((p) => p.content_md),
+    podt.filter((p) => !p.content_md).map((p) => p.id).join());
+  ok(`${dzial}: układ „W skrócie” … „Sprawdź się” z odpowiedziami`,
+    podt.every((p) => p.content_md?.startsWith("**W skrócie:**") && p.content_md.includes("## Na egzaminie")
+      && p.content_md.includes("## Sprawdź się") && p.content_md.includes("**Odpowiedzi:**")),
+    podt.filter((p) => !p.content_md?.includes("## Na egzaminie")).map((p) => p.id).join());
+  ok(`${dzial}: bez surowego HTML-a poza blokami kodu`,
+    podt.every((p) => !/<\/?[a-z][a-z0-9]*[\s>\/]/i.test(bezKodu(p.content_md ?? ""))),
+    podt.filter((p) => /<\/?[a-z][a-z0-9]*[\s>\/]/i.test(bezKodu(p.content_md ?? ""))).map((p) => p.id).join());
+}
 {
-  const podt = (await q(`select s.id, n.content_md from subtopics s left join subtopic_notes n on n.subtopic_id = s.id
-                          where s.category_id = 'podstawy' order by s.position`));
-  ok("każdy z 10 podtematów działu ma teorię", podt.length === 10 && podt.every((p) => p.content_md), podt.filter((p) => !p.content_md).map((p) => p.id).join());
-  ok("każda notatka zaczyna się od „W skrócie” i kończy pytaniami z odpowiedziami",
-    podt.every((p) => p.content_md.startsWith("**W skrócie:**") && p.content_md.includes("## Sprawdź się") && p.content_md.includes("**Odpowiedzi:**")));
-  ok("notatki nie zawierają surowego HTML-a", podt.every((p) => !/<(script|iframe|img|a)\b/i.test(p.content_md)));
+  const [{ n }] = await q(`select count(*)::int n from subtopic_notes n left join subtopics s on s.id = n.subtopic_id where s.id is null`);
+  ok("każda notatka należy do istniejącego podtematu", n === 0);
 }
 
 console.log("\n== UPRAWNIENIA ==");
@@ -92,7 +114,7 @@ ok("pusta notatka odrzucona", pusta);
 console.log("\n== POWTARZALNOŚĆ I KASKADA ==");
 await db.exec("reset role;");
 await db.exec(read("033_subtopic_notes.sql"));
-await db.exec(read("034_teoria_podstawy.sql"));
+for (const z of zrodla) await db.exec(read(z.plik));
 ok("ponowne uruchomienie nie nadpisuje poprawki nauczyciela",
   (await q(`select content_md from subtopic_notes where subtopic_id = 'pod-sprzet'`))[0].content_md === "Poprawione przez nauczyciela");
 await db.exec(`delete from subtopics where id = 'pod-normy'`);
