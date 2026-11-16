@@ -7,7 +7,7 @@
 // i czy uczeń dostaje w stanie podejścia informację, jak uruchomić pracę.
 import { PGlite } from "@electric-sql/pglite";
 import { execFileSync } from "node:child_process";
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -64,6 +64,9 @@ console.log("== PLIK SQL JEST ŚWIEŻY ==");
   const przed = read("038_praktyka_react_zadanie.sql");
   execFileSync(process.execPath, [join(root, "..", "scripts", "praktyka", "react-lista.mjs")], { stdio: "pipe" });
   const po = read("038_praktyka_react_zadanie.sql");
+  // oddajemy oryginalne bajty, zeby przebieg testow nie zostawial pliku
+  // "zmodyfikowanego" w git status (generator pisze LF, git oddaje CRLF)
+  writeFileSync(root + "038_praktyka_react_zadanie.sql", przed);
   ok("generator daje ten sam plik co zatwierdzony (038 odpowiada źródłom)", bezCR(przed) === bezCR(po));
 }
 

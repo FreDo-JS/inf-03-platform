@@ -7,7 +7,7 @@
 // panel („Sprawdź na wzorcu”) — w czasie tworzenia zadań było to zrobione w przeglądarce.
 import { PGlite } from "@electric-sql/pglite";
 import { execFileSync } from "node:child_process";
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -30,6 +30,9 @@ console.log("== PLIK SQL JEST ŚWIEŻY ==");
   const przed = read("027_praktyka_zadania.sql");
   execFileSync(process.execPath, [join(repo, "scripts", "praktyka", "generuj.mjs")], { stdio: "pipe" });
   const po = read("027_praktyka_zadania.sql");
+  // oddajemy oryginalne bajty, zeby przebieg testow nie zostawial pliku
+  // "zmodyfikowanego" w git status (generator pisze LF, git oddaje CRLF)
+  writeFileSync(root + "027_praktyka_zadania.sql", przed);
   ok("generator daje ten sam plik co zatwierdzony (027 odpowiada źródłom)", bezCR(przed) === bezCR(po));
 }
 

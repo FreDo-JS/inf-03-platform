@@ -1,7 +1,7 @@
 // Migracje 033 i kolejne *_teoria_*.sql — teoria przy podtematach mapy nauki.
 import { PGlite } from "@electric-sql/pglite";
 import { execFileSync } from "node:child_process";
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -31,9 +31,15 @@ console.log("== PLIKI SQL SĄ ŚWIEŻE ==");
   ok("są pliki z teorią i każdy pamięta, z czego powstał", zrodla.length >= 2 && zrodla.every((z) => z.numer && z.dzialy.length > 0),
     JSON.stringify(zrodla.map((z) => z.plik)));
   for (const z of zrodla) {
-    const przed = norm(read(z.plik));
+    // Generator nadpisuje plik w repozytorium. Porownujemy bez koncow linii
+    // (git na Windowsie oddaje CRLF, generator pisze LF), a potem oddajemy
+    // oryginalne bajty — inaczej kazdy przebieg testow zostawia plik
+    // "zmodyfikowany" w git status.
+    const oryginal = read(z.plik);
     execFileSync(process.execPath, [join(repo, "scripts", "teoria", "generuj.mjs"), z.dzialy.join(","), z.numer], { stdio: "pipe" });
-    ok(`${z.plik} odpowiada scripts/teoria/{${z.dzialy.join(",")}}`, przed === norm(read(z.plik)));
+    const po = read(z.plik);
+    writeFileSync(root + z.plik, oryginal);
+    ok(`${z.plik} odpowiada scripts/teoria/{${z.dzialy.join(",")}}`, norm(oryginal) === norm(po));
   }
 }
 
